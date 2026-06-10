@@ -2,23 +2,27 @@
 
 namespace App\Providers;
 
+use App\Models\Obra;
+use App\Models\Unidade;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Registra serviços da aplicação.
      */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
     /**
-     * Bootstrap any application services.
+     * Inicializa a aplicação.
      */
     public function boot(): void
     {
-        //
+        Relation::morphMap([
+            'unidade' => Unidade::class,
+            'obra' => Obra::class,
+            // demais models serão adicionados nas fases seguintes
+        ]);
     }
 }

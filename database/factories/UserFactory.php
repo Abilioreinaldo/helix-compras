@@ -13,13 +13,11 @@ use Illuminate\Support\Str;
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * A senha atual usada pela factory.
      */
     protected static ?string $password;
 
     /**
-     * Define the model's default state.
-     *
      * @return array<string, mixed>
      */
     public function definition(): array
@@ -30,16 +28,44 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'is_admin' => false,
+            'is_compradora' => false,
+            'status' => 'ativo',
+            'precisa_trocar_senha' => false,
         ];
     }
 
     /**
-     * Indicate that the model's email address should be unverified.
+     * Indica que o e-mail do usuário não foi verificado.
      */
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Usuário administrador do sistema.
+     */
+    public function admin(): static
+    {
+        return $this->state(['is_admin' => true]);
+    }
+
+    /**
+     * Usuário compradora sênior.
+     */
+    public function compradora(): static
+    {
+        return $this->state(['is_compradora' => true]);
+    }
+
+    /**
+     * Usuário que precisa trocar a senha no próximo login.
+     */
+    public function precisaTrocarSenha(): static
+    {
+        return $this->state(['precisa_trocar_senha' => true]);
     }
 }
