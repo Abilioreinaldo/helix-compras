@@ -11,6 +11,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             UsuarioSeeder::class,
             UnidadeSeeder::class,
+            FornecedorSeeder::class,
+            CentroCustoSeeder::class,
         ]);
     }
 }

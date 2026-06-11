@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditavel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['nome', 'valor_minimo', 'valor_maximo', 'is_emergencial', 'ativo'])]
 class FaixaAlcada extends Model
 {
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'faixas_alcada';
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\NivelAlcada;
+use App\Models\Concerns\Auditavel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['faixa_alcada_id', 'ordem', 'nivel_exigido'])]
 class EtapaAlcada extends Model
 {
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'etapas_alcada';
 

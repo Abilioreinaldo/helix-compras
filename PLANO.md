@@ -1,8 +1,8 @@
 # PLANO — Sistema de Gestão de Compras v1
 # Rede Comendador
 
-**Última atualização:** 2026-06-10
-**Status geral:** Fase 0 implementada — aguardando validação QA
+**Última atualização:** 2026-06-11
+**Status geral:** Fase 1 implementada — aguardando início Fase 2
 **Branch principal:** main
 
 ---
@@ -29,10 +29,10 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ## Fases
 
-### Fase 0 — Fundação técnica ✅ IMPLEMENTADA — aguarda QA
+### Fase 0 — Fundação técnica ✅ IMPLEMENTADA (21 testes, QA aprovado)
 **Objetivo:** estabelecer a base que todas as outras fases dependem — autenticação, layout, perfis de acesso, log de auditoria e estrutura de multi-unidade.
 
-**Status:** 16/16 testes passando. Pint limpo. migrate:fresh --seed OK.
+**Status:** 21/21 testes passando. Pint limpo. QA validou Marco M0.
 
 **Pronto:**
 - Enums: `Perfil`, `NivelAlcada`, `StatusUnidade`, `TipoUnidade`, `StatusObra`
@@ -45,18 +45,12 @@ Nenhum módulo de negócio implementado até a data deste plano.
 - Auth Livewire: `Login`, `TrocarSenha` (full-page, sem Breeze)
 - Middleware `ForcaTrocaSenha` registrado inline nas rotas (`auth` group)
 - Layout `app.blade.php` + `guest.blade.php`
-- `MenuLateral` Livewire (itens condicionados ao perfil)
+- `MenuLateral` Livewire (itens condicionados via `temPerfil()`)
 - `routes/web.php`: login, logout, dashboard, senha/trocar
 - `AppServiceProvider`: morphMap com `unidade` e `obra`
-- Testes Pest (16): auth, visibilidade por unidade, auditoria
 
-**Pendente:**
-- Validação QA formal contra Marco M0 (foi interrompida por limite de tokens)
+**Pendente backlog:**
 - Comando `requisicoes:marcar-atrasadas` (SLA 24h) — aguarda model Requisicao da Fase 2
-
-**Próximo passo ao retomar:**
-1. Acionar `qa` com o prompt do Marco M0 (ver histórico da conversa — prompt já estava pronto)
-2. Se QA aprovar → iniciar Fase 1 (Cadastros Base): acionar `tech-lead` + `data-architect` para confirmar que o schema da Fase 0 suporta os CRUDs, depois `dev` para implementar
 
 **O que é entregue:**
 - Autenticação (login/logout/senha) com perfis: Admin, Compradora, Aprovador, Solicitante, Gestor de Unidade
@@ -70,15 +64,34 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 1 — Cadastros Base
+### Fase 1 — Cadastros Base ✅ IMPLEMENTADA (35 testes, sec revisado)
 **Objetivo:** prover as entidades de referência que alimentam todos os fluxos de compra.
 
+**Status:** 35/35 testes passando (21 Fase0 + 14 Fase1). Pint limpo. Revisão sec: P0s e P1s corrigidos.
+
+**Pronto:**
+- Models: `Fornecedor` (global, sem PertenceAUnidade), `CentroCusto` (com PertenceAUnidade, `colunaUnidade='unidade_id'`)
+- `FaixaAlcada` e `EtapaAlcada`: trait `Auditavel` adicionado
+- Migrations (2): `fornecedores` (UNIQUE cnpj+deleted_at), `centros_custo` (UNIQUE unidade+codigo+deleted_at)
+- Factories + Seeders: `FornecedorFactory`, `CentroCustoFactory`, `FornecedorSeeder`, `CentroCustoSeeder`
+- Livewire Admin: `ListaUnidades`, `ListaUsuarios`, `ListaFornecedores`, `ListaAlcadas`, `ListaCentrosCusto`
+- Rotas admin: grupo `middleware(AdminMiddleware)`, prefixo `/admin`
+- `AdminMiddleware`: usa `temPerfil(Perfil::Admin)` (corrigido sec P0-1)
+- `MenuLateral`: usa `temPerfil()` para todos os checks (corrigido sec P0-2)
+- Todos os métodos de escrita Livewire: `abort_unless(temPerfil(Perfil::Admin), 403)` (sec P1-1/P1-2)
+- `ListaFornecedores::salvar()`: CNPJ único com `whereNull('deleted_at')` (sec P1-3)
+- `ListaUsuarios::adicionarVinculo()`: `Rule::exists()->whereNull('deleted_at')` (sec P1-4)
+- `ListaUsuarios::salvar()`: `isAdmin`/`isCompradora` validados como boolean; senha provisória exposta via `$senhaProvisoria` (sec P0-3, P1-5)
+- `ListaFornecedores::homologar()`: guard contra re-homologação (sec P2-3)
+
+**Pendente backlog (P2 — não bloqueante):**
+- PHPDoc em `Fornecedor` explicando ausência de PertenceAUnidade
+- Comentários em chamadas `withoutGlobalScopes()` nos componentes
+
 **O que é entregue:**
-- Cadastro de Unidades
-- Cadastro de Usuários vinculados a unidades e perfis
-- Cadastro de Fornecedores com flag homologado/pendente
-- Cadastro de Centros de Custo / Obras / Verbas (verba máxima por obra)
-- Cadastro de Alçadas parametrizáveis: faixas de valor com etapas de aprovação ordenadas (ordem 1, 2…); Admin configura quantos níveis quiser por faixa sem mudar schema
+- CRUD completo de Unidades, Usuários, Fornecedores, Centros de Custo/Obras, Alçadas
+- Seeds de dados de exemplo (FornecedorSeeder, CentroCustoSeeder)
+- Controle de senha provisória na criação de usuário
 
 **Dependências:** Fase 0 concluída (perfis, log e visibilidade por unidade já funcionando)
 

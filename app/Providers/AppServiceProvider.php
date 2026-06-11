@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\CentroCusto;
+use App\Models\Fornecedor;
 use App\Models\Obra;
 use App\Models\Unidade;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -22,7 +24,8 @@ class AppServiceProvider extends ServiceProvider
         Relation::morphMap([
             'unidade' => Unidade::class,
             'obra' => Obra::class,
-            // demais models serão adicionados nas fases seguintes
+            'fornecedor' => Fornecedor::class,
+            'centro_custo' => CentroCusto::class,
         ]);
     }
 }
