@@ -29,8 +29,8 @@ class MenuLateral extends Component
 
         if ($isCompradora) {
             $itens = array_merge($itens, [
-                ['label' => 'Fila de Requisições', 'href' => '#'],
-                ['label' => 'Cotações', 'href' => '#'],
+                ['label' => 'Triagem', 'href' => route('compradora.triagem')],
+                ['label' => 'Requisições', 'href' => route('requisicoes.index')],
                 ['label' => 'Pedidos de Compra', 'href' => '#'],
             ]);
         }
@@ -42,8 +42,8 @@ class MenuLateral extends Component
 
             if ($user->temPerfil(Perfil::Solicitante)) {
                 $itens = array_merge($itens, [
-                    ['label' => 'Minhas Requisições', 'href' => '#'],
-                    ['label' => 'Nova Requisição', 'href' => '#'],
+                    ['label' => 'Minhas Requisições', 'href' => route('requisicoes.index')],
+                    ['label' => 'Nova Requisição', 'href' => route('requisicoes.criar')],
                 ]);
             }
 

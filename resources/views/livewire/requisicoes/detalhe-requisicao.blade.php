@@ -5,6 +5,12 @@
             <p class="text-sm text-gray-500 mt-0.5">Criada em {{ $requisicao->created_at->format('d/m/Y H:i') }} por {{ $requisicao->solicitante->name ?? '—' }}</p>
         </div>
         <div class="flex gap-2">
+            @if ($requisicao->status->value === 'em_cotacao' && auth()->user()->temPerfil(\App\Enums\Perfil::CompradoraSenior))
+                <a href="{{ route('compradora.cotacoes', $requisicao->id) }}"
+                    class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-md">
+                    Gerenciar Cotações
+                </a>
+            @endif
             @if ($requisicao->status->permiteEdicao())
                 <a href="{{ route('requisicoes.editar', $requisicao->id) }}"
                     class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-md">

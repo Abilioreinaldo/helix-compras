@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-11
-**Status geral:** Fase 1 implementada — aguardando início Fase 2
+**Status geral:** Fase 3 implementada — aguardando início Fase 4
 **Branch principal:** main
 
 ---
@@ -99,34 +99,59 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 2 — Requisição de Compra + Módulo de Obras
+### Fase 2 — Requisição de Compra + Módulo de Obras ✅ IMPLEMENTADA (48 testes, sec revisado)
 **Objetivo:** permitir que solicitantes abram requisições e que o sistema aplique as regras de verba de obra automaticamente.
 
+**Status:** 48/48 testes passando. Pint limpo. Revisão sec: P0s e P1s corrigidos.
+
+**Pronto:**
+- Enum `StatusRequisicao` (13 casos), models `Requisicao`, `ItemRequisicao`, `RequisicaoLog`
+- `SubmeterRequisicaoAction`: lockForUpdate em obra, verba 80% alerta / 100% bloqueio, snapshot `faixa_alcada_id`
+- `TransicionarStatusRequisicaoAction`: mapa completo de transições (Fases 2–5)
+- Livewire: `FormularioRequisicao`, `ListaRequisicoes`, `DetalheRequisicao`
+- Compradora: `TriagemRequisicoes` — fila ordenada (atrasadas primeiro, depois por `submetida_em`)
+- Command `requisicoes:marcar-atrasadas` (agendado horário via `routes/console.php`)
+- `FaixaAlcada` agora imutável com SoftDeletes (versionamento garantido)
+- Migrations: soft_deletes em faixas_alcada, requisicoes, requisicao_itens, requisicao_logs
+- Factories + Seeders: `RequisicaoFactory`, `ItemRequisicaoFactory`, `RequisicaoSeeder`
+
 **O que é entregue:**
-- Formulário de Requisição com todos os campos (descrição, quantidade, urgência, centro de custo / obra, unidade)
-- Validação de verba por obra: alerta em 80% e bloqueio com escalada automática de aprovação ao atingir 100%
-- Log de status na criação da requisição
-- Visibilidade filtrada por unidade do solicitante
+- Formulário de Requisição com multi-item, urgência, emergencial, centro de custo/obra
+- Validação de verba: alerta 80%, bloqueio 100% com lockForUpdate
+- Log de status em cada transição
+- Visibilidade por unidade do solicitante; Compradora vê todas
 
-**Dependências:** Fase 1 concluída (Obras e Verbas precisam existir; Alçadas precisam existir para a escalada automática)
-
-**Risco principal:** regra de escalada automática ao estourar verba de obra envolve lógica cruzada entre Verbas e Alçadas — pode gerar casos-borda não mapeados. Mitigação: mapear cenários de teste com o PM antes de implementar a escalada.
+**Dependências:** Fase 1 concluída
 
 ---
 
-### Fase 3 — Cotação
+### Fase 3 — Cotação ✅ IMPLEMENTADA (60 testes, sec revisado)
 **Objetivo:** registrar as cotações recebidas para cada requisição e controlar o mínimo obrigatório por faixa de valor.
 
+**Status:** 60/60 testes passando. Pint limpo. Revisão sec: P0 + 3×P1 corrigidos.
+
+**Pronto:**
+- Model `Cotacao` (table=`cotacoes`, Auditavel, SoftDeletes, unique `requisicao_id+fornecedor_id+deleted_at`)
+- `RegistrarCotacaoAction`: valida homologado+ativo, disco `local`, grava `primeira_cotacao_em` na 1ª cotação
+- `MarcarCotacaoVencedoraAction`: zera anterior dentro de transação, grava `vencedora_definida_em/por`
+- `ConcluirCotacaoAction`: valida mínimo (emergencial=1, normal=`faixaAlcada.minimo_cotacoes`), exige exatamente 1 vencedora, grava `cotacao_concluida_em`, avança status via `TransicionarStatusRequisicaoAction`
+- Livewire `GestaoCotacoes`: WithFileUploads, abort_unless CompradoraSenior em todos os writes, refresh+status check antes de cada ação
+- `DownloadArquivoCotacaoController`: download autenticado do disco privado (apenas CompradoraSenior)
+- `minimo_cotacoes` em `faixas_alcada` (default 3), `primeira_cotacao_em` + `cotacao_concluida_em` em `requisicoes`
+- Rota `/compradora/cotacoes/arquivo/{cotacao}` registrada antes de `/{id}` (evita shadowing)
+- Link "Gerenciar Cotações" no DetalheRequisicao quando status=`em_cotacao`
+- Factories: `CotacaoFactory` (state `vencedora()`)
+
+**Correções de segurança aplicadas:**
+- P0: arquivos movidos para disco `local` (não público) + rota de download autenticada
+- P1: `mimetypes` em vez de `mimes`; revalidação de status em todos os write methods; removido `lockForUpdate` ineficaz
+
 **O que é entregue:**
-- Registro de cotações vinculadas à requisição (fornecedor, valor, anexo obrigatório)
-- Regra de mínimo de cotações por faixa de valor (configurada nas Alçadas)
-- Validação de que o fornecedor está homologado (fornecedor novo exige fluxo separado no cadastro, não inline aqui)
-- **Fluxo de compra emergencial:** requisição pode ser marcada como emergencial; exige 1 cotação no ato + justificativa obrigatória; flag "emergencial" permanente no registro; prazo de 24h para registro de cotações complementares
-- Log de status ao registrar cotação
+- Compradora registra N cotações com anexo; emergencial libera com 1
+- Sistema bloqueia avanço para CotacaoConcluida se mínimo não atingido ou sem vencedora
+- Mínimo configurável por faixa de alçada (admin parametriza)
 
-**Dependências:** Fase 2 concluída (requisição precisa existir); Fase 1 concluída (fornecedores e alçadas)
-
-**Risco principal:** armazenamento de anexos (upload de arquivos) pode ter comportamento diferente em produção vs. SQLite local. Mitigação: definir storage local para dev e cloud para produção antes de implementar o upload.
+**Dependências:** Fase 2 concluída; Fase 1 concluída (fornecedores e alçadas)
 
 ---
 

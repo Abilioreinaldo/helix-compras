@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['nome', 'valor_minimo', 'valor_maximo', 'is_emergencial', 'ativo'])]
+#[Fillable(['nome', 'valor_minimo', 'valor_maximo', 'is_emergencial', 'ativo', 'minimo_cotacoes'])]
 class FaixaAlcada extends Model
 {
     use Auditavel, HasFactory, SoftDeletes;
@@ -27,6 +27,7 @@ class FaixaAlcada extends Model
             'valor_maximo' => 'decimal:2',
             'is_emergencial' => 'boolean',
             'ativo' => 'boolean',
+            'minimo_cotacoes' => 'integer',
         ];
     }
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DownloadArquivoCotacaoController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\ForcaTrocaSenha;
 use App\Livewire\Admin\Alcadas\ListaAlcadas;
@@ -9,6 +10,7 @@ use App\Livewire\Admin\Unidades\ListaUnidades;
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\TrocarSenha;
+use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\TriagemRequisicoes;
 use App\Livewire\Requisicoes\DetalheRequisicao;
 use App\Livewire\Requisicoes\FormularioRequisicao;
@@ -41,6 +43,10 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 2 — Triagem (Compradora)
     Route::get('/compradora/triagem', TriagemRequisicoes::class)->name('compradora.triagem');
+
+    // Fase 3 — Cotações (Compradora) — rota estática 'arquivo' deve vir ANTES do parâmetro dinâmico {id}
+    Route::get('/compradora/cotacoes/arquivo/{cotacao}', DownloadArquivoCotacaoController::class)->name('compradora.cotacoes.arquivo');
+    Route::get('/compradora/cotacoes/{id}', GestaoCotacoes::class)->name('compradora.cotacoes');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {

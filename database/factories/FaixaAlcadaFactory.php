@@ -23,6 +23,7 @@ class FaixaAlcadaFactory extends Factory
             'valor_maximo' => $min + fake()->randomFloat(2, 1000, 50000),
             'is_emergencial' => false,
             'ativo' => true,
+            'minimo_cotacoes' => 3,
         ];
     }
 
