@@ -42,6 +42,8 @@ class UnidadeScope implements Scope
             return;
         }
 
-        $builder->whereIn('id', $ids);
+        $coluna = method_exists($model, 'colunaUnidade') ? $model::colunaUnidade() : 'id';
+
+        $builder->whereIn($coluna, $ids);
     }
 }

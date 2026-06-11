@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Perfil;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -40,6 +41,23 @@ class User extends Authenticatable
         return $this->belongsToMany(Unidade::class, 'unidade_user')
             ->withPivot(['perfil', 'nivel_alcada'])
             ->withTimestamps();
+    }
+
+    /**
+     * Verifica se o usuário possui o perfil informado em qualquer unidade,
+     * ou se é Admin/Compradora (papéis globais representados por flags).
+     */
+    public function temPerfil(Perfil $perfil): bool
+    {
+        return match ($perfil) {
+            Perfil::Admin => $this->is_admin,
+            Perfil::CompradoraSenior => $this->is_compradora,
+            default => $this->belongsToMany(Unidade::class, 'unidade_user')
+                ->withoutGlobalScopes()
+                ->withPivot('perfil')
+                ->wherePivot('perfil', $perfil->value)
+                ->exists(),
+        };
     }
 
     /**

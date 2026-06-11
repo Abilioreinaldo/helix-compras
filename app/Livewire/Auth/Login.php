@@ -23,7 +23,7 @@ class Login extends Component
         $this->validate();
 
         if (! Auth::attempt(['email' => $this->email, 'password' => $this->senha], $this->lembrar)) {
-            $this->addError('email', 'Credenciais inválidas.');
+            $this->addError('formulario', 'E-mail ou senha incorretos.');
 
             return;
         }

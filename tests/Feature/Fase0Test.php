@@ -3,6 +3,7 @@
 use App\Enums\Perfil;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\TrocarSenha;
+use App\Models\Obra;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,14 +25,15 @@ test('login com credenciais válidas redireciona para dashboard', function () {
         ->assertRedirect(route('dashboard'));
 });
 
-test('login com credenciais inválidas retorna erro genérico', function () {
+test('login com credenciais inválidas retorna erro no campo formulario sem revelar qual campo falhou', function () {
     $user = User::factory()->create(['password' => bcrypt('senha@123')]);
 
     Livewire::test(Login::class)
         ->set('email', $user->email)
         ->set('senha', 'senha_errada')
         ->call('autenticar')
-        ->assertHasErrors(['email' => 'Credenciais inválidas.']);
+        ->assertHasErrors(['formulario'])
+        ->assertHasNoErrors(['email', 'senha']);
 });
 
 test('login com precisa_trocar_senha redireciona para troca de senha', function () {
@@ -179,4 +181,65 @@ test('auditoria registra user_id null quando não há usuário autenticado', fun
         'evento' => 'criado',
         'user_id' => null,
     ]);
+});
+
+// ---------------------------------------------------------------------------
+// Correções QA: Obra com PertenceAUnidade, temPerfil centralizado
+// ---------------------------------------------------------------------------
+
+test('solicitante não enxerga obra de outra unidade', function () {
+    $unidadeA = Unidade::factory()->create();
+    $unidadeB = Unidade::factory()->create();
+
+    $obraA = Obra::factory()->create(['unidade_id' => $unidadeA->id]);
+    Obra::factory()->create(['unidade_id' => $unidadeB->id]);
+
+    $solicitante = User::factory()->create();
+    $unidadeA->usuarios()->attach($solicitante->id, [
+        'perfil' => Perfil::Solicitante->value,
+        'nivel_alcada' => null,
+    ]);
+
+    $this->actingAs($solicitante);
+
+    $visiveis = Obra::all();
+
+    expect($visiveis->pluck('id'))->toContain($obraA->id)
+        ->and($visiveis)->toHaveCount(1);
+});
+
+test('admin enxerga todas as obras', function () {
+    $unidades = Unidade::factory()->count(3)->create();
+    $unidades->each(fn ($u) => Obra::factory()->create(['unidade_id' => $u->id]));
+
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin);
+
+    expect(Obra::count())->toBe(3);
+});
+
+test('temPerfil retorna true para Admin com is_admin', function () {
+    $admin = User::factory()->admin()->create();
+
+    expect($admin->temPerfil(Perfil::Admin))->toBeTrue()
+        ->and($admin->temPerfil(Perfil::Solicitante))->toBeFalse();
+});
+
+test('temPerfil retorna true para CompradoraSenior com is_compradora', function () {
+    $compradora = User::factory()->compradora()->create();
+
+    expect($compradora->temPerfil(Perfil::CompradoraSenior))->toBeTrue()
+        ->and($compradora->temPerfil(Perfil::Admin))->toBeFalse();
+});
+
+test('temPerfil retorna true para Solicitante vinculado a unidade', function () {
+    $unidade = Unidade::factory()->create();
+    $solicitante = User::factory()->create();
+    $unidade->usuarios()->attach($solicitante->id, [
+        'perfil' => Perfil::Solicitante->value,
+        'nivel_alcada' => null,
+    ]);
+
+    expect($solicitante->temPerfil(Perfil::Solicitante))->toBeTrue()
+        ->and($solicitante->temPerfil(Perfil::Almoxarife))->toBeFalse();
 });

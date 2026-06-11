@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\StatusObra;
 use App\Models\Concerns\Auditavel;
+use App\Models\Concerns\PertenceAUnidade;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['unidade_id', 'iniciada_em', 'previsao_termino', 'encerrada_em', 'status', 'verba'])]
 class Obra extends Model
 {
-    use Auditavel, HasFactory;
+    use Auditavel, HasFactory, PertenceAUnidade;
+
+    public static function colunaUnidade(): string
+    {
+        return 'unidade_id';
+    }
 
     /**
      * @return array<string, string>
