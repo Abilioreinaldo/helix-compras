@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             UnidadeSeeder::class,
             FornecedorSeeder::class,
             CentroCustoSeeder::class,
+            RequisicaoSeeder::class,
         ]);
     }
 }

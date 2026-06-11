@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['nome', 'valor_minimo', 'valor_maximo', 'is_emergencial', 'ativo'])]
 class FaixaAlcada extends Model
 {
-    use Auditavel, HasFactory;
+    use Auditavel, HasFactory, SoftDeletes;
 
     protected $table = 'faixas_alcada';
 

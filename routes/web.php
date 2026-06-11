@@ -9,6 +9,10 @@ use App\Livewire\Admin\Unidades\ListaUnidades;
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\TrocarSenha;
+use App\Livewire\Compradora\TriagemRequisicoes;
+use App\Livewire\Requisicoes\DetalheRequisicao;
+use App\Livewire\Requisicoes\FormularioRequisicao;
+use App\Livewire\Requisicoes\ListaRequisicoes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +32,15 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
     })->name('logout');
 
     Route::get('/dashboard', fn () => view('dashboard'))->name('dashboard');
+
+    // Fase 2 — Requisições (qualquer usuário autenticado)
+    Route::get('/requisicoes', ListaRequisicoes::class)->name('requisicoes.index');
+    Route::get('/requisicoes/nova', FormularioRequisicao::class)->name('requisicoes.criar');
+    Route::get('/requisicoes/{id}', DetalheRequisicao::class)->name('requisicoes.detalhe');
+    Route::get('/requisicoes/{id}/editar', FormularioRequisicao::class)->name('requisicoes.editar');
+
+    // Fase 2 — Triagem (Compradora)
+    Route::get('/compradora/triagem', TriagemRequisicoes::class)->name('compradora.triagem');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
