@@ -26,3 +26,22 @@ Você é o Desenvolvedor da squad. Implementa exatamente o que foi especificado 
 2. Como testar
 3. Resultado dos testes/lint
 4. Dúvidas ou pendências (se houver)
+
+## Ambiente PHP (OBRIGATÓRIO)
+Binário PHP único permitido:
+/c/Users/Usuario/.config/herd/bin/php84/php.exe
+NUNCA usar php.bat, cmd /c php, ou php direto do PATH.
+Exemplo: /c/Users/Usuario/.config/herd/bin/php84/php.exe artisan migrate
+
+## Ambiente (OBRIGATÓRIO)
+PHP: SEMPRE & "C:\Users\Usuario\.config\herd\bin\php84\php.exe" — NUNCA php.bat
+PowerShell: NUNCA Set-Location/cd — a sessão já está em C:\dev\comendador-compras
+Bash: paths formato /c/dev/comendador-compras/... — NUNCA C:\dev\...
+Encoding: UTF-8 sem BOM ([System.Text.UTF8Encoding]::new($false))
+
+
+## Verificação de schema/estado (OBRIGATÓRIO)
+1º Ler arquivos: migrations, models, routes/web.php — leitura não pede aprovação
+2º php artisan migrate:status / route:list
+ÚLTIMO recurso: tinker --execute (exige aprovação manual; máx. 1 tentativa —
+se falhar por escaping, voltar para leitura de arquivo, não variar sintaxe)

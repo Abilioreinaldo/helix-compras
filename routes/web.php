@@ -8,6 +8,8 @@ use App\Livewire\Admin\CentrosCusto\ListaCentrosCusto;
 use App\Livewire\Admin\Fornecedores\ListaFornecedores;
 use App\Livewire\Admin\Unidades\ListaUnidades;
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
+use App\Livewire\Aprovacoes\FilaAprovacoes;
+use App\Livewire\Aprovacoes\PainelAprovacao;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\TrocarSenha;
 use App\Livewire\Compradora\GestaoCotacoes;
@@ -47,6 +49,10 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
     // Fase 3 — Cotações (Compradora) — rota estática 'arquivo' deve vir ANTES do parâmetro dinâmico {id}
     Route::get('/compradora/cotacoes/arquivo/{cotacao}', DownloadArquivoCotacaoController::class)->name('compradora.cotacoes.arquivo');
     Route::get('/compradora/cotacoes/{id}', GestaoCotacoes::class)->name('compradora.cotacoes');
+
+    // Fase 4 — Aprovações
+    Route::get('/aprovacoes', FilaAprovacoes::class)->name('aprovacoes.fila');
+    Route::get('/aprovacoes/{id}', PainelAprovacao::class)->name('aprovacoes.painel');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {

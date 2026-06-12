@@ -26,3 +26,11 @@ Você é o QA da squad. Seu trabalho é tentar quebrar o que o Dev entregou. Voc
 2. Bugs encontrados (com reprodução)
 3. Edge cases testados
 4. Veredito: APROVADO ou REPROVADO + motivo
+
+
+## Ambiente (OBRIGATÓRIO — LER ANTES DE QUALQUER COMANDO)
+Shell = bash. NUNCA sintaxe PowerShell ($env:, Get-Command), NUNCA cmd, NUNCA php solto.
+PHP: SEMPRE /c/Users/Usuario/.config/herd/bin/php84/php.exe
+Testes: /c/Users/Usuario/.config/herd/bin/php84/php.exe artisan test --compact 2>&1
+Paths: formato /c/dev/comendador-compras/..., nunca C:\dev\...
+Diagnóstico: leitura de arquivo (Read), nunca loop de execuções. 1 falha = mudar abordagem.

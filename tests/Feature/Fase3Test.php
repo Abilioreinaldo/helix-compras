@@ -4,16 +4,19 @@ use App\Actions\ConcluirCotacaoAction;
 use App\Actions\MarcarCotacaoVencedoraAction;
 use App\Actions\RegistrarCotacaoAction;
 use App\Actions\TransicionarStatusRequisicaoAction;
+use App\Enums\NivelAlcada;
 use App\Enums\Perfil;
 use App\Enums\StatusRequisicao;
 use App\Models\CentroCusto;
 use App\Models\Cotacao;
+use App\Models\EtapaAlcada;
 use App\Models\FaixaAlcada;
 use App\Models\Fornecedor;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
@@ -188,15 +191,45 @@ it('concluir_cotacao_sem_vencedora_lanca_excecao', function () {
         ->toThrow(ValidationException::class);
 });
 
-it('concluir_cotacao_avanca_status_para_cotacao_concluida', function () {
+it('concluir_cotacao_avanca_status_para_aguardando_aprovacao', function () {
+    Mail::fake();
     $compradora = criarCompradora();
+    $unidade = Unidade::factory()->create();
+    $solicitante = User::factory()->create();
+    $solicitante->unidades()->attach($unidade->id, ['perfil' => Perfil::Solicitante->value]);
+    $centro = CentroCusto::factory()->create(['unidade_id' => $unidade->id]);
+
     $faixa = FaixaAlcada::factory()->create([
         'valor_minimo' => 0,
         'is_emergencial' => false,
         'ativo' => true,
         'minimo_cotacoes' => 2,
     ]);
-    $requisicao = criarRequisicaoEmCotacao($faixa);
+    EtapaAlcada::factory()->create([
+        'faixa_alcada_id' => $faixa->id,
+        'ordem' => 1,
+        'nivel_exigido' => NivelAlcada::Gestor->value,
+    ]);
+
+    $aprovador = User::factory()->create();
+    $aprovador->unidades()->attach($unidade->id, [
+        'perfil' => Perfil::Aprovador->value,
+        'nivel_alcada' => NivelAlcada::Gestor->value,
+    ]);
+
+    $requisicao = Requisicao::create([
+        'solicitante_id' => $solicitante->id,
+        'unidade_id' => $unidade->id,
+        'centro_custo_id' => $centro->id,
+        'status' => StatusRequisicao::EmCotacao,
+        'urgente' => false,
+        'is_emergencial' => false,
+        'codigo' => 'REQ-2026-000001',
+        'faixa_alcada_id' => $faixa->id,
+        'submetida_em' => now(),
+        'triagem_iniciada_em' => now(),
+    ]);
+
     $f1 = criarFornecedorHomologado();
     $f2 = criarFornecedorHomologado();
 
@@ -208,11 +241,12 @@ it('concluir_cotacao_avanca_status_para_cotacao_concluida', function () {
 
     app(ConcluirCotacaoAction::class)->execute($requisicao);
 
-    expect($requisicao->fresh()->status)->toBe(StatusRequisicao::CotacaoConcluida)
+    expect($requisicao->fresh()->status)->toBe(StatusRequisicao::AguardandoAprovacao)
         ->and($requisicao->fresh()->cotacao_concluida_em)->not->toBeNull();
 });
 
 it('emergencial_pode_concluir_com_1_cotacao', function () {
+    Mail::fake();
     $compradora = criarCompradora();
     $unidade = Unidade::factory()->create();
     $solicitante = User::factory()->create();
@@ -224,6 +258,23 @@ it('emergencial_pode_concluir_com_1_cotacao', function () {
         'is_emergencial' => true,
         'ativo' => true,
         'minimo_cotacoes' => 3,
+    ]);
+    // Emergencial: Diretor é obrigatório — faixa só tem Gestor, portanto IniciarAprovacaoAction prepende Diretor
+    EtapaAlcada::factory()->create([
+        'faixa_alcada_id' => $faixa->id,
+        'ordem' => 1,
+        'nivel_exigido' => NivelAlcada::Gestor->value,
+    ]);
+
+    $aprovadorDiretor = User::factory()->create();
+    $aprovadorDiretor->unidades()->attach($unidade->id, [
+        'perfil' => Perfil::Aprovador->value,
+        'nivel_alcada' => NivelAlcada::Diretor->value,
+    ]);
+    $aprovadorGestor = User::factory()->create();
+    $aprovadorGestor->unidades()->attach($unidade->id, [
+        'perfil' => Perfil::Aprovador->value,
+        'nivel_alcada' => NivelAlcada::Gestor->value,
     ]);
 
     $requisicao = Requisicao::create([
@@ -247,7 +298,7 @@ it('emergencial_pode_concluir_com_1_cotacao', function () {
     app(MarcarCotacaoVencedoraAction::class)->execute($requisicao, $cotacao);
     app(ConcluirCotacaoAction::class)->execute($requisicao);
 
-    expect($requisicao->fresh()->status)->toBe(StatusRequisicao::CotacaoConcluida);
+    expect($requisicao->fresh()->status)->toBe(StatusRequisicao::AguardandoAprovacao);
 });
 
 it('cotacao_concluida_avanca_para_aguardando_aprovacao', function () {

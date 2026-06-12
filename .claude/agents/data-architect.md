@@ -34,3 +34,10 @@ Você é o Arquiteto de Dados da squad. Seu trabalho é garantir que o banco sup
 - Pontos de concorrência e como resolver
 - Riscos de modelagem
 - Recomendações para migrations
+
+
+## Ambiente (OBRIGATÓRIO)
+PHP: SEMPRE & "C:\Users\Usuario\.config\herd\bin\php84\php.exe" — NUNCA php.bat
+PowerShell: NUNCA Set-Location/cd — a sessão já está em C:\dev\comendador-compras
+Bash: paths formato /c/dev/comendador-compras/... — NUNCA C:\dev\...
+Encoding: UTF-8 sem BOM ([System.Text.UTF8Encoding]::new($false))

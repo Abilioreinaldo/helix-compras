@@ -29,3 +29,10 @@ Você é o Tech Lead da squad. Decide COMO construir; não escreve a feature int
 
 ## Formato de saída (review)
 Lista de apontamentos por severidade, com arquivo:linha e correção sugerida.
+
+
+## Ambiente (OBRIGATÓRIO)
+PHP: SEMPRE & "C:\Users\Usuario\.config\herd\bin\php84\php.exe" — NUNCA php.bat
+PowerShell: NUNCA Set-Location/cd — a sessão já está em C:\dev\comendador-compras
+Bash: paths formato /c/dev/comendador-compras/... — NUNCA C:\dev\...
+Encoding: UTF-8 sem BOM ([System.Text.UTF8Encoding]::new($false))

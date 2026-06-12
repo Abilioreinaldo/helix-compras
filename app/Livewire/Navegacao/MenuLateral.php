@@ -35,11 +35,11 @@ class MenuLateral extends Component
             ]);
         }
 
-        if (! $isAdmin && ! $isCompradora) {
-            if ($user->temPerfil(Perfil::Aprovador)) {
-                $itens[] = ['label' => 'Aprovações Pendentes', 'href' => '#'];
-            }
+        if ($user->temPerfil(Perfil::Aprovador)) {
+            $itens[] = ['label' => 'Aprovações', 'href' => route('aprovacoes.fila')];
+        }
 
+        if (! $isAdmin && ! $isCompradora) {
             if ($user->temPerfil(Perfil::Solicitante)) {
                 $itens = array_merge($itens, [
                     ['label' => 'Minhas Requisições', 'href' => route('requisicoes.index')],

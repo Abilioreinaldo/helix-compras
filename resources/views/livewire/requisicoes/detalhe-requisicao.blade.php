@@ -11,6 +11,12 @@
                     Gerenciar Cotações
                 </a>
             @endif
+            @if ($requisicao->status->value === 'aguardando_aprovacao' && auth()->user()->temPerfil(\App\Enums\Perfil::Aprovador))
+                <a href="{{ route('aprovacoes.painel', $requisicao->id) }}"
+                    class="text-sm text-green-600 hover:text-green-800 border border-green-300 px-3 py-1.5 rounded-md">
+                    Aprovar
+                </a>
+            @endif
             @if ($requisicao->status->permiteEdicao())
                 <a href="{{ route('requisicoes.editar', $requisicao->id) }}"
                     class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-md">

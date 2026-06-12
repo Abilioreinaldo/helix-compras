@@ -1,8 +1,8 @@
 # PLANO — Sistema de Gestão de Compras v1
 # Rede Comendador
 
-**Última atualização:** 2026-06-11
-**Status geral:** Fase 3 implementada — aguardando início Fase 4
+**Última atualização:** 2026-06-12
+**Status geral:** Fase 4 implementada — aguardando início Fase 5
 **Branch principal:** main
 
 ---
@@ -155,21 +155,37 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 4 — Aprovação
+### Fase 4 — Aprovação ✅ IMPLEMENTADA (73 testes, sec revisado, QA aprovado)
 **Objetivo:** implementar o fluxo de aprovação manual com dupla aprovação, notificação por e-mail e retorno para a Compradora em caso de rejeição.
 
-**O que é entregue:**
-- Roteamento da requisição pelas etapas ordenadas da alçada (etapa 1 → etapa 2 → … sem pular)
-- Emergencial: aprovação obrigatória do Diretor independente do valor; etapas superiores seguem normalmente
-- Regra: aprovador não pode aprovar a própria requisição
-- Aprovação e rejeição com justificativa obrigatória
-- Rejeição retorna a requisição para a Compradora com notificação
-- Notificações de mudança de status por e-mail (aprovado, rejeitado, aguardando aprovação)
-- Log de cada transição de status
+**Status:** 73/73 testes passando. Pint limpo. Revisão sec: P0s e P1s corrigidos. QA aprovado.
+
+**Pronto:**
+- Enum `StatusAprovacao` (Pendente, Aprovada, Reprovada, Pulada)
+- Model `Aprovacao` (`$table='aprovacoes'`, Auditavel, SoftDeletes, casts, relações)
+- Migration `aprovacoes`: ciclo, nivel_exigido, obrigatoria_emergencial, indexes compostos, unique com deleted_at
+- Migration `add_aprovacao_campos_to_requisicoes`: ciclo_aprovacao, aprovacao_iniciada_em, aprovada_em, reprovada_em, reprovada_por
+- `IniciarAprovacaoAction`: materializa etapas da alçada, valida aprovadores existentes, prepend Diretor para emergencial, e-mail pós-commit
+- `AprovarEtapaAction`: lockForUpdate, valida permissão por pivot (nível correto), avança etapas ou conclui aprovação, e-mail pós-commit
+- `ReprovarRequisicaoAction`: marca Reprovada+Puladas, incrementa ciclo, duas transições (→Reprovada→EmCotacao), notifica todas as compradoras
+- `ConcluirCotacaoAction`: encadeia `IniciarAprovacaoAction` fora da transação, captura ValidationException
+- Mailables: `RequisicaoAguardandoAprovacao`, `RequisicaoAprovada`, `RequisicaoReprovada` (views Markdown)
+- Livewire `FilaAprovacoes` e `PainelAprovacao` com abort_unless em mount+render+actions
+- IDOR fix em `PainelAprovacao::carregarRequisicao()` via query direta em `unidade_user`
+- Rotas `/aprovacoes` e `/aprovacoes/{id}`, link no MenuLateral e no DetalheRequisicao
+
+**Correções de segurança aplicadas:**
+- P0-1 IDOR: `PainelAprovacao` guard via `DB::table('unidade_user')` (não só `findOrFail`)
+- P0-2 Notificação: `ReprovarRequisicaoAction` usa `->get()->all()` — notifica TODAS as compradoras
+- P1-1 abort_unless em render(): adicionado em `FilaAprovacoes` e `PainelAprovacao`
+- P1-2 Falha em IniciarAprovacao: try-catch em `ConcluirCotacaoAction` reporta erro sem perder commit da cotação
+
+**Correções técnicas relevantes:**
+- `wherePivot` dentro de `whereHas` callback não funciona (recebe `Eloquent\Builder`, não `BelongsToMany`) — fixado com `User::whereIn('id', fn → unidade_user)` em `IniciarAprovacaoAction` e `AprovarEtapaAction`
+- Pluralização incorreta `aprovacaos` → fixada com `protected $table = 'aprovacoes'`
+- Mailables Markdown exigem `Content::markdown:` (não `Content::view:`) — corrigido em todos os 3
 
 **Dependências:** Fase 3 concluída (cotação mínima precisa estar satisfeita antes de entrar em aprovação); Fase 0 (perfis e log)
-
-**Risco principal:** fluxo de dupla aprovação tem estados intermediários (aguardando Diretor, aguardando CEO, um rejeitou) que podem não estar completamente especificados. Mitigação: desenhar o diagrama de estados completo com o PM antes de implementar.
 
 ---
 

@@ -10,7 +10,8 @@ use Illuminate\Validation\ValidationException;
 class ConcluirCotacaoAction
 {
     public function __construct(
-        private readonly TransicionarStatusRequisicaoAction $transicionar
+        private readonly TransicionarStatusRequisicaoAction $transicionar,
+        private readonly IniciarAprovacaoAction $iniciarAprovacao
     ) {}
 
     /**
@@ -43,5 +44,19 @@ class ConcluirCotacaoAction
 
             $this->transicionar->execute($requisicao, StatusRequisicao::CotacaoConcluida);
         });
+
+        // Inicia aprovação fora da transação de cotação para que o e-mail
+        // seja disparado apenas após o commit da cotação concluída.
+        // Se falhar (ex.: sem aprovadores cadastrados), a cotação já está
+        // comitada como CotacaoConcluida — o erro é reportado ao usuário
+        // para que o admin corrija a configuração de alçadas.
+        try {
+            $this->iniciarAprovacao->execute($requisicao);
+        } catch (ValidationException $e) {
+            $mensagem = collect($e->errors())->flatten()->first() ?? $e->getMessage();
+            throw ValidationException::withMessages([
+                'aprovacao' => "Cotação concluída, mas a aprovação não pôde ser iniciada: {$mensagem}",
+            ]);
+        }
     }
 }

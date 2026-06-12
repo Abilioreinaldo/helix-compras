@@ -176,3 +176,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Do NOT delete tests without approval.
 
 </laravel-boost-guidelines>
+
+
+Diagnóstico: preferir leitura de arquivo a execução. Loop de tentativas com
+variações de sintaxe é proibido — após 1 falha, mudar de abordagem.

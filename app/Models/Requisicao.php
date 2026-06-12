@@ -34,6 +34,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'codigo',
     'primeira_cotacao_em',
     'cotacao_concluida_em',
+    'ciclo_aprovacao',
+    'aprovacao_iniciada_em',
+    'aprovada_em',
+    'reprovada_em',
+    'reprovada_por',
 ])]
 class Requisicao extends Model
 {
@@ -67,6 +72,10 @@ class Requisicao extends Model
             'cancelada_em' => 'datetime',
             'primeira_cotacao_em' => 'datetime',
             'cotacao_concluida_em' => 'datetime',
+            'ciclo_aprovacao' => 'integer',
+            'aprovacao_iniciada_em' => 'datetime',
+            'aprovada_em' => 'datetime',
+            'reprovada_em' => 'datetime',
         ];
     }
 
@@ -132,6 +141,26 @@ class Requisicao extends Model
     public function cotacoes(): HasMany
     {
         return $this->hasMany(Cotacao::class);
+    }
+
+    /**
+     * Etapas de aprovação instanciadas para esta requisição.
+     */
+    public function aprovacoes(): HasMany
+    {
+        return $this->hasMany(Aprovacao::class)->orderBy('ciclo')->orderBy('ordem');
+    }
+
+    /**
+     * Etapa de aprovação atualmente pendente (ciclo atual, menor ordem pendente).
+     */
+    public function etapaAprovacaoAtual(): ?Aprovacao
+    {
+        return $this->aprovacoes()
+            ->where('ciclo', $this->ciclo_aprovacao ?? 1)
+            ->where('status', 'pendente')
+            ->orderBy('ordem')
+            ->first();
     }
 
     /**
