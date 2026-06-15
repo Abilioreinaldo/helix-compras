@@ -11,6 +11,7 @@ use App\Livewire\Admin\Unidades\ListaUnidades;
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Livewire\Almoxarife\GestaoPedidosRecebimento;
 use App\Livewire\Almoxarife\RegistroRecebimento;
+use App\Livewire\Almoxarife\SaldosEstoque;
 use App\Livewire\Aprovacoes\FilaAprovacoes;
 use App\Livewire\Aprovacoes\PainelAprovacao;
 use App\Livewire\Auth\Login;
@@ -69,6 +70,9 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
     // Fase 6 — Recebimento (Almoxarife)
     Route::get('/almoxarife/recebimentos', GestaoPedidosRecebimento::class)->name('almoxarife.recebimentos.index');
     Route::get('/almoxarife/recebimentos/{id}', RegistroRecebimento::class)->name('almoxarife.recebimentos.registrar');
+
+    // Fase 7 — Estoque (Almoxarife)
+    Route::get('/almoxarife/estoque', SaldosEstoque::class)->name('almoxarife.estoque.index');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {

@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-15
-**Status geral:** Fase 6 implementada — aguardando início Fase 7
+**Status geral:** Fase 7 (Estoque) implementada — aguardando início Fase 8 (Relatórios)
 **Branch principal:** main
 
 ---
@@ -220,7 +220,7 @@ Nenhum módulo de negócio implementado até a data deste plano.
 ---
 
 ### Fase 6 — Recebimento ✅ IMPLEMENTADA (109 testes, Pint limpo)
-**Objetivo:** registrar o recebimento das mercadorias, total ou parcial, sem integração com estoque.
+**Objetivo:** registrar o recebimento das mercadorias, total ou parcial, com integração automática ao estoque (F7).
 
 **Status:** 109/109 testes passando (92 Fases 0–5 + 17 Fase 6). Pint limpo.
 
@@ -244,8 +244,41 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 7 — Relatórios v1
-**Objetivo:** entregar as três visões de dados aprovadas para o v1.
+### Fase 7 — Estoque ✅ IMPLEMENTADA (126 testes, Pint limpo, sec + QA aprovados)
+**Objetivo:** controlar saldo de estoque por item × depósito com custo médio ponderado (CMP) e append-only ledger de movimentações.
+
+**Status:** 126/126 testes passando (109 Fases 0–6 + 17 Fase 7). Pint limpo. npm build OK.
+
+**Pronto:**
+- Enum `TipoMovimentacao` (Entrada, Saida, AjustePositivo, AjusteNegativo) com `adicionaEstoque()`
+- Model `SaldoEstoque` (Auditavel) — snapshot derivado: quantidade, custo_medio_ponderado, valor_total
+- Model `MovimentacaoEstoque` (Auditavel) — ledger append-only, sem SoftDeletes; FK gancho `item_pedido_compra_id` → `itens_pedido_compra.{prazo_entrega, modalidade_entrega}` para F8+
+- `SaldoEstoque::normalizarDescricao()`: trim + lowercase + colapsa espaços múltiplos
+- Identidade do saldo: UNIQUE `(unidade_id, deposito, descricao_normalizada)`; `descricao_item` mantido para exibição
+- `EntradaEstoqueAction`: chamada DENTRO da transação de `RegistrarRecebimentoAction`; recalcula CMP: `(valor_atual + qtd × custo) / (qtd_atual + qtd_nova)`; `lockForUpdate` defensivo (SQLite serializa, MySQL necessita)
+- `SaidaEstoqueAction`: abre própria transação; usa CMP vigente sem alterar; guarda de unidade; saldo clampado a 0 na janela de tolerância de ponto flutuante
+- `AjusteEstoqueAction`: mesmo padrão de saída; ajuste NÃO altera CMP (AjustePositivo/Negativo valorizam pelo CMP vigente)
+- `RegistrarRecebimentoAction`: modificado — injeta `EntradaEstoqueAction`, chama para cada `ItemRecebimento` criado; depósito derivado de `ItemPedidoCompra.destino`
+- Livewire `SaldosEstoque`: lista saldos por unidade (filtra via pivot `Almoxarife`), busca por `descricao_normalizada`, filtro por depósito, row vermelha quando quantidade ≤ 0
+- Rota `GET /almoxarife/estoque` → `almoxarife.estoque.index`; MenuLateral Almoxarife atualizado
+- Migrations: `saldos_estoque` e `movimentacoes_estoque`
+
+**Fora do escopo F7 (v1.1+):**
+- UI para saída manual e ajuste de inventário (actions existem, sem tela ainda)
+- Lote/validade, PEPS, transferência entre depósitos, ressuprimento automático
+- **Catálogo de itens (v1.1):** a identidade por `descricao_normalizada` é pragmática para v1; a v1.1 introduzirá `catalogo_itens` com UUID e exigirá reconciliação de saldos existentes (migração de chave por semelhança de texto + aprovação manual)
+
+**Correções de segurança aplicadas:**
+- P0: `Auditavel` adicionado em `MovimentacaoEstoque` (ledger financeiro exige trilha)
+- P1: guarda de unidade em `SaidaEstoqueAction` e `AjusteEstoqueAction` (`wherePivot Almoxarife`)
+- P1: `withoutGlobalScopes()` nos re-locks internos das actions (auth context não garantido em queue/job futuro)
+
+**Dependências:** Fase 6 concluída (`RegistrarRecebimentoAction` é o ponto de entrada de estoque)
+
+---
+
+### Fase 8 — Relatórios v1
+**Objetivo:** entregar as quatro visões de dados aprovadas para o v1.
 
 **O que é entregue:**
 - Relatório: gasto por centro de custo (filtro mês/ano)
@@ -253,7 +286,7 @@ Nenhum módulo de negócio implementado até a data deste plano.
 - Relatório: custo acumulado por obra com curva mensal
 - **Relatório: compras emergenciais por unidade e solicitante (mensal)** — emergência recorrente é sinal de falha de planejamento
 
-**Dependências:** Fases 1 a 6 concluídas (dados precisam existir e estar populados)
+**Dependências:** Fases 1 a 7 concluídas (dados precisam existir e estar populados)
 
 **Risco principal:** performance das consultas com SQLite em dev pode não revelar problemas que aparecem em produção com volume real. Mitigação: indexar as colunas de filtro desde a modelagem e testar com seeds de volume.
 
@@ -269,7 +302,8 @@ Fase 0 (Fundação)
                 → Fase 4 (Aprovação)
                     → Fase 5 (Pedido de Compra)
                         → Fase 6 (Recebimento)
-                            → Fase 7 (Relatórios)
+                            → Fase 7 (Estoque)
+                                → Fase 8 (Relatórios)
 ```
 
 Todas as fases são estritamente sequenciais — não há paralelismo seguro porque cada fase consome entidades criadas na fase anterior.
@@ -296,14 +330,16 @@ Todas as fases são estritamente sequenciais — não há paralelismo seguro por
 | M3 | Fase 3 | Compradora registra 3 cotações com anexo; sistema bloqueia avanço se mínimo não atingido |
 | M4 | Fase 4 | Requisição percorre ciclo completo de aprovação dupla e rejeição com e-mail disparado em cada transição |
 | M5 | Fase 5 | PDF do Pedido de Compra gerado com número PC-AAAA-NNNN; múltiplas requisições agrupadas num único pedido |
-| M6 | Fase 6 | Pedido recebe dois recebimentos parciais e fecha como "Recebido Totalmente" sem tocar estoque |
-| M7 | Fase 7 | Quatro relatórios renderizados com dados reais de seeds; custo acumulado por obra exibe curva mensal correta; relatório emergencial lista compras com flag "emergencial" agrupadas por unidade/solicitante |
+| M6 | Fase 6 | Pedido recebe dois recebimentos parciais e fecha como "Recebido Totalmente"; entrada automática de estoque disparada |
+| M7 | Fase 7 | CMP recalculado corretamente após dois lotes de custo distinto; saída reduz saldo pelo CMP vigente sem alterá-lo; saldo negativo bloqueado |
+| M8 | Fase 8 | Quatro relatórios renderizados com dados reais de seeds; custo acumulado por obra exibe curva mensal correta; relatório emergencial lista compras com flag "emergencial" agrupadas por unidade/solicitante |
 
 ---
 
 ## Fora da v1 (não planejar, não implementar)
 
-- Estoque completo (módulo completo; lote/validade vai para v1.1)
+- Lote/validade (vai para v1.1 junto com catálogo de itens)
+- Catálogo de itens centralizado: v1 usa `descricao_normalizada` como chave de identidade — v1.1 introduz UUID de catálogo e exige reconciliação de saldos existentes
 - Rateio da central
 - Relatórios por fornecedor, tempo médio, consumo, comparativo entre unidades
 - Lembrete de 48h em notificações

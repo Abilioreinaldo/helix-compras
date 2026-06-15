@@ -50,7 +50,7 @@ class MenuLateral extends Component
             if ($user->temPerfil(Perfil::Almoxarife)) {
                 $itens = array_merge($itens, [
                     ['label' => 'Recebimentos', 'href' => route('almoxarife.recebimentos.index')],
-                    ['label' => 'Estoque', 'href' => '#'],
+                    ['label' => 'Estoque', 'href' => route('almoxarife.estoque.index')],
                 ]);
             }
         }

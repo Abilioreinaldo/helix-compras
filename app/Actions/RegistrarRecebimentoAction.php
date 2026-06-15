@@ -17,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 class RegistrarRecebimentoAction
 {
     public function __construct(
-        private readonly TransicionarStatusRequisicaoAction $transicionar
+        private readonly TransicionarStatusRequisicaoAction $transicionar,
+        private readonly EntradaEstoqueAction $entradaEstoque,
     ) {}
 
     /**
@@ -76,11 +77,18 @@ class RegistrarRecebimentoAction
             ]);
 
             foreach ($itensComQtd as $itemId => $qtdNova) {
-                ItemRecebimento::create([
+                $itemRecebimento = ItemRecebimento::create([
                     'recebimento_id' => $recebimento->id,
                     'item_pedido_compra_id' => $itemId,
                     'quantidade_recebida' => (float) $qtdNova,
                 ]);
+
+                $this->entradaEstoque->execute(
+                    itemPedidoCompra: $itens->get($itemId),
+                    itemRecebimento: $itemRecebimento,
+                    quantidade: (float) $qtdNova,
+                    registradoPor: $almoxarife,
+                );
             }
 
             // Verificar conclusão por requisição
