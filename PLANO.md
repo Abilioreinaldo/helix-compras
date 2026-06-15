@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-15
-**Status geral:** Fase 5 implementada — aguardando início Fase 6
+**Status geral:** Fase 6 implementada — aguardando início Fase 7
 **Branch principal:** main
 
 ---
@@ -219,20 +219,28 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 6 — Recebimento
+### Fase 6 — Recebimento ✅ IMPLEMENTADA (109 testes, Pint limpo)
 **Objetivo:** registrar o recebimento das mercadorias, total ou parcial, sem integração com estoque.
 
-**O que é entregue:**
-- Registro de recebimento vinculado ao Pedido de Compra
-- Status: Recebido Totalmente / Recebido Parcialmente / Pendente
-- Múltiplos recebimentos parciais até completar o pedido
-- **Critério de parcial:** por quantidade, item a item; pedido fecha quando todas as quantidades forem recebidas (decisão GP-2)
-- Log de cada recebimento
-- Notificação de status por e-mail
+**Status:** 109/109 testes passando (92 Fases 0–5 + 17 Fase 6). Pint limpo.
+
+**Pronto:**
+- Enum `StatusRecebimentoPedido` (Pendente, Parcial, Total) — derivado via `PedidoCompra::statusRecebimento()`
+- Models: `Recebimento` (Auditavel, SoftDeletes), `ItemRecebimento` (SoftDeletes)
+- Migrations: `recebimentos` (pedido_compra_id, almoxarife_id, recebido_em, observacoes) e `itens_recebimento` (recebimento_id, item_pedido_compra_id, quantidade_recebida)
+- `RegistrarRecebimentoAction`: valida PC Emitido, valida saldo por item (sem exceder quantidade ordenada), cria Recebimento+ItemRecebimento, verifica conclusão por requisição pós-gravação, e-mail pós-commit
+- Transição automática: recebimento total → `EmCompra → Recebida → Concluida` (imediato, automático)
+- Query `verificarConclusaoRequisicao` e `statusRecebimento()` usam subquery pré-agregada para evitar fan-out em múltiplos recebimentos
+- Livewire: `GestaoPedidosRecebimento` (lista PCs emitidos da unidade com badge de status), `RegistroRecebimento` (formulário por item + histórico)
+- IDOR guard em `RegistroRecebimento`: verifica `unidade_user` pivot para o almoxarife
+- Mailable `PedidoCompraRecebido` → notifica solicitante apenas quando requisição vai a Concluída
+- Rotas: `/almoxarife/recebimentos` e `/almoxarife/recebimentos/{id}`
+- `MenuLateral`: link "Recebimentos" do Almoxarife apontado para rota real
+
+**Escopo não implementado em F6 (risco anotado):**
+- Permissão por unidade de destino do item (cross-unit por almoxarife distinto) — F6.1
 
 **Dependências:** Fase 5 concluída (pedido precisa existir)
-
-**Risco principal:** pedidos com itens para unidades diferentes podem ter recebimentos registrados por almoxarifes distintos — validar se o controle de "recebido por item" precisa de permissão por unidade de destino.
 
 ---
 

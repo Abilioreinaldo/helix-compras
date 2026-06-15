@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ModalidadeEntrega;
 use App\Enums\StatusPedidoCompra;
+use App\Enums\StatusRecebimentoPedido;
 use App\Models\Concerns\Auditavel;
 use App\Models\Concerns\PertenceAUnidade;
 use Database\Factories\PedidoCompraFactory;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'numero',
@@ -91,10 +93,46 @@ class PedidoCompra extends Model
         return $this->hasMany(ItemPedidoCompra::class)->orderBy('requisicao_id')->orderBy('id');
     }
 
+    public function recebimentos(): HasMany
+    {
+        return $this->hasMany(Recebimento::class)->orderBy('recebido_em');
+    }
+
     /** Valor total do pedido (soma dos itens). */
     public function valorTotal(): float
     {
         return (float) $this->itens()->sum('valor_total');
+    }
+
+    /** Status de recebimento derivado da soma de quantidades recebidas vs. ordenadas. */
+    public function statusRecebimento(): StatusRecebimentoPedido
+    {
+        $totais = DB::table('itens_pedido_compra as ipc')
+            ->leftJoin(
+                DB::raw('(SELECT item_pedido_compra_id, SUM(quantidade_recebida) as rec FROM itens_recebimento WHERE deleted_at IS NULL GROUP BY item_pedido_compra_id) as ir'),
+                'ir.item_pedido_compra_id', '=', 'ipc.id'
+            )
+            ->where('ipc.pedido_compra_id', $this->id)
+            ->whereNull('ipc.deleted_at')
+            ->selectRaw('SUM(ipc.quantidade) as total_ordenado, COALESCE(SUM(ir.rec), 0) as total_recebido')
+            ->first();
+
+        if (! $totais || (float) $totais->total_ordenado === 0.0) {
+            return StatusRecebimentoPedido::Pendente;
+        }
+
+        $recebido = (float) $totais->total_recebido;
+        $ordenado = (float) $totais->total_ordenado;
+
+        if ($recebido <= 0.0) {
+            return StatusRecebimentoPedido::Pendente;
+        }
+
+        if ($recebido >= $ordenado - 0.001) {
+            return StatusRecebimentoPedido::Total;
+        }
+
+        return StatusRecebimentoPedido::Parcial;
     }
 
     /** Requisições distintas vinculadas a este pedido via itens. */
