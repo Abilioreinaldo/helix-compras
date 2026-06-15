@@ -35,6 +35,15 @@ class MenuLateral extends Component
             ]);
         }
 
+        if ($isAdmin || $isCompradora) {
+            $itens = array_merge($itens, [
+                ['label' => 'Gastos por CC', 'href' => route('relatorios.gastos-cc')],
+                ['label' => 'Pendentes por Aprovador', 'href' => route('relatorios.pendentes-aprovador')],
+                ['label' => 'Custo por Obra', 'href' => route('relatorios.custo-obra')],
+                ['label' => 'Compras Emergenciais', 'href' => route('relatorios.emergenciais')],
+            ]);
+        }
+
         if ($user->temPerfil(Perfil::Aprovador)) {
             $itens[] = ['label' => 'Aprovações', 'href' => route('aprovacoes.fila')];
         }

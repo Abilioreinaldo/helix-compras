@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-15
-**Status geral:** Fase 7 (Estoque) implementada — aguardando início Fase 8 (Relatórios)
+**Status geral:** Fases 0–8 implementadas — v1 completa
 **Branch principal:** main
 
 ---
@@ -277,18 +277,32 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 8 — Relatórios v1
+### Fase 8 — Relatórios v1 ✅ IMPLEMENTADA (142 testes, Pint limpo, sec + QA aprovados)
 **Objetivo:** entregar as quatro visões de dados aprovadas para o v1.
 
-**O que é entregue:**
-- Relatório: gasto por centro de custo (filtro mês/ano)
-- Relatório: requisições pendentes por aprovador
-- Relatório: custo acumulado por obra com curva mensal
-- **Relatório: compras emergenciais por unidade e solicitante (mensal)** — emergência recorrente é sinal de falha de planejamento
+**Status:** 142/142 testes passando (126 Fases 0–7 + 16 Fase 8). Pint limpo. npm build OK. sec + QA aprovados.
+
+**Pronto:**
+- Livewire `GastosCentroCusto` — R1: agrega SUM(valor_total) por CC com filtro ano/mês; acesso via `podeVerTodasUnidades()`
+- Livewire `RequisicoesAprovador` — R2: snapshot atual de aprovações pendentes do ciclo vigente via `JOIN ON a.ciclo = r.ciclo_aprovacao`
+- Livewire `CustoObra` — R3: custo comprometido (PC emitido) por obra × mês com curva acumulada; `strftime('%m', pc.emitido_em)` SQLite-native; verba nullable tratada com `!== null`
+- Livewire `ComprasEmergenciais` — R4: cascata PC emitido > cotação vencedora (`MAX(valor) GROUP BY`) > estimativa via `COALESCE`; filtro ano + mês atual por padrão
+- 4 views Blade com empty state explícito, tabelas com totais e badges de alerta
+- MenuLateral: 4 links de relatórios visíveis para Admin e CompradoraSenior
+- Rotas: `/relatorios/gastos-cc`, `/relatorios/pendentes-aprovador`, `/relatorios/custo-obra`, `/relatorios/emergenciais`
+
+**Correções de segurança/QA aplicadas:**
+- Sec P1: `whereNull('un.deleted_at')` adicionado em `CustoObra` (unidades têm SoftDeletes; `DB::table()` ignora scope global)
+- QA BUG-04 (ALTO): `cot_val` subquery em R4 agora usa `MAX(valor) GROUP BY requisicao_id` — evita fan-out se houver duas cotações vencedoras para a mesma requisição
+- QA BUG-03 (BAIXO): verba `0.0` tratada com `!== null` em vez de cast falsy `? :` em `CustoObra`
+- Bug corrigido antes dos testes: `requisicao_itens` não tem SoftDeletes — cláusula `deleted_at IS NULL` removida da subquery `est_val`
+
+**Decisões de escopo:**
+- `abort_unless(podeVerTodasUnidades(), 403)` em mount() + render() é dupla guarda suficiente; middleware de rota fica como P2/backlog
+- R1 usa INNER JOIN em `centro_custo_id` (intencional: relatório de CC pressupõe CC obrigatório em requisições emitidas)
+- R4 default: mês atual (não ano inteiro) para focar em compras recentes
 
 **Dependências:** Fases 1 a 7 concluídas (dados precisam existir e estar populados)
-
-**Risco principal:** performance das consultas com SQLite em dev pode não revelar problemas que aparecem em produção com volume real. Mitigação: indexar as colunas de filtro desde a modelagem e testar com seeds de volume.
 
 ---
 

@@ -21,6 +21,10 @@ use App\Livewire\Compradora\FormularioPedidoCompra;
 use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\GestaoPedidosCompra;
 use App\Livewire\Compradora\TriagemRequisicoes;
+use App\Livewire\Relatorios\ComprasEmergenciais;
+use App\Livewire\Relatorios\CustoObra;
+use App\Livewire\Relatorios\GastosCentroCusto;
+use App\Livewire\Relatorios\RequisicoesAprovador;
 use App\Livewire\Requisicoes\DetalheRequisicao;
 use App\Livewire\Requisicoes\FormularioRequisicao;
 use App\Livewire\Requisicoes\ListaRequisicoes;
@@ -73,6 +77,12 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 7 — Estoque (Almoxarife)
     Route::get('/almoxarife/estoque', SaldosEstoque::class)->name('almoxarife.estoque.index');
+
+    // Fase 8 — Relatórios (Admin e CompradoraSenior)
+    Route::get('/relatorios/gastos-cc', GastosCentroCusto::class)->name('relatorios.gastos-cc');
+    Route::get('/relatorios/pendentes-aprovador', RequisicoesAprovador::class)->name('relatorios.pendentes-aprovador');
+    Route::get('/relatorios/custo-obra', CustoObra::class)->name('relatorios.custo-obra');
+    Route::get('/relatorios/emergenciais', ComprasEmergenciais::class)->name('relatorios.emergenciais');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
