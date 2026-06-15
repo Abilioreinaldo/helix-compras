@@ -22,7 +22,7 @@ class TransicionarStatusRequisicaoAction
             StatusRequisicao::AguardandoAprovacao->value => [StatusRequisicao::Aprovada->value, StatusRequisicao::Reprovada->value],
             StatusRequisicao::Reprovada->value => [StatusRequisicao::EmCotacao->value],
             StatusRequisicao::Aprovada->value => [StatusRequisicao::EmCompra->value],
-            StatusRequisicao::EmCompra->value => [StatusRequisicao::Recebida->value],
+            StatusRequisicao::EmCompra->value => [StatusRequisicao::Aprovada->value, StatusRequisicao::Recebida->value],
             StatusRequisicao::Recebida->value => [StatusRequisicao::Concluida->value],
         ];
     }

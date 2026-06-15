@@ -1,8 +1,8 @@
 # PLANO — Sistema de Gestão de Compras v1
 # Rede Comendador
 
-**Última atualização:** 2026-06-12
-**Status geral:** Fase 4 implementada — aguardando início Fase 5
+**Última atualização:** 2026-06-15
+**Status geral:** Fase 5 implementada — aguardando início Fase 6
 **Branch principal:** main
 
 ---
@@ -189,21 +189,33 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fase 5 — Pedido de Compra
+### Fase 5 — Pedido de Compra ✅ IMPLEMENTADA (92 testes, sec revisado, QA aprovado)
 **Objetivo:** gerar o Pedido de Compra formal a partir de requisições aprovadas, incluindo PDF e número sequencial.
 
-**O que é entregue:**
-- Criação do Pedido de Compra com número sequencial PC-AAAA-NNNN
-- Vínculo com o fornecedor vencedor da cotação
-- Campos: prazo de entrega, modalidade de entrega
-- Agrupamento de requisições num único pedido pela Compradora
-- Geração de PDF do Pedido de Compra
-- Log de status na criação do pedido
-- Notificação de status por e-mail ao solicitante
+**Status:** 92/92 testes passando (73 Fases 0–4 + 19 Fase 5). Pint limpo. npm build OK.
+
+**Pronto:**
+- Enum `StatusPedidoCompra` (Rascunho, Emitido, Cancelado) e `ModalidadeEntrega` (Entrega, Retirada, Transportadora)
+- Models: `PedidoCompra` (Auditavel, PertenceAUnidade, SoftDeletes), `ItemPedidoCompra` (SoftDeletes)
+- Migrations (4): `pedidos_compra`, `sequencias_pedido_compra`, `itens_pedido_compra`, `add_prazo_entrega_modalidade_entrega`
+- `CriarRascunhoPedidoAction`: valida cotação vencedora do fornecedor, aceita Aprovada e EmCompra
+- `EmitirPedidoCompraAction`: número PC-AAAA-NNNN com lockForUpdate, guard de desmembramento (soma PCs ≤ cotação), transita requisições para EmCompra, e-mail pós-commit
+- `CancelarPedidoCompraAction`: reverte requisição para Aprovada apenas se nenhum outro PC emitido a cobrir; teto liberado para novos PCs
+- `TransicionarStatusRequisicaoAction`: transições EmCompra→Aprovada e EmCompra→Recebida
+- Livewire: `GestaoPedidosCompra` (sugestões por fornecedor), `FormularioPedidoCompra` (edição de itens + campos novos), `DetalhePedidoCompra` (cancelamento)
+- `BaixarPdfPedidoCompraController`: DomPDF, disco privado, guard CompradoraSenior, 404 para rascunho
+- PDF template com rastreabilidade por requisição e agrupamento por destino
+- Mailable `PedidoCompraEmitido` → notifica todos os solicitantes das requisições vinculadas
+- Factories: `PedidoCompraFactory` (estados `emitido`, `cancelado`), `ItemPedidoCompraFactory`
+- Rotas: `/compradora/pedidos`, `/{id}`, `/{id}/editar`, `/{id}/pdf` (estática antes do dinâmico)
+- `MenuLateral` atualizado com "Pedidos de Compra" para CompradoraSenior
+
+**Correções de escopo aplicadas (vs. spec original):**
+- `prazo_entrega` (date) e `modalidade_entrega` (enum) adicionados via migration — campos semânticos no lugar de texto livre
+- Guard de desmembramento confirma `soma PCs emitidos ≤ valor cotação vencedora` (com tolerância de R$0,005)
+- Cancelamento de PC desmembrado: requisição mantém EmCompra se outro PC ainda a cobre; saldo do PC cancelado é devolvido (guard recalcula excluindo PCs cancelados)
 
 **Dependências:** Fase 4 concluída (só requisições aprovadas viram pedido)
-
-**Risco principal:** geração de PDF pode demandar biblioteca ou serviço externo não previsto. Mitigação: definir a solução de PDF (ex.: DomPDF já disponível no ecossistema Laravel) antes de iniciar a fase.
 
 ---
 

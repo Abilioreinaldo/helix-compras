@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BaixarPdfPedidoCompraController;
 use App\Http\Controllers\DownloadArquivoCotacaoController;
 use App\Http\Middleware\AdminMiddleware;
 use App\Http\Middleware\ForcaTrocaSenha;
@@ -12,7 +13,10 @@ use App\Livewire\Aprovacoes\FilaAprovacoes;
 use App\Livewire\Aprovacoes\PainelAprovacao;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\TrocarSenha;
+use App\Livewire\Compradora\DetalhePedidoCompra;
+use App\Livewire\Compradora\FormularioPedidoCompra;
 use App\Livewire\Compradora\GestaoCotacoes;
+use App\Livewire\Compradora\GestaoPedidosCompra;
 use App\Livewire\Compradora\TriagemRequisicoes;
 use App\Livewire\Requisicoes\DetalheRequisicao;
 use App\Livewire\Requisicoes\FormularioRequisicao;
@@ -45,6 +49,12 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 2 — Triagem (Compradora)
     Route::get('/compradora/triagem', TriagemRequisicoes::class)->name('compradora.triagem');
+
+    // Fase 5 — Pedidos de Compra (rota estática antes das dinâmicas)
+    Route::get('/compradora/pedidos/{id}/pdf', BaixarPdfPedidoCompraController::class)->name('compradora.pedidos.pdf');
+    Route::get('/compradora/pedidos', GestaoPedidosCompra::class)->name('compradora.pedidos.index');
+    Route::get('/compradora/pedidos/{id}/editar', FormularioPedidoCompra::class)->name('compradora.pedidos.editar');
+    Route::get('/compradora/pedidos/{id}', DetalhePedidoCompra::class)->name('compradora.pedidos.detalhe');
 
     // Fase 3 — Cotações (Compradora) — rota estática 'arquivo' deve vir ANTES do parâmetro dinâmico {id}
     Route::get('/compradora/cotacoes/arquivo/{cotacao}', DownloadArquivoCotacaoController::class)->name('compradora.cotacoes.arquivo');

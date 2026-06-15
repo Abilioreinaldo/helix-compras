@@ -31,7 +31,7 @@ class MenuLateral extends Component
             $itens = array_merge($itens, [
                 ['label' => 'Triagem', 'href' => route('compradora.triagem')],
                 ['label' => 'Requisições', 'href' => route('requisicoes.index')],
-                ['label' => 'Pedidos de Compra', 'href' => '#'],
+                ['label' => 'Pedidos de Compra', 'href' => route('compradora.pedidos.index')],
             ]);
         }
 
