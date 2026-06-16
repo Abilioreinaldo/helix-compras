@@ -48,13 +48,21 @@ class EntradaEstoqueAction
         $descricaoItem = $itemPedidoCompra->descricao;
         $descricaoNormalizada = SaldoEstoque::normalizarDescricao($descricaoItem);
         $custoUnitario = (float) $itemPedidoCompra->valor_unitario;
+        $catalogoId = $itemPedidoCompra->item_catalogo_id;
 
+        // Identidade do saldo: catálogo quando vinculado, descrição normalizada quando avulso.
         // lockForUpdate garante atomicidade em MySQL/MariaDB; em SQLite é defensivo
-        $saldo = SaldoEstoque::where('unidade_id', $unidadeId)
-            ->where('deposito', $deposito)
-            ->where('descricao_normalizada', $descricaoNormalizada)
-            ->lockForUpdate()
-            ->first();
+        $query = SaldoEstoque::where('unidade_id', $unidadeId)
+            ->where('deposito', $deposito);
+
+        if ($catalogoId !== null) {
+            $query->where('item_catalogo_id', $catalogoId);
+        } else {
+            $query->where('descricao_normalizada', $descricaoNormalizada)
+                ->whereNull('item_catalogo_id');
+        }
+
+        $saldo = $query->lockForUpdate()->first();
 
         if ($saldo === null) {
             $saldo = SaldoEstoque::create([
@@ -66,6 +74,7 @@ class EntradaEstoqueAction
                 'quantidade' => 0,
                 'custo_medio_ponderado' => 0,
                 'valor_total' => 0,
+                'item_catalogo_id' => $catalogoId,
             ]);
         }
 

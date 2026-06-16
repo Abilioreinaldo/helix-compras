@@ -78,6 +78,8 @@ class CriarRascunhoPedidoAction
                         'valor_unitario' => 0,
                         'valor_total' => 0,
                         'destino' => null,
+                        'item_catalogo_id' => $item->item_catalogo_id,
+                        'avulso' => $item->avulso,
                     ]);
                 }
             }

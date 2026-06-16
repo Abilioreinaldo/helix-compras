@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditavel;
 use Database\Factories\ItemPedidoCompraFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,11 +21,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'valor_unitario',
     'valor_total',
     'destino',
+    'item_catalogo_id',
+    'avulso',
 ])]
 class ItemPedidoCompra extends Model
 {
     /** @use HasFactory<ItemPedidoCompraFactory> */
-    use HasFactory, SoftDeletes;
+    use Auditavel, HasFactory, SoftDeletes;
 
     protected $table = 'itens_pedido_compra';
 
@@ -37,6 +40,7 @@ class ItemPedidoCompra extends Model
             'quantidade' => 'decimal:3',
             'valor_unitario' => 'decimal:2',
             'valor_total' => 'decimal:2',
+            'avulso' => 'boolean',
         ];
     }
 
@@ -58,5 +62,10 @@ class ItemPedidoCompra extends Model
     public function cotacao(): BelongsTo
     {
         return $this->belongsTo(Cotacao::class);
+    }
+
+    public function catalogoItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogoItem::class, 'item_catalogo_id');
     }
 }

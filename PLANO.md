@@ -1,8 +1,8 @@
 # PLANO — Sistema de Gestão de Compras v1
 # Rede Comendador
 
-**Última atualização:** 2026-06-15
-**Status geral:** Fases 0–8 implementadas — v1 completa
+**Última atualização:** 2026-06-16
+**Status geral:** Fases 0–8 (v1 completa) + v1.1-A (catálogo de itens) implementadas
 **Branch principal:** main
 
 ---
@@ -303,6 +303,41 @@ Nenhum módulo de negócio implementado até a data deste plano.
 - R4 default: mês atual (não ano inteiro) para focar em compras recentes
 
 **Dependências:** Fases 1 a 7 concluídas (dados precisam existir e estar populados)
+
+---
+
+### Fase v1.1-A — Catálogo de Itens + Reconciliação de Saldos ✅ IMPLEMENTADA (186 testes, Pint limpo, sec + QA aprovados)
+**Objetivo:** introduzir catálogo de itens centralizado com UUID e migrar a identidade do estoque (hoje por `descricao_normalizada`) para `item_catalogo_id`, sem regressão sobre o estoque já em produção. Lote/validade fica para v1.1-B.
+
+**Status:** 186/186 testes passando (181 v1.1-A iniciais + 5 de correção; sobre os 142 da v1). Pint limpo. sec + QA aprovados com ressalvas — P1s e bugs ALTO/MÉDIO corrigidos.
+
+**Pronto:**
+- Model `CatalogoItem` (`catalogo_itens`, Auditavel, SoftDeletes, UUID gerado no `creating()`, global — sem PertenceAUnidade, como Fornecedor)
+- Migrations (4, todas aditivas/não-destrutivas): `create_catalogo_itens_table`; `item_catalogo_id` + `avulso` em `requisicao_itens` e `itens_pedido_compra`; `item_catalogo_id` em `saldos_estoque` (UNIQUE legado preservado)
+- Factory `CatalogoItemFactory` + `CatalogoItemSeeder` (itens de exemplo), registrado no `DatabaseSeeder`
+- Livewire `Admin\CatalogoItens\ListaCatalogoItens` — CRUD só-Admin (espelha `ListaFornecedores`)
+- Livewire `Admin\CatalogoItens\ReconciliacaoSaldos` — só-Admin, vincula saldos existentes ao catálogo
+- `SugerirVinculoCatalogoAction` — sugestão por similaridade (pré-filtro LIKE + `similar_text` + Jaccard de tokens), 3 faixas de confiança (alta ≥0.85, media ≥0.60, baixa abaixo); sem extensão SQLite
+- `ConfirmarVinculoSaldoAction` — `vincular`/`desvincular`: só `item_catalogo_id`, NUNCA toca quantidade/CMP/valor_total; idempotente, reversível, bloqueia colisão de identidade
+- `EntradaEstoqueAction` — identidade dual: item com catálogo agrupa por `item_catalogo_id`; avulso preserva comportamento v1 por `descricao_normalizada` (+ `whereNull('item_catalogo_id')`)
+- `FormularioRequisicao` — campos `item_catalogo_id`/`avulso`; item avulso (descrição livre) continua aceito; validação rejeita item inativo/soft-deleted server-side
+- `CriarRascunhoPedidoAction` — propaga `item_catalogo_id`/`avulso` da requisição → pedido
+- Rotas `/admin/catalogo-itens` e `/admin/reconciliacao-saldos` (grupo AdminMiddleware); links no MenuLateral (Admin)
+
+**Correções de segurança/QA aplicadas:**
+- Sec P1: `Auditavel` em `ItemRequisicao`/`ItemPedidoCompra`; escape de metacaracteres LIKE no `SugerirVinculoCatalogoAction`; `abort_unless` em `abrirEditar()`/`fecharVinculoManual()`
+- QA BUG-01 (ALTO): soft-delete de `CatalogoItem` com saldos vinculados agora bloqueado (evita órfão irrecuperável)
+- QA BUG-02 (MÉDIO): validação de requisição rejeita item de catálogo inativo (`->where('ativo', true)`)
+- Sec P2-03: mensagem de erro PT-BR na reconciliação (extrai `errors()` em vez de `getMessage()` genérico)
+
+**Decisões de escopo / backlog (v1.1-B):**
+- Catálogo global cadastrado por Admin; item avulso permitido (flag `avulso=true`); reconciliação só-Admin
+- Fusão de saldos (dois saldos avulsos → mesmo catálogo) é bloqueada, não fundida — fica para v1.1-B
+- UNIQUE de `(unidade_id, deposito, item_catalogo_id)` no banco fica na lógica PHP (mesmo padrão de `fornecedores`/`centros_custo`); índice DB + race condition → v1.1-B
+- Paginação do catálogo no `FormularioRequisicao` (Sec P2-02) e guard interno do `SugerirVinculoCatalogoAction` (QA BUG-04) → backlog
+- **Lote/validade + FEFO → v1.1-B** (sub-fase separada, depende deste catálogo estável)
+
+**Dependências:** Fases 1 a 7 concluídas (catálogo se integra a requisição, pedido e estoque)
 
 ---
 

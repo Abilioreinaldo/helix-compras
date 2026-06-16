@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'quantidade',
     'custo_medio_ponderado',
     'valor_total',
+    'item_catalogo_id',
 ])]
 class SaldoEstoque extends Model
 {
@@ -36,6 +37,11 @@ class SaldoEstoque extends Model
     public function unidade(): BelongsTo
     {
         return $this->belongsTo(Unidade::class);
+    }
+
+    public function catalogoItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogoItem::class, 'item_catalogo_id');
     }
 
     public function movimentacoes(): HasMany

@@ -5,12 +5,14 @@ namespace App\Livewire\Requisicoes;
 use App\Actions\SubmeterRequisicaoAction;
 use App\Actions\TransicionarStatusRequisicaoAction;
 use App\Enums\StatusRequisicao;
+use App\Models\CatalogoItem;
 use App\Models\CentroCusto;
 use App\Models\Obra;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -36,7 +38,7 @@ class FormularioRequisicao extends Component
     public bool $mostrarModalCancelar = false;
 
     // Itens
-    /** @var array<int, array{descricao: string, quantidade: string, unidade_medida: string, valor_unitario_estimado: string}> */
+    /** @var array<int, array{descricao: string, quantidade: string, unidade_medida: string, valor_unitario_estimado: string, item_catalogo_id: ?int, avulso: bool}> */
     public array $itens = [];
 
     // Verba
@@ -62,13 +64,15 @@ class FormularioRequisicao extends Component
                 'quantidade' => (string) $item->quantidade,
                 'unidade_medida' => $item->unidade_medida ?? '',
                 'valor_unitario_estimado' => $item->valor_unitario_estimado !== null ? (string) $item->valor_unitario_estimado : '',
+                'item_catalogo_id' => $item->item_catalogo_id,
+                'avulso' => $item->avulso,
             ])->toArray();
         } else {
             $this->unidadeId = auth()->user()
                 ->unidades()
                 ->withoutGlobalScopes()
                 ->first()?->id;
-            $this->itens = [['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => '']];
+            $this->itens = [['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => '', 'item_catalogo_id' => null, 'avulso' => true]];
         }
     }
 
@@ -79,7 +83,7 @@ class FormularioRequisicao extends Component
 
     public function adicionarItem(): void
     {
-        $this->itens[] = ['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => ''];
+        $this->itens[] = ['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => '', 'item_catalogo_id' => null, 'avulso' => true];
     }
 
     public function removerItem(int $indice): void
@@ -87,6 +91,30 @@ class FormularioRequisicao extends Component
         array_splice($this->itens, $indice, 1);
         $this->itens = array_values($this->itens);
         $this->recalcularVerba();
+    }
+
+    /**
+     * Vincula um item de catálogo ao item do formulário: marca como não avulso,
+     * preenche descrição/unidade a partir do catálogo e guarda o id selecionado.
+     */
+    public function selecionarItemCatalogo(int $indice, ?int $itemCatalogoId): void
+    {
+        if ($itemCatalogoId === null) {
+            $this->itens[$indice]['item_catalogo_id'] = null;
+            $this->itens[$indice]['avulso'] = true;
+
+            return;
+        }
+
+        $catalogoItem = CatalogoItem::where('ativo', true)->find($itemCatalogoId);
+        if (! $catalogoItem) {
+            return;
+        }
+
+        $this->itens[$indice]['item_catalogo_id'] = $catalogoItem->id;
+        $this->itens[$indice]['avulso'] = false;
+        $this->itens[$indice]['descricao'] = $catalogoItem->descricao;
+        $this->itens[$indice]['unidade_medida'] = $catalogoItem->unidade_medida ?? $this->itens[$indice]['unidade_medida'];
     }
 
     public function updatedItens(): void
@@ -141,6 +169,20 @@ class FormularioRequisicao extends Component
             'itens.*.quantidade' => 'required|numeric|min:0.001',
             'itens.*.unidade_medida' => 'nullable|string|max:10',
             'itens.*.valor_unitario_estimado' => 'nullable|numeric|min:0',
+            'itens.*.avulso' => 'boolean',
+            'itens.*.item_catalogo_id' => [
+                'nullable',
+                Rule::exists('catalogo_itens', 'id')->whereNull('deleted_at')->where('ativo', true),
+                function (string $attribute, mixed $value, callable $fail) {
+                    preg_match('/^itens\.(\d+)\./', $attribute, $matches);
+                    $indice = (int) ($matches[1] ?? 0);
+                    $avulso = (bool) ($this->itens[$indice]['avulso'] ?? true);
+
+                    if (! $avulso && $value === null) {
+                        $fail('Selecione um item do catálogo ou marque o item como avulso.');
+                    }
+                },
+            ],
         ];
 
         return $rules;
@@ -183,6 +225,8 @@ class FormularioRequisicao extends Component
                 'quantidade' => (float) $item['quantidade'],
                 'unidade_medida' => $item['unidade_medida'] ?: null,
                 'valor_unitario_estimado' => $item['valor_unitario_estimado'] !== '' ? (float) $item['valor_unitario_estimado'] : null,
+                'item_catalogo_id' => $item['item_catalogo_id'] ?? null,
+                'avulso' => $item['avulso'] ?? true,
             ]);
         }
 
@@ -253,7 +297,9 @@ class FormularioRequisicao extends Component
             ? Obra::withoutGlobalScopes()->where('unidade_id', $this->unidadeId)->where('status', 'ativa')->orderBy('id')->get()
             : collect();
 
-        return view('livewire.requisicoes.formulario-requisicao', compact('unidades', 'centrosCusto', 'obras'))
+        $itensCatalogo = CatalogoItem::where('ativo', true)->orderBy('descricao')->get();
+
+        return view('livewire.requisicoes.formulario-requisicao', compact('unidades', 'centrosCusto', 'obras', 'itensCatalogo'))
             ->layout('components.layouts.app');
     }
 }

@@ -24,6 +24,8 @@ class MenuLateral extends Component
                 ['label' => 'Fornecedores', 'href' => route('admin.fornecedores')],
                 ['label' => 'Alçadas', 'href' => route('admin.alcadas')],
                 ['label' => 'Centros de Custo', 'href' => route('admin.centros-custo')],
+                ['label' => 'Catálogo de Itens', 'href' => route('admin.catalogo-itens')],
+                ['label' => 'Reconciliação de Saldos', 'href' => route('admin.reconciliacao-saldos')],
             ]);
         }
 
