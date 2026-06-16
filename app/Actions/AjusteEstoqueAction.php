@@ -38,12 +38,17 @@ class AjusteEstoqueAction
             ]);
         }
 
-        if (! $registradoPor->unidades()->withoutGlobalScopes()
-            ->where('unidades.id', $saldo->unidade_id)
-            ->wherePivot('perfil', Perfil::Almoxarife->value)
-            ->exists()) {
+        // Autorizado: Admin (irrestrito) ou Almoxarife da unidade do saldo.
+        // ESCOPO: "Ajuste — inventário/correção, só Admin ou Almoxarife".
+        $autorizado = $registradoPor->temPerfil(Perfil::Admin)
+            || $registradoPor->unidades()->withoutGlobalScopes()
+                ->where('unidades.id', $saldo->unidade_id)
+                ->wherePivot('perfil', Perfil::Almoxarife->value)
+                ->exists();
+
+        if (! $autorizado) {
             throw ValidationException::withMessages([
-                'saldo' => 'Operação não permitida: almoxarife não pertence à unidade deste saldo.',
+                'saldo' => 'Operação não permitida: usuário sem autorização para ajuste neste saldo.',
             ]);
         }
 

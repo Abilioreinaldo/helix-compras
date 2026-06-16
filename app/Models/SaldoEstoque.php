@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditavel;
+use Database\Factories\SaldoEstoqueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -23,7 +25,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class SaldoEstoque extends Model
 {
-    use Auditavel;
+    /** @use HasFactory<SaldoEstoqueFactory> */
+    use Auditavel, HasFactory;
 
     protected $table = 'saldos_estoque';
 

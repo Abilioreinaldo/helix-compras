@@ -15,6 +15,11 @@ class SaidaEstoqueAction
     /**
      * Registra uma saída de estoque pelo CMP vigente (não altera o CMP).
      *
+     * @param  bool  $atendimentoDireto  Contexto: saída disparada pelo atendimento direto de
+     *                                   requisição (TriagemRequisicoes). É a ÚNICA via pela qual
+     *                                   a CompradoraSenior fica autorizada a baixar saldo — fora
+     *                                   desse fluxo ela não pode dar saída avulsa.
+     *
      * @throws ValidationException
      */
     public function execute(
@@ -22,6 +27,7 @@ class SaidaEstoqueAction
         float $quantidade,
         string $motivo,
         User $registradoPor,
+        bool $atendimentoDireto = false,
     ): MovimentacaoEstoque {
         if ($quantidade <= 0) {
             throw ValidationException::withMessages([
@@ -29,12 +35,24 @@ class SaidaEstoqueAction
             ]);
         }
 
-        if (! $registradoPor->unidades()->withoutGlobalScopes()
+        // Autorização de saída:
+        // - Almoxarife da unidade do saldo: saída normal (ex.: atendimento de RIM).
+        // - Admin: irrestrito.
+        // - CompradoraSenior: SOMENTE no contexto de atendimento direto ($atendimentoDireto=true).
+        //   Sem esse contexto ela NÃO baixa saldo avulso.
+        $almoxarifeDaUnidade = $registradoPor->unidades()
+            ->withoutGlobalScopes()
             ->where('unidades.id', $saldo->unidade_id)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
-            ->exists()) {
+            ->exists();
+
+        $autorizado = $almoxarifeDaUnidade
+            || $registradoPor->temPerfil(Perfil::Admin)
+            || ($atendimentoDireto && $registradoPor->temPerfil(Perfil::CompradoraSenior));
+
+        if (! $autorizado) {
             throw ValidationException::withMessages([
-                'saldo' => 'Operação não permitida: almoxarife não pertence à unidade deste saldo.',
+                'saldo' => 'Operação não permitida: usuário sem autorização para saída neste saldo.',
             ]);
         }
 

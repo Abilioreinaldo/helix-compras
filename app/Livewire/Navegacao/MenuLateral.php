@@ -55,6 +55,7 @@ class MenuLateral extends Component
                 $itens = array_merge($itens, [
                     ['label' => 'Minhas Requisições', 'href' => route('requisicoes.index')],
                     ['label' => 'Nova Requisição', 'href' => route('requisicoes.criar')],
+                    ['label' => 'Requisições de Material', 'href' => route('solicitante.rim.index')],
                 ]);
             }
 
@@ -62,6 +63,8 @@ class MenuLateral extends Component
                 $itens = array_merge($itens, [
                     ['label' => 'Recebimentos', 'href' => route('almoxarife.recebimentos.index')],
                     ['label' => 'Estoque', 'href' => route('almoxarife.estoque.index')],
+                    ['label' => 'Atendimento de Material', 'href' => route('almoxarife.rim.index')],
+                    ['label' => 'Inventário', 'href' => route('almoxarife.inventario.index')],
                 ]);
             }
         }

@@ -3,6 +3,12 @@
         <h1 class="text-xl font-bold text-gray-800">Fila de Triagem</h1>
     </div>
 
+    @if($erroAtendimentoEstoque)
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+            {{ $erroAtendimentoEstoque }}
+        </div>
+    @endif
+
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -46,6 +52,15 @@
                             @if ($req->status->value === 'em_triagem')
                                 <button wire:click="enviarParaCotacao({{ $req->id }})" class="text-green-600 hover:text-green-800">Cotação</button>
                                 <button wire:click="abrirDevolucao({{ $req->id }})" class="text-orange-600 hover:text-orange-800">Devolver</button>
+                            @endif
+                            @if ($this->todosItensTemSaldo($req))
+                                <button
+                                    wire:click="atenderDoEstoque({{ $req->id }})"
+                                    wire:confirm="Atender esta requisição diretamente do estoque? Os saldos serão baixados imediatamente."
+                                    class="text-purple-600 hover:text-purple-800 font-medium"
+                                >
+                                    Atender do Estoque
+                                </button>
                             @endif
                         </td>
                     </tr>

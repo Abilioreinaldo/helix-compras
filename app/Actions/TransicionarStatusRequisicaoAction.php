@@ -14,8 +14,8 @@ class TransicionarStatusRequisicaoAction
     {
         return [
             StatusRequisicao::Rascunho->value => [StatusRequisicao::AguardandoTriagem->value, StatusRequisicao::Cancelada->value],
-            StatusRequisicao::AguardandoTriagem->value => [StatusRequisicao::EmTriagem->value, StatusRequisicao::Cancelada->value],
-            StatusRequisicao::EmTriagem->value => [StatusRequisicao::EmCotacao->value, StatusRequisicao::Devolvida->value, StatusRequisicao::Cancelada->value],
+            StatusRequisicao::AguardandoTriagem->value => [StatusRequisicao::EmTriagem->value, StatusRequisicao::Cancelada->value, StatusRequisicao::Concluida->value],
+            StatusRequisicao::EmTriagem->value => [StatusRequisicao::EmCotacao->value, StatusRequisicao::Devolvida->value, StatusRequisicao::Cancelada->value, StatusRequisicao::Concluida->value],
             StatusRequisicao::Devolvida->value => [StatusRequisicao::AguardandoTriagem->value, StatusRequisicao::Cancelada->value],
             StatusRequisicao::EmCotacao->value => [StatusRequisicao::CotacaoConcluida->value, StatusRequisicao::Cancelada->value],
             StatusRequisicao::CotacaoConcluida->value => [StatusRequisicao::AguardandoAprovacao->value],

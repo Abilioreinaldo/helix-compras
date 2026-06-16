@@ -11,7 +11,9 @@ use App\Livewire\Admin\CentrosCusto\ListaCentrosCusto;
 use App\Livewire\Admin\Fornecedores\ListaFornecedores;
 use App\Livewire\Admin\Unidades\ListaUnidades;
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
+use App\Livewire\Almoxarife\AtendimentoRequisicoesMaterial;
 use App\Livewire\Almoxarife\GestaoPedidosRecebimento;
+use App\Livewire\Almoxarife\Inventario;
 use App\Livewire\Almoxarife\RegistroRecebimento;
 use App\Livewire\Almoxarife\SaldosEstoque;
 use App\Livewire\Aprovacoes\FilaAprovacoes;
@@ -30,6 +32,7 @@ use App\Livewire\Relatorios\RequisicoesAprovador;
 use App\Livewire\Requisicoes\DetalheRequisicao;
 use App\Livewire\Requisicoes\FormularioRequisicao;
 use App\Livewire\Requisicoes\ListaRequisicoes;
+use App\Livewire\Solicitante\RequisicoesMaterial;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -79,6 +82,13 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 7 — Estoque (Almoxarife)
     Route::get('/almoxarife/estoque', SaldosEstoque::class)->name('almoxarife.estoque.index');
+
+    // v1.1-C — RIM (Requisição Interna de Material)
+    Route::get('/solicitante/requisicoes-material', RequisicoesMaterial::class)->name('solicitante.rim.index');
+    Route::get('/almoxarife/atendimento-material', AtendimentoRequisicoesMaterial::class)->name('almoxarife.rim.index');
+
+    // v1.1-C — Inventário (Almoxarife / Admin)
+    Route::get('/almoxarife/inventario', Inventario::class)->name('almoxarife.inventario.index');
 
     // Fase 8 — Relatórios (Admin e CompradoraSenior)
     Route::get('/relatorios/gastos-cc', GastosCentroCusto::class)->name('relatorios.gastos-cc');

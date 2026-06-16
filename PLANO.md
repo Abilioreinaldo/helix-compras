@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-16
-**Status geral:** Fases 0–8 (v1 completa) + v1.1-A (catálogo de itens) implementadas
+**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) implementadas. **v1 ainda NÃO está completa** — o PLANO foi realinhado ao ESCOPO.md; ver "Pendências reais de v1" abaixo.
 **Branch principal:** main
 
 ---
@@ -341,6 +341,50 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
+### Fatia Estoque — Saída de Material (RIM) + Atendimento Direto + Inventário ✅ IMPLEMENTADA (270 testes, Pint limpo, sec + QA aplicados)
+**Objetivo:** entregar o fluxo operacional de saída de material via Requisição Interna de Material (RIM), inventário físico com ajustes automáticos e atendimento direto pela Compradora Sênior sem geração de Pedido de Compra. (Cobre as pendências #1 e #3 do backlog de v1. NÃO confundir com v1.1-C, que é lote/validade.)
+
+**Status:** 270/270 testes passando (211 anteriores + 59 novos). Pint limpo. sec + QA revisaram (REPROVADO inicial pelo BUG-01 → corrigido e reaprovado).
+
+**Pronto:**
+- Enums: `StatusRequisicaoMaterial` (Aberta/Atendida/Recusada + `label()` + `ehTerminal()`), `StatusInventario` (EmAndamento/Concluido/Cancelado + `label()`)
+- Migrations (4, aditivas): `requisicoes_material`, `sessoes_inventario`, `itens_inventario`, `add_requisicao_material_id_to_movimentacoes_estoque`
+- Models: `RequisicaoMaterial` (Auditavel), `SessaoInventario` (Auditavel), `ItemInventario` (Auditavel + accessor `divergencia`), `MovimentacaoEstoque` ← relação `requisicaoMaterial()` + fillable `requisicao_material_id`
+- Factories: `RequisicaoMaterialFactory`, `SessaoInventarioFactory`, `ItemInventarioFactory`, `SaldoEstoqueFactory`
+- `AtenderRequisicaoMaterialAction`: valida status Aberta + almoxarife-da-unidade, chama `SaidaEstoqueAction`, vincula movimentação à RIM via `requisicao_material_id`
+- `RecusarRequisicaoMaterialAction`: valida status Aberta + motivo + almoxarife-da-unidade, sem movimentação de estoque
+- `AbrirSessaoInventarioAction`: valida perfil Admin|Almoxarife da unidade, guarda contra sessão duplicada (unidade+depósito), snapshot de saldos excluindo tombstones (`fundido_para_id IS NULL`)
+- `AplicarInventarioAction`: exige todos os itens contados + justificativa não-vazia, gera ajustes positivos/negativos por divergência, rollback total em falha
+- `CancelarSessaoInventarioAction`: status Cancelado, sem movimentações
+- B1 — `SaidaEstoqueAction` com contexto `$atendimentoDireto`: Almoxarife-da-unidade (sempre) OU Admin (sempre) OU CompradoraSenior SOMENTE em atendimento direto (sem passe livre fora do fluxo)
+- `TransicionarStatusRequisicaoAction`: novas transições `AguardandoTriagem → Concluida` e `EmTriagem → Concluida`
+- Livewire `Solicitante\RequisicoesMaterial`: abre RIM selecionando saldo da unidade, lista com status+motivo
+- Livewire `Almoxarife\AtendimentoRequisicoesMaterial`: lista RIMs abertas da(s) unidade(s) do almoxarife, atender/recusar com captura de ValidationException
+- Livewire `Almoxarife\Inventario`: abertura de sessão (depósito opcional), conferência com cálculo live de divergência, modal de justificativa para aplicação, cancelamento
+- `TriagemRequisicoes` — `atenderDoEstoque(id)`: bloqueia itens avulsos, resolve saldo por `item_catalogo_id`, transação única baixando cada item + conclusão da requisição
+- Rotas: `solicitante.rim.index`, `almoxarife.rim.index`, `almoxarife.inventario.index`
+- MenuLateral: "Requisições de Material" (Solicitante), "Atendimento de Material" e "Inventário" (Almoxarife)
+
+**Correções sec/QA aplicadas (REPROVADO inicial → resolvido):**
+- BUG-01 (ALTO): `AjusteEstoqueAction` não autorizava Admin → inventário com divergência falhava para Admin. Corrigido (Admin OU Almoxarife-da-unidade) + teste de regressão com divergência real (o teste antigo usava divergência zero e mascarava o bug)
+- P1: histórico de inventário agora filtra por unidade (Almoxarife não vê sessões de outras unidades); abertura de sessão com `lockForUpdate` na unidade (anti-TOCTOU); `quantidade_contada` negativa rejeitada server-side; guarda B1 apertada para contexto
+- Cobertura nova: rollback total do atendimento direto multi-item; rollback total do inventário (ajuste excede saldo real); solicitante não cria RIM de outra unidade
+
+**Decisões fechadas:**
+- RIM sem aprovação (3 status: aberta → atendida | recusada)
+- Inventário suporta depósito específico (default) ou unidade inteira (deposito nullable)
+- Notificação ao solicitante in-app (status visível na própria tela), sem e-mail nesta fatia
+- Atendimento direto bloqueia itens avulsos (apenas itens de catálogo com saldo)
+
+**Fora desta fatia (backlog):**
+- `estoque_minimo` + alerta de ressuprimento (coluna não existe ainda)
+- Lote/validade + FEFO (v1.1-C); rateio da central; transferência entre unidades
+- P2 (go-live): dropdown de seleção de unidade no inventário do Admin (hoje usa `Unidade::first()`); remover `almoxarife_id`/`movimentacao_estoque_id` do fillable (setados só por action)
+
+**Dependências:** v1.1-B concluída (fusão de saldos + UNIQUE); Fase 7 (SaidaEstoqueAction/AjusteEstoqueAction)
+
+---
+
 ### Fase v1.1-B — Fusão de Saldos + UNIQUE/Race (EM ANDAMENTO)
 **Objetivo:** fundir saldos duplicados de catálogo e garantir unicidade de identidade no banco. (Lote/validade + FEFO foi separado para v1.1-C.)
 
@@ -402,11 +446,38 @@ Todas as fases são estritamente sequenciais — não há paralelismo seguro por
 
 ---
 
+## Pendências reais de v1 (backlog priorizado)
+
+O PLANO original tratou "Fases 0–8 = v1 completa", mas o ESCOPO.md define um v1 mais amplo.
+Em "Pontos em aberto", o dono respondeu **lote/validade = v1 (#10)** e **rateio da central = v1 (#12)** —
+itens que estavam erroneamente em "Fora da v1". Além disso, várias funções do módulo de Estoque
+ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade operacional:
+
+| # | Pendência de v1 | Status | Observação |
+|---|-----------------|--------|------------|
+| 1 | **Estoque — Saída de material** (requisição interna) + **Inventário** + **Atendimento direto Compradora** | ✅ IMPLEMENTADA (52 testes novos) | RIM (Aberta→Atendida/Recusada), sessão de inventário com snapshot+ajustes, atendimento direto pela Compradora via `SaidaEstoqueAction` relaxada (B1) |
+| 2 | **Estoque mínimo + alerta de ressuprimento** | 🟠 não-iniciado | Coluna `estoque_minimo` por unidade **NÃO existe** (precisa migration); + alerta + sugestão de requisição |
+| 4 | **Lote/validade + FEFO** (cervejaria) | 🟠 não-iniciado | ESCOPO #10 = v1. Planejado como v1.1-C |
+| 5 | **Rateio da central** entre unidades | 🟠 não-iniciado | ESCOPO #12 = v1. Indefinido — exige PRD do PM antes de codar |
+| 6 | **Transferência entre unidades** | 🟡 não-iniciado | Sem aprovação (#8); entidade própria + reconciliação entre unidades |
+| 7 | **Relatórios faltantes** (5 de 8) | 🟡 parcial | Faltam: gasto por fornecedor/categoria; tempo médio de aprovação; posição de estoque; consumo por CC/unidade; comparativo entre unidades |
+| 8 | **Lembrete diário de pendências +48h** | 🟢 não-iniciado | Notificação por e-mail |
+| 9 | **Campos da cotação** (prazo de entrega, validade da proposta) | 🟢 parcial | ESCOPO exige por cotação; hoje não capturados na cotação |
+
+**Atendimento direto do estoque pela Compradora** (saída sem compra) sai junto do item 1 (depende da Saída).
+
+---
+
 ## Fora da v1 (não planejar, não implementar)
 
-- Lote/validade (vai para v1.1 junto com catálogo de itens)
-- Catálogo de itens centralizado: v1 usa `descricao_normalizada` como chave de identidade — v1.1 introduz UUID de catálogo e exige reconciliação de saldos existentes
-- Rateio da central
-- Relatórios por fornecedor, tempo médio, consumo, comparativo entre unidades
-- Lembrete de 48h em notificações
-- Atendimento direto da requisição pela Compradora (saída sem compra — bloqueado enquanto estoque não existir)
+(Alinhado ao ESCOPO.md, seção "Fora de escopo (v1)".)
+
+- Integração com ERP / contabilidade
+- Pagamento e financeiro (contas a pagar)
+- App mobile nativo
+- Portal do fornecedor
+- Contratos recorrentes
+- Compra de combustível de pista dos postos (processo próprio — ESCOPO #11)
+- Localização do item no estoque (prateleira/bin) — cosmético, pós-v1
+
+> Catálogo de itens centralizado saiu desta lista: **já implementado** em v1.1-A.
