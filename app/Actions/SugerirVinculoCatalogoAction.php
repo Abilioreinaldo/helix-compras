@@ -24,6 +24,11 @@ class SugerirVinculoCatalogoAction
      */
     public function execute(SaldoEstoque $saldo): Collection
     {
+        // QA BUG-04: saldo já vinculado ao catálogo não recebe sugestões.
+        if ($saldo->item_catalogo_id !== null) {
+            return collect();
+        }
+
         $descricaoSaldo = $saldo->descricao_normalizada;
         $tokensSaldo = $this->tokenizar($descricaoSaldo);
 

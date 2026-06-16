@@ -37,6 +37,9 @@ class FormularioRequisicao extends Component
 
     public bool $mostrarModalCancelar = false;
 
+    // Busca server-side do catálogo (Sec P2-02)
+    public string $buscaCatalogo = '';
+
     // Itens
     /** @var array<int, array{descricao: string, quantidade: string, unidade_medida: string, valor_unitario_estimado: string, item_catalogo_id: ?int, avulso: bool}> */
     public array $itens = [];
@@ -297,7 +300,14 @@ class FormularioRequisicao extends Component
             ? Obra::withoutGlobalScopes()->where('unidade_id', $this->unidadeId)->where('status', 'ativa')->orderBy('id')->get()
             : collect();
 
-        $itensCatalogo = CatalogoItem::where('ativo', true)->orderBy('descricao')->get();
+        // Sec P2-02: busca server-side paginada — carrega até 50 itens por vez, filtrando
+        // pela busca digitada. A validação (Rule::exists) é independente desta lista e
+        // valida diretamente no banco, garantindo que itens fora da página ainda passem.
+        $queryItensCatalogo = CatalogoItem::where('ativo', true)->orderBy('descricao');
+        if ($this->buscaCatalogo !== '') {
+            $queryItensCatalogo->where('descricao', 'like', '%'.$this->buscaCatalogo.'%');
+        }
+        $itensCatalogo = $queryItensCatalogo->limit(50)->get();
 
         return view('livewire.requisicoes.formulario-requisicao', compact('unidades', 'centrosCusto', 'obras', 'itensCatalogo'))
             ->layout('components.layouts.app');

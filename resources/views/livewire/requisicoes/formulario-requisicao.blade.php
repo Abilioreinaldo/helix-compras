@@ -85,6 +85,12 @@
                 <button wire:click="adicionarItem" type="button" class="text-sm text-blue-600 hover:text-blue-800">+ Adicionar item</button>
             </div>
 
+            {{-- Sec P2-02: busca server-side — filtra até 50 itens do catálogo sem carregar tudo --}}
+            <div class="mb-3">
+                <input wire:model.live="buscaCatalogo" type="text" placeholder="Filtrar catálogo de itens..."
+                    class="w-full max-w-sm border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
             @error('itens') <p class="mb-2 text-sm text-red-600">{{ $message }}</p> @enderror
 
             <div class="space-y-3">

@@ -8,6 +8,12 @@ enum TipoMovimentacao: string
     case Saida = 'saida';
     case AjustePositivo = 'ajuste_positivo';
     case AjusteNegativo = 'ajuste_negativo';
+    /**
+     * Fusão: movimentação documental gerada pela FusaoSaldosAction.
+     * O ajuste de saldo é feito explicitamente pela action — este tipo
+     * apenas documenta o evento no ledger append-only.
+     */
+    case Fusao = 'fusao';
 
     public function label(): string
     {
@@ -16,6 +22,7 @@ enum TipoMovimentacao: string
             self::Saida => 'Saída',
             self::AjustePositivo => 'Ajuste (+)',
             self::AjusteNegativo => 'Ajuste (−)',
+            self::Fusao => 'Fusão',
         };
     }
 
@@ -25,6 +32,9 @@ enum TipoMovimentacao: string
         return match ($this) {
             self::Entrada, self::AjustePositivo => true,
             self::Saida, self::AjusteNegativo => false,
+            // Fusão é documental — o saldo é ajustado explicitamente pela FusaoSaldosAction.
+            // Este método não é chamado para Fusao; lança exceção se for acidentalmente invocado.
+            self::Fusao => throw new \LogicException('TipoMovimentacao::Fusao é documental — use FusaoSaldosAction para ajustar saldos.'),
         };
     }
 }

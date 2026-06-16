@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'custo_medio_ponderado',
     'valor_total',
     'item_catalogo_id',
+    'fundido_para_id',
+    'fundido_em',
 ])]
 class SaldoEstoque extends Model
 {
@@ -31,6 +33,7 @@ class SaldoEstoque extends Model
             'quantidade' => 'decimal:3',
             'custo_medio_ponderado' => 'decimal:4',
             'valor_total' => 'decimal:2',
+            'fundido_em' => 'datetime',
         ];
     }
 
@@ -47,6 +50,24 @@ class SaldoEstoque extends Model
     public function movimentacoes(): HasMany
     {
         return $this->hasMany(MovimentacaoEstoque::class)->orderByDesc('created_at');
+    }
+
+    /** Saldo destino ao qual este saldo foi fundido (se for tombstone). */
+    public function fundidoPara(): BelongsTo
+    {
+        return $this->belongsTo(SaldoEstoque::class, 'fundido_para_id');
+    }
+
+    /** Saldos tombstone que foram fundidos neste saldo. */
+    public function fundidosDe(): HasMany
+    {
+        return $this->hasMany(SaldoEstoque::class, 'fundido_para_id');
+    }
+
+    /** Logs de fusão onde este saldo é o destino. */
+    public function fusaoLogs(): HasMany
+    {
+        return $this->hasMany(SaldoFusaoLog::class, 'saldo_destino_id');
     }
 
     /** Normaliza a descrição para busca/unicidade: trim + lowercase + colapsa espaços múltiplos. */
