@@ -24,6 +24,7 @@ use App\Livewire\Compradora\DetalhePedidoCompra;
 use App\Livewire\Compradora\FormularioPedidoCompra;
 use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\GestaoPedidosCompra;
+use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\TriagemRequisicoes;
 use App\Livewire\Relatorios\ComprasEmergenciais;
 use App\Livewire\Relatorios\CustoObra;
@@ -61,6 +62,9 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 2 — Triagem (Compradora)
     Route::get('/compradora/triagem', TriagemRequisicoes::class)->name('compradora.triagem');
+
+    // v1.1-D — Itens a repor (Compradora + Admin)
+    Route::get('/compradora/itens-a-repor', ItensARepor::class)->name('compradora.itens-a-repor');
 
     // Fase 5 — Pedidos de Compra (rota estática antes das dinâmicas)
     Route::get('/compradora/pedidos/{id}/pdf', BaixarPdfPedidoCompraController::class)->name('compradora.pedidos.pdf');

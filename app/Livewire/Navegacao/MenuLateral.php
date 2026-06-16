@@ -39,6 +39,7 @@ class MenuLateral extends Component
 
         if ($isAdmin || $isCompradora) {
             $itens = array_merge($itens, [
+                ['label' => 'Itens a Repor', 'href' => route('compradora.itens-a-repor')],
                 ['label' => 'Gastos por CC', 'href' => route('relatorios.gastos-cc')],
                 ['label' => 'Pendentes por Aprovador', 'href' => route('relatorios.pendentes-aprovador')],
                 ['label' => 'Custo por Obra', 'href' => route('relatorios.custo-obra')],

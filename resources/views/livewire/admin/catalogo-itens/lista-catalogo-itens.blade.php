@@ -47,6 +47,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 text-right text-sm space-x-2">
+                            <button wire:click="abrirModalMinimos({{ $item->id }})" class="text-indigo-600 hover:text-indigo-800">Mínimos</button>
                             <button wire:click="abrirEditar({{ $item->id }})" class="text-blue-600 hover:text-blue-800">Editar</button>
                             <button wire:click="excluir({{ $item->id }})" wire:confirm="Confirma exclusão?" class="text-red-600 hover:text-red-800">Excluir</button>
                         </td>
@@ -106,6 +107,54 @@
                     </button>
                     <button wire:click="salvar" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md">
                         Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal: Mínimos por Unidade --}}
+    @if($mostrarModalMinimos)
+        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 overflow-y-auto max-h-[90vh]">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-gray-800">Estoques Mínimos por Unidade</h2>
+                    <button wire:click="fecharModalMinimos" class="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none">&times;</button>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">Item: <strong>{{ $minimoItemDescricao }}</strong></p>
+
+                @if(empty($minimosPorUnidade))
+                    <p class="text-sm text-gray-400">Nenhuma unidade cadastrada.</p>
+                @else
+                    <div class="space-y-2">
+                        @foreach($minimosPorUnidade as $idx => $minimo)
+                            <div class="flex items-center gap-3 py-2 border-b border-gray-100">
+                                <span class="flex-1 text-sm text-gray-700">{{ $minimo['nome'] }}</span>
+                                <input
+                                    wire:model="minimosPorUnidade.{{ $idx }}.quantidade_minima"
+                                    type="number"
+                                    min="0"
+                                    step="0.001"
+                                    placeholder="Qtd mínima (0 = sem mínimo)"
+                                    class="w-40 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                />
+                                <button
+                                    wire:click="salvarMinimoUnidade({{ $minimo['unidade_id'] }})"
+                                    class="px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                                >
+                                    Salvar
+                                </button>
+                            </div>
+                            @error("minimo_{$minimo['unidade_id']}")
+                                <p class="text-xs text-red-600 mt-0.5">{{ $message }}</p>
+                            @enderror
+                        @endforeach
+                    </div>
+                @endif
+
+                <div class="flex justify-end mt-6">
+                    <button wire:click="fecharModalMinimos" class="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">
+                        Fechar
                     </button>
                 </div>
             </div>

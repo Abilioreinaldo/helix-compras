@@ -71,12 +71,67 @@ class FormularioRequisicao extends Component
                 'avulso' => $item->avulso,
             ])->toArray();
         } else {
-            $this->unidadeId = auth()->user()
-                ->unidades()
-                ->withoutGlobalScopes()
-                ->first()?->id;
-            $this->itens = [['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => '', 'item_catalogo_id' => null, 'avulso' => true]];
+            $this->unidadeId = $this->resolverUnidadeInicial();
+            $this->itens = $this->montarItensIniciais();
         }
+    }
+
+    // ─── Helpers de inicialização ─────────────────────────────────────────────
+
+    /**
+     * Resolve o ID de unidade inicial para novos rascunhos.
+     * Aceita query param 'unidade_id' somente se o usuário a enxerga (via UnidadeScope ou pivot).
+     * Caso contrário, retorna a primeira unidade do usuário.
+     */
+    private function resolverUnidadeInicial(): ?int
+    {
+        $usuario = auth()->user();
+        $unidadeIdQuery = request()->integer('unidade_id') ?: null;
+
+        if ($unidadeIdQuery) {
+            // Verifica se o usuário vê essa unidade
+            $visivel = $usuario->podeVerTodasUnidades()
+                ? Unidade::withoutGlobalScopes()->where('id', $unidadeIdQuery)->whereNull('deleted_at')->exists()
+                : $usuario->unidades()->withoutGlobalScopes()->where('unidades.id', $unidadeIdQuery)->exists();
+
+            if ($visivel) {
+                return $unidadeIdQuery;
+            }
+        }
+
+        // Default: primeira unidade do usuário
+        return $usuario->unidades()->withoutGlobalScopes()->first()?->id;
+    }
+
+    /**
+     * Monta a lista de itens inicial para novos rascunhos.
+     * Se vier query param 'item_catalogo_id' válido (ativo, não deletado), pré-preenche como item de catálogo.
+     * Caso contrário, retorna o item avulso vazio padrão.
+     *
+     * @return array<int, array{descricao: string, quantidade: string, unidade_medida: string, valor_unitario_estimado: string, item_catalogo_id: ?int, avulso: bool}>
+     */
+    private function montarItensIniciais(): array
+    {
+        $itemCatalogoId = request()->integer('item_catalogo_id') ?: null;
+        $quantidadeSugerida = (float) request()->get('quantidade_sugerida', 1);
+
+        if ($itemCatalogoId) {
+            $catalogoItem = CatalogoItem::where('ativo', true)->find($itemCatalogoId);
+
+            if ($catalogoItem) {
+                return [[
+                    'descricao' => $catalogoItem->descricao,
+                    'quantidade' => (string) max(1.0, $quantidadeSugerida),
+                    'unidade_medida' => $catalogoItem->unidade_medida ?? 'un',
+                    'valor_unitario_estimado' => '',
+                    'item_catalogo_id' => $catalogoItem->id,
+                    'avulso' => false,
+                ]];
+            }
+        }
+
+        // Default: item avulso vazio
+        return [['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => '', 'item_catalogo_id' => null, 'avulso' => true]];
     }
 
     public function updatedObraId(): void

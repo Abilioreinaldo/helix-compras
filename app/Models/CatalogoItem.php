@@ -7,6 +7,7 @@ use Database\Factories\CatalogoItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -42,5 +43,13 @@ class CatalogoItem extends Model
                 $item->uuid = (string) Str::uuid();
             }
         });
+    }
+
+    /**
+     * Estoques mínimos definidos para este item de catálogo.
+     */
+    public function estoqueMinimos(): HasMany
+    {
+        return $this->hasMany(EstoqueMinimo::class, 'item_catalogo_id');
     }
 }

@@ -385,6 +385,45 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
+### Fatia Estoque — Estoque Mínimo + Alerta de Ressuprimento ✅ IMPLEMENTADA (45 testes novos, 315 total, sec + QA aplicados)
+**Objetivo:** definir quantidade mínima por (unidade × item de catálogo), alertar quando o saldo ativo cair abaixo do mínimo e sugerir reposição via formulário de requisição pré-preenchido.
+
+**Status:** 315/315 testes passando (270 anteriores + 45 novos). Pint limpo. sec + QA aprovados com ressalvas — 4 P1 corrigidos.
+
+**Pronto:**
+- Migration `estoque_minimos` (aditiva): FK unidade_id + FK item_catalogo_id; decimal(15,3); UNIQUE(unidade_id, item_catalogo_id); index(item_catalogo_id); sem SoftDeletes
+- Model `EstoqueMinimo` (Auditavel, HasFactory): relações `unidade()` e `catalogoItem()`; cast `quantidade_minima => decimal:3`
+- `CatalogoItem::estoqueMinimos()` — HasMany
+- `EstoqueMinimoFactory` (quantidade_minima sempre > 0)
+- `DefinirEstoqueMinimoAction::execute(Unidade, CatalogoItem, float, User)`:
+  - Guard: Admin OU Almoxarife-da-unidade (pivot); senão ValidationException
+  - Item inativo ou soft-deletado: ValidationException
+  - quantidadeMinima ≤ 0: deleta registro e retorna null
+  - quantidadeMinima > 0: DB::transaction + lockForUpdate + updateOrCreate; catch QueryException UNIQUE → relê e atualiza
+- `EstoqueMinimo::itensAReporPara(User)` — visibilidade por papel; query com LEFT JOIN somando saldos ativos (fundido_para_id IS NULL, item_catalogo_id NOT NULL); COALESCE(saldo, 0) < mínimo (estrito); `quantidade_sugerida` calculada em PHP
+- `EstoqueMinimo::itemCatalogoIdsEmAlerta(array $unidadeIds)` — array de IDs em alerta para badge nas linhas
+- `SaldosEstoque` Livewire: badge "Abaixo do mínimo" nas linhas com item de catálogo em alerta; painel "Itens a repor"; modal "Definir mínimo" (botão só em itens de catálogo); `salvarMinimo()` com guard Almoxarife e captura ValidationException
+- `ListaCatalogoItens` Livewire (Admin): botão "Mínimos" por item → modal lista todas unidades ativas com input; `salvarMinimoUnidade(unidadeId)` com guard Admin
+- `App\Livewire\Compradora\ItensARepor`: mount+render abort_unless podeVerTodasUnidades(); lista da rede agrupada por unidade; filtro por unidade + busca; `solicitarReposicao()` → redirect com query params
+- Rota `GET /compradora/itens-a-repor` → name `compradora.itens-a-repor`; link no MenuLateral condicionado a Admin|Compradora
+- `FormularioRequisicao::mount()` (somente ramo rascunho novo): lê query params `item_catalogo_id`, `unidade_id`, `quantidade_sugerida`; pré-preenche item de catálogo se válido e ativo; unidade só aceita se visível ao usuário; sem query = comportamento anterior inalterado
+
+**Correções sec/QA aplicadas (APROVADO COM RESSALVAS → resolvido):**
+- P1: `abrirModalMinimo` agora restringe o saldo às unidades do almoxarife (não vaza dados de outra unidade); validação `exists` de unidade/item exclui soft-deletados; `solicitarReposicao` valida que a combinação está mesmo em alerta + clampa a quantidade; delete do mínimo (=0) via instância (dispara Auditavel)
+- Cobertura nova: redirect de reposição forjado é barrado (404); sugestão fracionária <1 vira 1; item inativo no query param cai no avulso
+
+**Decisões fechadas:**
+- Mínimo = 0 remove registro; definir exige > 0
+- Alerta estrito: saldo < mínimo (igual não alerta)
+- Visibilidade: Almoxarife = própria(s) unidade(s); Compradora + Admin = rede inteira
+- Painel oculta catálogo inativo/soft-deletado e unidades soft-deletadas
+- Lógica de leitura = métodos estáticos no model `EstoqueMinimo` (sem Service)
+- Botão "Solicitar" NÃO cria requisição — apenas redireciona com query
+
+**Dependências:** v1.1-A (catálogo), v1.1-B (UNIQUE saldos), Fatia RIM/Inventário
+
+---
+
 ### Fase v1.1-B — Fusão de Saldos + UNIQUE/Race (EM ANDAMENTO)
 **Objetivo:** fundir saldos duplicados de catálogo e garantir unicidade de identidade no banco. (Lote/validade + FEFO foi separado para v1.1-C.)
 
@@ -456,7 +495,7 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 | # | Pendência de v1 | Status | Observação |
 |---|-----------------|--------|------------|
 | 1 | **Estoque — Saída de material** (requisição interna) + **Inventário** + **Atendimento direto Compradora** | ✅ IMPLEMENTADA (52 testes novos) | RIM (Aberta→Atendida/Recusada), sessão de inventário com snapshot+ajustes, atendimento direto pela Compradora via `SaidaEstoqueAction` relaxada (B1) |
-| 2 | **Estoque mínimo + alerta de ressuprimento** | 🟠 não-iniciado | Coluna `estoque_minimo` por unidade **NÃO existe** (precisa migration); + alerta + sugestão de requisição |
+| 2 | **Estoque mínimo + alerta de ressuprimento** | ✅ IMPLEMENTADA (45 testes novos) | Tabela `estoque_minimos` (unidade × item catálogo); `DefinirEstoqueMinimoAction`; `EstoqueMinimo::itensAReporPara()` + `itemCatalogoIdsEmAlerta()`; badge e painel em `SaldosEstoque`; modal mínimos por unidade em `ListaCatalogoItens`; painel `Compradora\ItensARepor` com botão de sugestão de requisição; pré-preenchimento do `FormularioRequisicao` via query params |
 | 4 | **Lote/validade + FEFO** (cervejaria) | 🟠 não-iniciado | ESCOPO #10 = v1. Planejado como v1.1-C |
 | 5 | **Rateio da central** entre unidades | 🟠 não-iniciado | ESCOPO #12 = v1. Indefinido — exige PRD do PM antes de codar |
 | 6 | **Transferência entre unidades** | 🟡 não-iniciado | Sem aprovação (#8); entidade própria + reconciliação entre unidades |
