@@ -341,6 +341,23 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
+### Fase v1.1-B — Fusão de Saldos + UNIQUE/Race (EM ANDAMENTO)
+**Objetivo:** fundir saldos duplicados de catálogo e garantir unicidade de identidade no banco. (Lote/validade + FEFO foi separado para v1.1-C.)
+
+**Passos:** 0 (guard Sugerir + paginação catálogo) · 1 (FusaoSaldosAction + enum Fusao + tombstone/log) · 2 (comando `estoque:sanear-duplicatas-catalogo`) · 3 (UNIQUE parcial + catch de QueryException).
+
+**⚠️ PONTO CEGO PARA O SEC+QA — validar antes do go-live:**
+- A migration `add_unique_catalogo_to_saldos_estoque` é **driver-aware**: SQLite usa índice UNIQUE **parcial** (`WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL`); MySQL/MariaDB (produção) usa **coluna gerada STORED** (`catalogo_chave_unica`, NULL fora do escopo) + UNIQUE sobre ela.
+- **A suíte de testes roda SÓ em SQLite.** O caminho MySQL — que é o de produção — **NÃO é exercitado por nenhum teste automatizado.** Antes do deploy é obrigatório validar num MySQL real: (a) `migrate` cria a coluna gerada + índice; (b) insert de duas linhas ativas com mesma `(unidade_id, deposito, item_catalogo_id)` é barrado; (c) avulsos (catálogo NULL) e tombstones (fundido_para_id != NULL) coexistem sem colidir.
+- **ORDEM DE DEPLOY OBRIGATÓRIA (MySQL real):**
+  1. `php artisan migrate` até o **Passo 2** (inclusive) — NÃO aplicar ainda a migration do UNIQUE.
+  2. Rodar `estoque:sanear-duplicatas-catalogo --dry-run` para auditar, depois `--executado-por=<id Admin>` para fundir as duplicatas legadas.
+  3. Só então `php artisan migrate` o **Passo 3** (cria o UNIQUE/coluna gerada).
+  Se a constraint do Passo 3 subir ANTES do saneamento num banco com duplicatas, a criação do índice **falha** e o deploy trava. Essa ordem é mandatória — não inverter.
+- O catch de `QueryException` discrimina por `errorInfo[1]` (19 SQLite / 1062 MySQL) + nome da constraint; a degradação para UPDATE foi testada só em SQLite (statement-level rollback). Em MySQL a transação aborta na violação — confirmar o comportamento do retry em MySQL real.
+
+---
+
 ## Sequência de execução
 
 ```

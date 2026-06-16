@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\ConfirmarVinculoSaldoAction;
 use App\Actions\FusaoSaldosAction;
 use App\Actions\SugerirVinculoCatalogoAction;
 use App\Enums\Perfil;
@@ -12,7 +13,9 @@ use App\Models\SaldoEstoque;
 use App\Models\SaldoFusaoLog;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -40,6 +43,18 @@ function v11b_criarSaldo(
         'valor_total' => $quantidade * $cmp,
         'item_catalogo_id' => $itemCatalogoId,
     ]);
+}
+
+/**
+ * Modela o estado legado PRÉ-Passo-3: as duplicatas de saldo (mesma unidade/depósito/
+ * catálogo) que a fusão e o saneamento resolvem só existem ANTES do UNIQUE de catálogo.
+ * Em produção o saneamento roda antes da migration do UNIQUE; aqui, como todas as
+ * migrations sobem no boot, removemos o índice no Arrange. O RefreshDatabase reverte o
+ * drop ao fim de cada teste. A constraint em si é coberta pelos testes do Passo 3.
+ */
+function v11b_semConstraintCatalogo(): void
+{
+    DB::statement('DROP INDEX IF EXISTS saldos_estoque_catalogo_unique');
 }
 
 // ─── PASSO 0a — SugerirVinculoCatalogoAction: saldo já vinculado retorna vazio ─
@@ -129,17 +144,19 @@ it('formulario_valida_item_catalogo_mesmo_fora_da_pagina_corrente', function () 
 });
 
 // ─── PASSO 1 — FusaoSaldosAction ─────────────────────────────────────────────
+//
+// Estes testes fundem duplicatas do mesmo trio (unidade/depósito/catálogo). Essas
+// duplicatas só existem no estado legado, ANTES do UNIQUE do Passo 3 — por isso o
+// Arrange chama v11b_semConstraintCatalogo() (a constraint é coberta pelos testes do
+// Passo 3, mais abaixo).
 
 it('fusao_de_dois_saldos_soma_quantidade_e_calcula_cmp_ponderado', function () {
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     // 10un CMP5 (valor 50) + 30un CMP9 (valor 270) = 40un CMP8 valor 320
-    $saldo1 = v11b_criarSaldo($unidade, 'Item A', quantidade: 10.0, cmp: 5.0, itemCatalogoId: $catalogo->id);
-    $saldo2 = v11b_criarSaldo($unidade, 'Item A', deposito: 'Deposito B', quantidade: 30.0, cmp: 9.0, itemCatalogoId: $catalogo->id);
-
-    // Para fundir, devem estar no mesmo deposito — usamos mesma unidade/deposito/catalogo
     $saldoA = v11b_criarSaldo($unidade, 'Item Fusao A', 'Almox Principal', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item Fusao B', 'Almox Principal', 30.0, 9.0, $catalogo->id);
 
@@ -154,6 +171,7 @@ it('fusao_preserva_ledger_sem_alterar_movimentacoes_existentes', function () {
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -194,6 +212,7 @@ it('fusao_origem_vira_tombstone_com_quantidade_zero', function () {
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -214,6 +233,7 @@ it('fusao_idempotencia_origens_ja_fundidas_nao_geram_dupla_contagem', function (
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -230,6 +250,8 @@ it('fusao_idempotencia_origens_ja_fundidas_nao_geram_dupla_contagem', function (
 });
 
 it('fusao_rejeita_saldos_de_unidades_diferentes', function () {
+    // Unidades diferentes ⇒ trios diferentes ⇒ a constraint do Passo 3 já permite
+    // criar os dois saldos; não precisa simular estado legado.
     $admin = User::factory()->admin()->create();
     $unidadeA = Unidade::factory()->create();
     $unidadeB = Unidade::factory()->create();
@@ -246,6 +268,7 @@ it('fusao_cria_snapshot_no_saldo_fusao_log', function () {
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -268,12 +291,14 @@ it('fusao_cria_snapshot_no_saldo_fusao_log', function () {
 });
 
 it('fusao_rejeita_nao_admin', function () {
+    // Teste de autorização: abort_unless dispara na 1ª linha de fundir(), antes de
+    // qualquer DB. Não precisa de duplicata — 2º saldo em depósito distinto evita o UNIQUE.
     $naoAdmin = User::factory()->create(['is_admin' => false]);
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
-    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox Secundario', 30.0, 9.0, $catalogo->id);
 
     expect(fn () => app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB], $naoAdmin))
         ->toThrow(HttpException::class);
@@ -289,6 +314,7 @@ it('sanear_sem_opcao_falha_pedindo_dry_run_ou_executado_por', function () {
 it('sanear_dry_run_lista_grupos_sem_executar_fusao', function () {
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -306,6 +332,7 @@ it('sanear_executa_fusao_com_executado_por_admin', function () {
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -328,6 +355,7 @@ it('sanear_e_idempotente_segunda_execucao_nao_funde_nada', function () {
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
@@ -346,12 +374,14 @@ it('sanear_e_idempotente_segunda_execucao_nao_funde_nada', function () {
 });
 
 it('sanear_rejeita_executado_por_nao_admin_sem_fundir', function () {
+    // Com a validação de Admin no topo do comando, a rejeição independe de haver
+    // duplicatas — usamos depósitos distintos (sem grupo duplicado, sem UNIQUE violado).
     $naoAdmin = User::factory()->create(['is_admin' => false]);
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
 
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
-    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox Secundario', 30.0, 9.0, $catalogo->id);
 
     $this->artisan('estoque:sanear-duplicatas-catalogo', ['--executado-por' => $naoAdmin->id])
         ->assertExitCode(1);
@@ -368,6 +398,7 @@ it('movimentacoes_fusao_mantem_invariante_quantidade_x_custo_igual_valor', funct
     $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
 
     // Duplicatas da mesma identidade (unidade/depósito/catálogo) para fundir
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
@@ -389,4 +420,133 @@ it('movimentacoes_fusao_mantem_invariante_quantidade_x_custo_igual_valor', funct
             "{$mov->quantidade} × {$mov->custo_unitario} = {$calculado} ≠ {$mov->valor_total}"
         );
     }
+});
+
+// ─── PASSO 3 — UNIQUE parcial de identidade de catálogo (constraint LIGADA) ────
+
+it('unique_catalogo_bloqueia_segundo_saldo_ativo_da_mesma_identidade', function () {
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create(['descricao' => 'Item Unico']);
+
+    // Primeiro saldo ativo com catálogo: ok
+    v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+
+    // Segundo saldo ativo com a MESMA (unidade, depósito, catálogo): barrado pelo UNIQUE parcial
+    expect(fn () => v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id))
+        ->toThrow(QueryException::class);
+});
+
+it('unique_catalogo_ignora_avulsos_e_tombstones', function () {
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create(['descricao' => 'Item Coexistencia']);
+
+    // Avulsos (catálogo NULL) com descrições distintas coexistem no mesmo depósito
+    v11b_criarSaldo($unidade, 'Parafuso', 'Almox');
+    v11b_criarSaldo($unidade, 'Prego', 'Almox');
+    expect(SaldoEstoque::withoutGlobalScopes()->whereNull('item_catalogo_id')->count())->toBe(2);
+
+    // Destino + tombstone da mesma identidade coexistem (predicado fundido_para_id IS NULL):
+    // estado legado → cria duplicatas → funde → recria o índice (deploy pós-saneamento).
+    v11b_semConstraintCatalogo();
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'AlmoxFusao', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'AlmoxFusao', 30.0, 9.0, $catalogo->id);
+    app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB], $admin);
+
+    // Recriar o índice NÃO deve falhar: o tombstone está fora do predicado parcial
+    DB::statement(
+        'CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque '
+        .'(unidade_id, deposito, item_catalogo_id) '
+        .'WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL'
+    );
+
+    $daIdentidade = SaldoEstoque::withoutGlobalScopes()->where('item_catalogo_id', $catalogo->id)->get();
+    expect($daIdentidade)->toHaveCount(2)
+        ->and($daIdentidade->whereNull('fundido_para_id')->count())->toBe(1);
+});
+
+// ─── Pós-sec/QA — fechamento de lacunas do Passo 3 ────────────────────────────
+
+it('vincular_nao_e_bloqueado_por_tombstone_da_mesma_identidade', function () {
+    // BUG-01: o pré-check de colisão deve ignorar tombstones. Cenário: funde dois saldos
+    // (sobra destino + tombstone), desvincula o destino e, então, vincula um avulso ao
+    // mesmo catálogo/depósito — só o tombstone tem o catálogo, e ele não pode bloquear.
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create(['descricao' => 'Item Reconciliacao']);
+    v11b_semConstraintCatalogo();
+
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+    $destino = app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB], $admin);
+
+    // Desvincula o destino → em 'Almox' o catálogo C só existe no tombstone (saldoB)
+    app(ConfirmarVinculoSaldoAction::class)->desvincular($destino, $admin);
+
+    $avulso = v11b_criarSaldo($unidade, 'Avulso C', 'Almox', 4.0, 2.0);
+    $vinculado = app(ConfirmarVinculoSaldoAction::class)->vincular($avulso, $catalogo, $admin);
+
+    expect($vinculado->item_catalogo_id)->toBe($catalogo->id);
+});
+
+it('vincular_em_corrida_de_unicidade_converte_para_validation_exception', function () {
+    // Catch da ConfirmarVinculoSaldoAction: o pré-check passa, mas outro Admin ocupa o slot
+    // do UNIQUE entre o check e o UPDATE → a violação do banco vira ValidationException (não 500).
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create(['descricao' => 'Item Corrida Vinculo']);
+
+    $avulso = v11b_criarSaldo($unidade, 'Avulso Alvo', 'Almox', 5.0, 4.0);
+
+    $dispatcher = SaldoEstoque::getEventDispatcher();
+    $comListener = clone $dispatcher;
+    $competidorCriado = false;
+    $comListener->listen('eloquent.updating: '.SaldoEstoque::class, function (SaldoEstoque $s) use (&$competidorCriado, $unidade, $catalogo) {
+        if ($competidorCriado || $s->item_catalogo_id !== $catalogo->id) {
+            return;
+        }
+        $competidorCriado = true;
+        SaldoEstoque::withoutEvents(fn () => SaldoEstoque::create([
+            'unidade_id' => $unidade->id,
+            'deposito' => 'Almox',
+            'descricao_item' => 'Concorrente',
+            'descricao_normalizada' => SaldoEstoque::normalizarDescricao('Concorrente'),
+            'unidade_medida' => 'un',
+            'quantidade' => 1.0,
+            'custo_medio_ponderado' => 2.0,
+            'valor_total' => 2.0,
+            'item_catalogo_id' => $catalogo->id,
+        ]));
+    });
+    SaldoEstoque::setEventDispatcher($comListener);
+
+    try {
+        expect(fn () => app(ConfirmarVinculoSaldoAction::class)->vincular($avulso, $catalogo, $admin))
+            ->toThrow(ValidationException::class);
+    } finally {
+        SaldoEstoque::setEventDispatcher($dispatcher);
+    }
+});
+
+it('fusao_de_tres_saldos_soma_quantidade_e_calcula_cmp_ponderado', function () {
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create();
+    v11b_semConstraintCatalogo();
+
+    // 10@5 (50) + 20@8 (160) + 30@10 (300) = 60un, valor 510, CMP 8.5
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 20.0, 8.0, $catalogo->id);
+    $saldoC = v11b_criarSaldo($unidade, 'Item C', 'Almox', 30.0, 10.0, $catalogo->id);
+
+    $destino = app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB, $saldoC], $admin);
+
+    expect((float) $destino->quantidade)->toEqualWithDelta(60.0, 0.001)
+        ->and((float) $destino->custo_medio_ponderado)->toEqualWithDelta(8.5, 0.0001)
+        ->and((float) $destino->valor_total)->toEqualWithDelta(510.0, 0.01);
+
+    // Dois tombstones (B e C), um log por origem
+    expect(SaldoFusaoLog::count())->toBe(2)
+        ->and($saldoB->refresh()->fundido_para_id)->toBe($destino->id)
+        ->and($saldoC->refresh()->fundido_para_id)->toBe($destino->id);
 });

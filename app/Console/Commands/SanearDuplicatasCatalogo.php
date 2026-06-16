@@ -34,6 +34,19 @@ class SanearDuplicatasCatalogo extends Command
             return self::INVALID;
         }
 
+        // Autorização ANTES de qualquer trabalho: valida o Admin executor no modo de
+        // execução, antes mesmo de calcular grupos — não processa nada sem permissão.
+        $admin = null;
+        if (! $dryRun) {
+            $admin = User::find($adminId);
+
+            if ($admin === null || ! $admin->temPerfil(Perfil::Admin)) {
+                $this->error("Usuário #{$adminId} não encontrado ou não possui perfil Admin. Fusão abortada.");
+
+                return self::FAILURE;
+            }
+        }
+
         $grupos = $this->gruposDuplicados();
 
         if ($grupos->isEmpty()) {
@@ -46,7 +59,7 @@ class SanearDuplicatasCatalogo extends Command
             return $this->listar($grupos);
         }
 
-        return $this->executar($grupos, $adminId);
+        return $this->executar($grupos, $admin);
     }
 
     /**
@@ -116,16 +129,8 @@ class SanearDuplicatasCatalogo extends Command
     /**
      * @param  Collection<int, \stdClass>  $grupos
      */
-    private function executar(Collection $grupos, string $adminId): int
+    private function executar(Collection $grupos, User $admin): int
     {
-        $admin = User::find($adminId);
-
-        if ($admin === null || ! $admin->temPerfil(Perfil::Admin)) {
-            $this->error("Usuário #{$adminId} não encontrado ou não possui perfil Admin. Fusão abortada.");
-
-            return self::FAILURE;
-        }
-
         $fundidos = 0;
 
         foreach ($grupos as $grupo) {

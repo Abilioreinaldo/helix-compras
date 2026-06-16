@@ -4,6 +4,7 @@ use App\Actions\ConfirmarVinculoSaldoAction;
 use App\Actions\CriarRascunhoPedidoAction;
 use App\Actions\EmitirPedidoCompraAction;
 use App\Actions\EntradaEstoqueAction;
+use App\Actions\FusaoSaldosAction;
 use App\Actions\SugerirVinculoCatalogoAction;
 use App\Enums\Perfil;
 use App\Enums\StatusPedidoCompra;
@@ -16,6 +17,7 @@ use App\Models\CentroCusto;
 use App\Models\Cotacao;
 use App\Models\Fornecedor;
 use App\Models\ItemRequisicao;
+use App\Models\MovimentacaoEstoque;
 use App\Models\PedidoCompra;
 use App\Models\Recebimento;
 use App\Models\Requisicao;
@@ -778,4 +780,111 @@ it('requisicao_nao_aceita_item_catalogo_inativo', function () {
         ->set('itens.0.quantidade', '1')
         ->call('salvar')
         ->assertHasErrors(['itens.0.item_catalogo_id']);
+});
+
+// ─── PASSO 3 (v1.1-B) — catch de corrida na EntradaEstoqueAction ───────────────
+
+it('entrada_em_corrida_de_unicidade_degrada_para_update_sem_erro_500', function () {
+    $catalogoItem = CatalogoItem::factory()->create(['descricao' => 'Insumo Corrida']);
+    $setup = v11a_setup(quantidade: 10.0, valorCotacao: 1000.0, catalogoItem: $catalogoItem);
+    $pedido = v11a_emitirPC($setup, 1000.0, 'Almox Corrida');
+    $item = $pedido->itens->first();
+    $rec = Recebimento::create([
+        'pedido_compra_id' => $pedido->id,
+        'almoxarife_id' => $setup['almoxarife']->id,
+        'recebido_em' => now(),
+    ]);
+    $itemRec = $rec->itens()->create(['item_pedido_compra_id' => $item->id, 'quantidade_recebida' => 10.0]);
+
+    // Simula a corrida: entre o SELECT (que não acha saldo) e o INSERT da ação, outro
+    // processo cria o saldo ativo com a MESMA identidade, ocupando o slot do UNIQUE.
+    // Injetamos via dispatcher clonado para não vazar o listener para outros testes.
+    $dispatcher = SaldoEstoque::getEventDispatcher();
+    $comListener = clone $dispatcher;
+    $competidorCriado = false;
+    $comListener->listen('eloquent.creating: '.SaldoEstoque::class, function (SaldoEstoque $novo) use (&$competidorCriado, $catalogoItem) {
+        if ($competidorCriado || $novo->item_catalogo_id !== $catalogoItem->id) {
+            return;
+        }
+        $competidorCriado = true;
+        SaldoEstoque::withoutEvents(fn () => SaldoEstoque::create([
+            'unidade_id' => $novo->unidade_id,
+            'deposito' => $novo->deposito,
+            'descricao_item' => 'Concorrente',
+            'descricao_normalizada' => SaldoEstoque::normalizarDescricao('Concorrente'),
+            'unidade_medida' => 'un',
+            'quantidade' => 4.0,
+            'custo_medio_ponderado' => 50.0,
+            'valor_total' => 200.0,
+            'item_catalogo_id' => $catalogoItem->id,
+        ]));
+    });
+    SaldoEstoque::setEventDispatcher($comListener);
+
+    try {
+        $movimento = DB::transaction(fn () => app(EntradaEstoqueAction::class)->execute($item, $itemRec, 10.0, $setup['almoxarife']));
+    } finally {
+        SaldoEstoque::setEventDispatcher($dispatcher);
+    }
+
+    // Degradou para UPDATE: retornou a movimentação, sem estourar erro 500
+    expect($movimento)->toBeInstanceOf(MovimentacaoEstoque::class);
+
+    // Apenas 1 saldo ativo da identidade (o concorrente), com a entrada somada (4 + 10)
+    $ativos = SaldoEstoque::withoutGlobalScopes()
+        ->where('item_catalogo_id', $catalogoItem->id)
+        ->whereNull('fundido_para_id')
+        ->get();
+
+    expect($ativos)->toHaveCount(1)
+        ->and((float) $ativos->first()->quantidade)->toEqualWithDelta(14.0, 0.001);
+});
+
+it('entrada_catalogo_apos_fusao_credita_no_destino_nao_no_tombstone', function () {
+    $catalogoItem = CatalogoItem::factory()->create(['descricao' => 'Insumo Pos Fusao']);
+    $admin = User::factory()->admin()->create();
+    $setup = v11a_setup(quantidade: 10.0, valorCotacao: 1000.0, catalogoItem: $catalogoItem);
+    $unidade = $setup['unidade'];
+    $deposito = 'Almox Pos Fusao';
+
+    // Estado legado: dois saldos catálogo no mesmo trio → fundidos (destino ativo + tombstone)
+    DB::statement('DROP INDEX IF EXISTS saldos_estoque_catalogo_unique');
+    $criarSaldo = fn (string $desc, float $qtd, float $cmp) => SaldoEstoque::create([
+        'unidade_id' => $unidade->id,
+        'deposito' => $deposito,
+        'descricao_item' => $desc,
+        'descricao_normalizada' => SaldoEstoque::normalizarDescricao($desc),
+        'unidade_medida' => 'un',
+        'quantidade' => $qtd,
+        'custo_medio_ponderado' => $cmp,
+        'valor_total' => $qtd * $cmp,
+        'item_catalogo_id' => $catalogoItem->id,
+    ]);
+    $s1 = $criarSaldo('Saldo 1', 5.0, 100.0);
+    $s2 = $criarSaldo('Saldo 2', 3.0, 100.0);
+    $destino = app(FusaoSaldosAction::class)->fundir([$s1, $s2], $admin);
+    $qtdDestinoAntes = (float) $destino->refresh()->quantidade; // 8
+
+    // Entrada de 10un do mesmo catálogo/depósito
+    $pedido = v11a_emitirPC($setup, 1000.0, $deposito);
+    $item = $pedido->itens->first();
+    $rec = Recebimento::create([
+        'pedido_compra_id' => $pedido->id,
+        'almoxarife_id' => $setup['almoxarife']->id,
+        'recebido_em' => now(),
+    ]);
+    $itemRec = $rec->itens()->create(['item_pedido_compra_id' => $item->id, 'quantidade_recebida' => 10.0]);
+    DB::transaction(fn () => app(EntradaEstoqueAction::class)->execute($item, $itemRec, 10.0, $setup['almoxarife']));
+
+    // Crédito foi no saldo destino ativo, não no tombstone
+    expect((float) $destino->refresh()->quantidade)->toEqualWithDelta($qtdDestinoAntes + 10.0, 0.001)
+        ->and((float) $s2->refresh()->quantidade)->toBe(0.0);
+
+    // Continua só 1 saldo ativo da identidade no depósito
+    $ativos = SaldoEstoque::withoutGlobalScopes()
+        ->where('item_catalogo_id', $catalogoItem->id)
+        ->where('deposito', $deposito)
+        ->whereNull('fundido_para_id')
+        ->get();
+    expect($ativos)->toHaveCount(1);
 });
