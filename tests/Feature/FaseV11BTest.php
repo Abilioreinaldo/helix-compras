@@ -278,3 +278,115 @@ it('fusao_rejeita_nao_admin', function () {
     expect(fn () => app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB], $naoAdmin))
         ->toThrow(HttpException::class);
 });
+
+// ─── PASSO 2 — Comando estoque:sanear-duplicatas-catalogo ─────────────────────
+
+it('sanear_sem_opcao_falha_pedindo_dry_run_ou_executado_por', function () {
+    $this->artisan('estoque:sanear-duplicatas-catalogo')
+        ->assertExitCode(2);
+});
+
+it('sanear_dry_run_lista_grupos_sem_executar_fusao', function () {
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create();
+
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--dry-run' => true])
+        ->assertExitCode(0);
+
+    // Nenhuma fusão: ambos saldos seguem ativos (não viraram tombstone)
+    expect(SaldoEstoque::withoutGlobalScopes()->whereNull('fundido_para_id')->count())->toBe(2)
+        ->and($saldoA->refresh()->fundido_para_id)->toBeNull()
+        ->and($saldoB->refresh()->fundido_para_id)->toBeNull();
+});
+
+it('sanear_executa_fusao_com_executado_por_admin', function () {
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create();
+
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--executado-por' => $admin->id])
+        ->assertExitCode(0);
+
+    // Sobra exatamente 1 saldo ativo (destino) para o grupo; a origem virou tombstone
+    $ativos = SaldoEstoque::withoutGlobalScopes()
+        ->where('item_catalogo_id', $catalogo->id)
+        ->whereNull('fundido_para_id')
+        ->get();
+
+    expect($ativos)->toHaveCount(1)
+        ->and((float) $ativos->first()->quantidade)->toEqualWithDelta(40.0, 0.001)
+        ->and($saldoB->refresh()->fundido_para_id)->toBe($saldoA->id);
+});
+
+it('sanear_e_idempotente_segunda_execucao_nao_funde_nada', function () {
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create();
+
+    v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--executado-por' => $admin->id])
+        ->assertExitCode(0);
+
+    $logsApos1 = SaldoFusaoLog::count();
+
+    // Segunda execução: origens já são tombstone, nada a fundir
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--executado-por' => $admin->id])
+        ->expectsOutputToContain('Nada a sanear')
+        ->assertExitCode(0);
+
+    expect(SaldoFusaoLog::count())->toBe($logsApos1);
+});
+
+it('sanear_rejeita_executado_por_nao_admin_sem_fundir', function () {
+    $naoAdmin = User::factory()->create(['is_admin' => false]);
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create();
+
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--executado-por' => $naoAdmin->id])
+        ->assertExitCode(1);
+
+    // Nada fundido
+    expect(SaldoEstoque::withoutGlobalScopes()->whereNull('fundido_para_id')->count())->toBe(2)
+        ->and($saldoA->refresh()->fundido_para_id)->toBeNull()
+        ->and($saldoB->refresh()->fundido_para_id)->toBeNull();
+});
+
+// ─── Consistência interna do ledger de fusão ──────────────────────────────────
+
+it('movimentacoes_fusao_mantem_invariante_quantidade_x_custo_igual_valor', function () {
+    $admin = User::factory()->admin()->create();
+    $unidade = Unidade::factory()->create();
+    $catalogo = CatalogoItem::factory()->create();
+
+    // Duplicatas da mesma identidade (unidade/depósito/catálogo) para fundir
+    $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
+    $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
+
+    app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB], $admin);
+
+    $movimentos = MovimentacaoEstoque::where('tipo', TipoMovimentacao::Fusao->value)->get();
+
+    expect($movimentos)->not->toBeEmpty();
+
+    // Cada lançamento de fusão deve satisfazer quantidade × custo_unitario ≈ valor_total
+    foreach ($movimentos as $mov) {
+        $calculado = (float) $mov->quantidade * (float) $mov->custo_unitario;
+
+        expect(abs($calculado - (float) $mov->valor_total))->toBeLessThan(
+            0.01,
+            "Movimentação de fusão #{$mov->id} inconsistente: ".
+            "{$mov->quantidade} × {$mov->custo_unitario} = {$calculado} ≠ {$mov->valor_total}"
+        );
+    }
+});

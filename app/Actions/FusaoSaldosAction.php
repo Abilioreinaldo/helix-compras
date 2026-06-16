@@ -113,7 +113,7 @@ class FusaoSaldosAction
                     'quantidade' => (float) $origem->quantidade,
                     'custo_unitario' => (float) $origem->custo_medio_ponderado,
                     'valor_total' => (float) $origem->valor_total,
-                    'motivo' => 'Fusao: saldo origem #' . $origem->id . ' fundido ao destino #' . $destino->id . '.',
+                    'motivo' => 'Fusao: saldo origem #'.$origem->id.' fundido ao destino #'.$destino->id.'.',
                     'registrado_por' => $executadoPor->id,
                 ]);
 
@@ -145,8 +145,15 @@ class FusaoSaldosAction
 
             $desvio = abs((float) $valorFinal - (float) $qtdTotal * (float) $novoCmp);
             if ($desvio >= 0.01) {
-                throw new \RuntimeException('Erro de precisao na fusao: desvio de R$ ' . $desvio);
+                throw new \RuntimeException('Erro de precisao na fusao: desvio de R$ '.$desvio);
             }
+
+            // Custo unitario do agregado que ENTRA no destino (somente as origens), para que
+            // a movimentacao de Fusao satisfaca quantidade x custo_unitario ~= valor_total.
+            // Diferente do CMP final do saldo destino (novoCmp), que pondera destino + origens.
+            $cmpAgregadoOrigens = bccomp($somaQtd, '0', 10) > 0
+                ? (string) round((float) bcdiv($somaValor, $somaQtd, 10), 4)
+                : '0';
 
             MovimentacaoEstoque::create([
                 'saldo_estoque_id' => $destino->id,
@@ -154,9 +161,9 @@ class FusaoSaldosAction
                 'item_pedido_compra_id' => null,
                 'tipo' => TipoMovimentacao::Fusao,
                 'quantidade' => (float) $somaQtd,
-                'custo_unitario' => (float) $novoCmp,
+                'custo_unitario' => (float) $cmpAgregadoOrigens,
                 'valor_total' => (float) $somaValor,
-                'motivo' => 'Fusao: recebimento do agregado de ' . $origens->count() . ' saldo(s) origem.',
+                'motivo' => 'Fusao: recebimento do agregado de '.$origens->count().' saldo(s) origem.',
                 'registrado_por' => $executadoPor->id,
             ]);
 
