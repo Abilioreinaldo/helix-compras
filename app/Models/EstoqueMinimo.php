@@ -115,6 +115,69 @@ class EstoqueMinimo extends Model
             ->toArray();
     }
 
+    /**
+     * Posição atual de estoque (todos os saldos vivos) visível ao usuário.
+     *
+     * Exclui saldos fundidos (`fundido_para_id IS NOT NULL`) — tombstones de fusão
+     * não contam, evitando dupla contagem do saldo já migrado para o saldo-destino.
+     * Para itens de catálogo, anexa `quantidade_minima` e a flag `em_alerta` via leftJoin;
+     * saldos avulsos (sem `item_catalogo_id`) não casam no leftJoin → mínimo nulo.
+     *
+     * Visibilidade idêntica a itensAReporPara: rede inteira (podeVerTodasUnidades),
+     * unidades do pivot (Almoxarife) ou coleção vazia.
+     *
+     * Cada linha: {unidade_id, unidade_nome, deposito, item_catalogo_id, descricao_item,
+     *              unidade_medida, saldo_atual, custo_medio_ponderado, valor_total,
+     *              quantidade_minima, em_alerta}
+     *
+     * @return Collection<int, object>
+     */
+    public static function posicaoEstoquePara(User $usuario): Collection
+    {
+        $unidadeIds = static::resolverUnidadeIds($usuario);
+
+        if ($unidadeIds !== null && $unidadeIds->isEmpty()) {
+            return collect();
+        }
+
+        $query = DB::table('saldos_estoque as s')
+            ->join('unidades as u', function ($join) {
+                $join->on('u.id', '=', 's.unidade_id')
+                    ->whereNull('u.deleted_at');
+            })
+            ->leftJoin('estoque_minimos as em', function ($join) {
+                $join->on('em.unidade_id', '=', 's.unidade_id')
+                    ->on('em.item_catalogo_id', '=', 's.item_catalogo_id');
+            })
+            ->whereNull('s.fundido_para_id')
+            ->select([
+                's.unidade_id',
+                'u.nome as unidade_nome',
+                's.deposito',
+                's.item_catalogo_id',
+                's.descricao_item',
+                's.unidade_medida',
+                's.quantidade as saldo_atual',
+                's.custo_medio_ponderado',
+                's.valor_total',
+                'em.quantidade_minima',
+            ])
+            ->orderBy('u.nome')
+            ->orderBy('s.descricao_item');
+
+        if ($unidadeIds !== null) {
+            $query->whereIn('s.unidade_id', $unidadeIds->toArray());
+        }
+
+        return $query->get()->map(function (object $linha) {
+            $minima = $linha->quantidade_minima !== null ? (float) $linha->quantidade_minima : null;
+            $saldo = (float) $linha->saldo_atual;
+            $linha->em_alerta = $minima !== null && $saldo < $minima;
+
+            return $linha;
+        });
+    }
+
     // ─── Helpers privados ─────────────────────────────────────────────────────
 
     /**

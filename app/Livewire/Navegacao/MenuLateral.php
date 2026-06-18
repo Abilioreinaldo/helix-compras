@@ -43,6 +43,7 @@ class MenuLateral extends Component
                 ['label' => 'Gastos por CC', 'href' => route('relatorios.gastos-cc')],
                 ['label' => 'Gastos por Fornecedor', 'href' => route('relatorios.gastos-fornecedor')],
                 ['label' => 'Tempo de Aprovação', 'href' => route('relatorios.tempo-aprovacao')],
+                ['label' => 'Posição de Estoque', 'href' => route('relatorios.posicao-estoque')],
                 ['label' => 'Pendentes por Aprovador', 'href' => route('relatorios.pendentes-aprovador')],
                 ['label' => 'Custo por Obra', 'href' => route('relatorios.custo-obra')],
                 ['label' => 'Compras Emergenciais', 'href' => route('relatorios.emergenciais')],
