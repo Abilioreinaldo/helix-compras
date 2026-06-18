@@ -73,6 +73,18 @@ class SaldoEstoque extends Model
         return $this->hasMany(SaldoFusaoLog::class, 'saldo_destino_id');
     }
 
+    /** Todos os lotes vinculados a este saldo. */
+    public function lotes(): HasMany
+    {
+        return $this->hasMany(LoteEstoque::class);
+    }
+
+    /** Lotes vivos (não tombstones) vinculados a este saldo. */
+    public function lotesVivos(): HasMany
+    {
+        return $this->hasMany(LoteEstoque::class)->whereNull('fundido_para_id');
+    }
+
     /** Normaliza a descrição para busca/unicidade: trim + lowercase + colapsa espaços múltiplos. */
     public static function normalizarDescricao(string $descricao): string
     {

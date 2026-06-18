@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'item_recebimento_id',
     'item_pedido_compra_id',
     'requisicao_material_id',
+    'lote_estoque_id',
     'tipo',
     'quantidade',
     'custo_unitario',
@@ -59,5 +60,10 @@ class MovimentacaoEstoque extends Model
     public function requisicaoMaterial(): BelongsTo
     {
         return $this->belongsTo(RequisicaoMaterial::class);
+    }
+
+    public function loteEstoque(): BelongsTo
+    {
+        return $this->belongsTo(LoteEstoque::class);
     }
 }

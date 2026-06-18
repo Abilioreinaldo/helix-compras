@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
     'unidade_medida',
     'categoria',
     'ativo',
+    'controla_lote',
 ])]
 class CatalogoItem extends Model
 {
@@ -33,6 +34,7 @@ class CatalogoItem extends Model
     {
         return [
             'ativo' => 'boolean',
+            'controla_lote' => 'boolean',
         ];
     }
 
