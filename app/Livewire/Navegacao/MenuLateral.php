@@ -41,6 +41,7 @@ class MenuLateral extends Component
             $itens = array_merge($itens, [
                 ['label' => 'Itens a Repor', 'href' => route('compradora.itens-a-repor')],
                 ['label' => 'Gastos por CC', 'href' => route('relatorios.gastos-cc')],
+                ['label' => 'Gastos por Fornecedor', 'href' => route('relatorios.gastos-fornecedor')],
                 ['label' => 'Pendentes por Aprovador', 'href' => route('relatorios.pendentes-aprovador')],
                 ['label' => 'Custo por Obra', 'href' => route('relatorios.custo-obra')],
                 ['label' => 'Compras Emergenciais', 'href' => route('relatorios.emergenciais')],
