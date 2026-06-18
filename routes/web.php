@@ -26,6 +26,7 @@ use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\GestaoPedidosCompra;
 use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\TriagemRequisicoes;
+use App\Livewire\Relatorios\ComparativoUnidades;
 use App\Livewire\Relatorios\ComprasEmergenciais;
 use App\Livewire\Relatorios\ConsumoUnidade;
 use App\Livewire\Relatorios\CustoObra;
@@ -107,6 +108,7 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
     Route::get('/relatorios/tempo-aprovacao', TempoAprovacao::class)->name('relatorios.tempo-aprovacao');
     Route::get('/relatorios/posicao-estoque', PosicaoEstoque::class)->name('relatorios.posicao-estoque');
     Route::get('/relatorios/consumo-unidade', ConsumoUnidade::class)->name('relatorios.consumo-unidade');
+    Route::get('/relatorios/comparativo-unidades', ComparativoUnidades::class)->name('relatorios.comparativo-unidades');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
