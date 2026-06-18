@@ -10,6 +10,11 @@
 
 \- Idioma: PT-BR em tudo (UI, commits, comentários)
 
+- Portabilidade SQLite↔MySQL (CRÍTICO): testes rodam SQLite, PRODUÇÃO É MYSQL. Nunca usar função/sintaxe de um dialeto sem ramo DB::getDriverName(). Casos vividos: julianday(SQLite)/TIMESTAMPDIFF(MySQL), enum via ALTER, índice parcial (WHERE=SQLite / coluna gerada STORED=MySQL), GREATEST/MAX. Query driver-aware → registrar "ponto cego" no PLANO.md com checklist de validação em MySQL real antes do go-live.
+- Calibragem por risco: fatia que toca saldo/dinheiro/ledger/autorização = rito completo (sec+QA, teste adversário, revisar cada diff). Fatia CRUD/leitura/relatório/tela = rito leve (implementa, roda --filter, commita por unidade, reporta só a saída do teste). Parar só se: teste falha, dialeto SQL sem ramo, ou área de risco.
+- Edição: arquivo novo ou reescrita grande = Write INTEIRO, nunca patch. Se usar make:test e for popular, reescrever inteiro (patch sobre stub corrompe). Nunca escrever via python3 -c ou heredoc (cat>/tee) — trunca. Preview do diff pode estar desatualizado: a verdade é php84 artisan test.
+- Início de fatia nova: rodar git status + git log --oneline -3 antes de criar/editar — não confiar na memória da sessão.
+
 ===
 
 <laravel-boost-guidelines>
