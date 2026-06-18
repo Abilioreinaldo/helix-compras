@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-18
-**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) implementadas. **v1 ainda NÃO está completa** — o PLANO foi realinhado ao ESCOPO.md; ver "Pendências reais de v1" abaixo.
+**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) implementadas. **342 testes verdes.** **v1 ainda NÃO está completa** — faltam: lote/validade (v1.1-C, em design), rateio da central (sem PRD), transferência entre unidades, validade da proposta na cotação, lembrete +48h. Ver "Pendências reais de v1" abaixo.
 **Branch principal:** main
 
 ---
@@ -433,14 +433,51 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
-### Fatia Relatórios faltantes (#7) — R1–R5 🚧 EM IMPLEMENTAÇÃO (espelha Fase 8)
+### Fatia Relatórios faltantes (#7) — R1–R5 ✅ CONCLUÍDA (espelha Fase 8, 342 testes verdes)
 
-Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view + rota + link no menu + teste, commitado individualmente. Decisões de PRD já tomadas: R1 categoria do fornecedor; R2 tempo do ciclo (aprovada_em − aprovacao_iniciada_em) por faixa de alçada; R4 consumo por unidade; R5 gasto pela unidade da requisição.
+Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view + rota + link no menu + teste, commitado individualmente. Decisões de PRD: R1 categoria do fornecedor; R2 tempo do ciclo (aprovada_em − aprovacao_iniciada_em) por faixa de alçada; R4 consumo por unidade; R5 gasto pela unidade da requisição. Todos no GitHub.
 
 - **R1 — Gastos por Fornecedor/Categoria** ✅ commit `40c5c7d`: `SUM(ipc.valor_total)` de PC emitido agrupado por fornecedor (com coluna categoria) ou por categoria (`COALESCE → 'Sem categoria'`); toggle de agrupamento; filtros ano/mês.
-- **R2 — Tempo Médio de Aprovação por faixa de alçada** 🚧: `AVG` da duração do ciclo em horas, agrupada por faixa. Só ciclos completos (status Aprovada + `aprovacao_iniciada_em` e `aprovada_em` não-nulos) — `whereNotNull` exclui ciclo aberto e evita subtração com nulo.
+- **R2 — Tempo Médio de Aprovação por faixa de alçada** ✅ commits `70b4fcf` (+ `0fc8fde` rota): `AVG` da duração do ciclo em horas, agrupada por faixa. Só ciclos completos (status Aprovada + `aprovacao_iniciada_em` e `aprovada_em` não-nulos) — `whereNotNull` exclui ciclo aberto e evita subtração com nulo. Driver-aware (ver checklist B4).
+- **R3 — Posição de Estoque** ✅ commit `c9c9854`: reusa `EstoqueMinimo::posicaoEstoquePara()` com tombstone `fundido_para_id IS NULL` (saldo fundido não conta); flag de alerta por mínimo; filtro de unidade.
+- **R4 — Consumo por Unidade** ✅ commit `10d7d6c`: `SUM(valor_total)` das saídas (`movimentacoes_estoque.tipo = 'saida'`) agrupado pela unidade do saldo de origem; só `saida` conta.
+- **R5 — Comparativo entre Unidades** ✅ commit `a3805ee`: gasto (PC emitido) agrupado pela **unidade da requisição** (`r.unidade_id`), não a do pedido; nº requisições/pedidos, total, gasto médio/req, % do total.
 
 **⚠️ Validação MySQL:** a query de duração do R2 (`TempoAprovacao`) é driver-aware (`julianday`/`TIMESTAMPDIFF`) — consolidado na seção **"Checklist de validação MySQL pré-go-live"** (item B4).
+
+---
+
+### Fase v1.1-C — Lote/Validade + FEFO 🚧 EM DESIGN (ESCOPO #10 = v1, cervejaria)
+
+**Objetivo:** controle de lote e validade no estoque, opt-in por item. FEFO governa só a **quantidade física** que sai (primeiro a vencer); o **valor** sai pelo CMP do saldo agregado (NÃO é PEPS valorizado). Vencido = alerta, não bloqueia. Design validado pelo Tech Lead + sec (veredito CONDICIONAL: 10 P0 viram testes-adversários nos passos).
+
+**Modelo de dados:**
+- `lotes_estoque` (nova) pendurada no `SaldoEstoque` agregado (unidade/depósito herdados via `saldo_estoque_id` — não duplicar): `saldo_estoque_id` (FK restrict), `numero_lote`, `validade` (date NULL = sem validade), `quantidade` decimal(15,3), tombstone `fundido_para_id`/`fundido_em`. UNIQUE parcial `(saldo_estoque_id, numero_lote)` em `fundido_para_id IS NULL` (2º recebimento do mesmo lote **soma**, não duplica) — técnica driver-aware da `add_unique_catalogo`.
+- `catalogo_itens.controla_lote` (bool, default false). `movimentacoes_estoque.lote_estoque_id` (nullable) — **obrigatório no `#[Fillable]`** senão é descartado silenciosamente.
+- Models `LoteEstoque` (com `Auditavel`), relação `SaldoEstoque::lotes()`/`lotesVivos()`.
+- **Invariante-mestra:** `controla_lote=true` ⇒ `SUM(lotes vivos.quantidade) == saldo.quantidade`.
+
+**Ponto delicado — Saída FEFO:** o FEFO vive **dentro** da `SaidaEstoqueAction` (assinatura inalterada), guard logo após o relock: `controla_lote=false` cai no **bloco atual movido byte-a-byte** (os 8 testes do `SaidaEstoqueGuardaB1Test` seguem verdes); `true` entra no FEFO. Ordenação portável `ORDER BY (validade IS NULL), validade ASC, id ASC` (NULL por último sem `NULLS LAST`). Lock do saldo + de cada lote; consumo across lotes; 1 movimentação por lote (`custo_unitario = CMP do saldo`, `lote_estoque_id` setado); reverificação pós-lock + assert `SUM(lotes)==saldo` antes do commit; transação única (falha no N-ésimo lote reverte tudo); filtro **estrito por `saldo_estoque_id`** (nunca `item_catalogo_id` solto). Vencido marca alerta, nunca lança. Manter o FEFO dentro da action reusa o guard de perfil (Almoxarife-da-unidade / Admin / Compradora só em atendimento direto).
+
+**Ponto delicado — opt-in `controla_lote`:** `LigarControleLoteAction`, **só Admin** (impacto transversal ao catálogo global). Saldo legado com `quantidade > 0` e zero lotes → **bloqueado**; ligar exige, na mesma transação, lote inicial cobrindo o saldo atual. `saldo == 0` → liga sem lote. Desligar com lotes de quantidade > 0 → também bloqueado.
+
+**Passos (suíte verde entre cada — hoje 342):**
+- **Passo 0** — Schema + models + factory (inerte): 3 migrations aditivas (`lotes_estoque`, `controla_lote`, `lote_estoque_id`), `LoteEstoque`, `LoteEstoqueFactory`, editar `CatalogoItem`/`SaldoEstoque`/`MovimentacaoEstoque`. `controla_lote` default false → estoque atual idêntico. **Adversário:** UNIQUE parcial rejeita duplicata viva, aceita após tombstone.
+- **Passo 1** — `LigarControleLoteAction` + guard de opt-in (só Admin). **Adversários:** saldo>0 sem lote → ValidationException (flag continua false, nenhum lote criado); saldo==0 liga sem lote; já controla_lote → idempotente.
+- **Passo 2** — `EntradaEstoqueAction` (params opcionais `numeroLote`/`validade`) credita/soma lote só quando controla_lote; `RegistrarRecebimentoAction` repassa. **Adversário:** item controla_lote sem numero_lote → ValidationException (não cria saldo órfão).
+- **Passo 3** — `SelecaoFefoService` (leitura pura: ordenação, multi-lote, flag vencido). Nada consome ainda.
+- **Passo 4 ⚠️ ISOLADO** — ramo FEFO na `SaidaEstoqueAction` (commit isolado; diff mostra ramo legado movido sem edição). Regressão obrigatória do `SaidaEstoqueGuardaB1Test` (8 verdes). **Adversários:** multi-lote debita o que vence primeiro; saldo insuficiente reverte tudo; lote vencido consumido com alerta.
+- **Passo 5** — Ajuste/inventário com lote (ver Decisão 2). **Adversário:** ajuste mantém `SUM(lotes)==saldo`.
+- **Passo 6** — UI Livewire (recebimento coleta lote/validade; toggle controla_lote no catálogo exigindo lote inicial; alerta de vencido na saída/triagem; coluna validade na posição de estoque).
+
+**Decisões do dono (2026-06-18):**
+1. **RIM multi-lote:** vincular `requisicao_material_id` em **TODAS** as movimentações da saída (rastreabilidade completa, não âncora única). `AtenderRequisicaoMaterialAction` marca todas; teste de RIM sobre item multi-lote.
+2. **Inventário com lote:** ⏳ *aguardando confirm do dono.* **Recomendação do Tech Lead: BLOQUEAR** inventário de item `controla_lote` no v1 (mensagem clara, `AbrirSessaoInventarioAction`/`AplicarInventarioAction` recusam com ValidationException) e mandar contagem-por-lote para **v1.1-D** — contagem por lote exigiria redesenhar `itens_inventario` com dimensão de lote (snapshot/divergência/ajuste por lote + UI), inflando o Passo 5 e arriscando a suíte de RIM/inventário. Bloquear mantém `SUM(lotes)==saldo` trivialmente seguro. Itens **sem** controla_lote: inventário como hoje. *Só afeta o Passo 5 — não trava o Passo 0.*
+3. **Fusão + lotes:** `FusaoSaldosAction` migra os lotes do tombstone para o destino (senão lote vivo em saldo morto); **BLOQUEAR** fusão quando há colisão de `numero_lote` entre origem e destino (não consolidar automático — validades podem divergir); **recusar fusão mista** (saldo com lote × saldo sem lote do mesmo item). Verificar `SUM(lotes destino)==destino.quantidade` antes do commit.
+
+**Invariantes garantidas:** soma=saldo (controla_lote); saldo nunca negativo (clamp + tolerância 0.001); CMP inalterado pela mecânica de lote; controla_lote=false ⇒ comportamento byte-a-byte atual; opt-in impossível em saldo fantasma; vencido não bloqueia; ledger append-only (N movimentações por saída multi-lote).
+
+**Portabilidade:** ver itens **D9–D11** no Checklist de validação MySQL pré-go-live.
 
 ---
 
@@ -488,6 +525,15 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
 - [ ] **C8 — Catch `errorInfo[1]` 19 (SQLite) / 1062 (MySQL)** (`DefinirEstoqueMinimoAction` + catch do UNIQUE de saldos do v1.1-B).
   - **O que validar:** violação UNIQUE em MySQL cai no ramo 1062 e degrada para UPDATE/relê corretamente. **Atenção:** em MySQL a transação **aborta** na violação (diferente do rollback statement-level do SQLite) — confirmar que o retry funciona.
   - **Como:** forçar corrida de `updateOrCreate` do mesmo `(unidade, item)` e confirmar resultado consistente sem exceção propagada.
+
+### D. v1.1-C — Lote/Validade (quando implementado)
+
+- [ ] **D9 — UNIQUE parcial de `lotes_estoque`** `(saldo_estoque_id, numero_lote)` em `fundido_para_id IS NULL`: índice parcial (SQLite) vs coluna gerada STORED + UNIQUE (MySQL), mesma técnica de A2.
+  - **Como:** `SHOW CREATE TABLE lotes_estoque`; inserir duplicata viva → falha 1062; após tombstone, inserir mesmo `numero_lote` → passa.
+- [ ] **D10 — Ordenação FEFO `(validade IS NULL), validade ASC, id ASC`** (NULL por último sem `NULLS LAST`).
+  - **Como:** com lotes de validade NULL + datas, confirmar no MySQL que NULL sai por último e a saída debita o de menor validade primeiro.
+- [ ] **D11 — Comparação de vencido `validade < hoje`** (date puro, sem `julianday`/`DATEDIFF`).
+  - **Como:** lote com `validade` no passado é marcado vencido (alerta) no MySQL, sem erro de função e sem bloquear a saída.
 
 ---
 
@@ -546,10 +592,10 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 |---|-----------------|--------|------------|
 | 1 | **Estoque — Saída de material** (requisição interna) + **Inventário** + **Atendimento direto Compradora** | ✅ IMPLEMENTADA (52 testes novos) | RIM (Aberta→Atendida/Recusada), sessão de inventário com snapshot+ajustes, atendimento direto pela Compradora via `SaidaEstoqueAction` relaxada (B1) |
 | 2 | **Estoque mínimo + alerta de ressuprimento** | ✅ IMPLEMENTADA (45 testes novos) | Tabela `estoque_minimos` (unidade × item catálogo); `DefinirEstoqueMinimoAction`; `EstoqueMinimo::itensAReporPara()` + `itemCatalogoIdsEmAlerta()`; badge e painel em `SaldosEstoque`; modal mínimos por unidade em `ListaCatalogoItens`; painel `Compradora\ItensARepor` com botão de sugestão de requisição; pré-preenchimento do `FormularioRequisicao` via query params |
-| 4 | **Lote/validade + FEFO** (cervejaria) | 🟠 não-iniciado | ESCOPO #10 = v1. Planejado como v1.1-C |
+| 4 | **Lote/validade + FEFO** (cervejaria) | 🚧 em design (Passo 0 a iniciar) | ESCOPO #10 = v1. Design fechado (TL+sec) na **Fase v1.1-C** acima; decisões 1 e 3 fechadas, decisão 2 (inventário) aguarda confirm |
 | 5 | **Rateio da central** entre unidades | 🟠 não-iniciado | ESCOPO #12 = v1. Indefinido — exige PRD do PM antes de codar |
 | 6 | **Transferência entre unidades** | 🟡 não-iniciado | Sem aprovação (#8); entidade própria + reconciliação entre unidades |
-| 7 | **Relatórios faltantes** (5 de 8) | 🟡 parcial | Faltam: gasto por fornecedor/categoria; tempo médio de aprovação; posição de estoque; consumo por CC/unidade; comparativo entre unidades |
+| 7 | **Relatórios faltantes** (R1–R5) | ✅ CONCLUÍDA | R1 fornecedor/categoria, R2 tempo de aprovação, R3 posição de estoque, R4 consumo por unidade, R5 comparativo entre unidades — commits `40c5c7d`→`a3805ee`, no GitHub. Ver Fatia #7 acima |
 | 8 | **Lembrete diário de pendências +48h** | 🟢 não-iniciado | Notificação por e-mail |
 | 9 | **Campos da cotação** (prazo de entrega, validade da proposta) | 🟢 parcial | ESCOPO exige por cotação; hoje não capturados na cotação |
 
