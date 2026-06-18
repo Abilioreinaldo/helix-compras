@@ -3,8 +3,10 @@
 namespace App\Actions;
 
 use App\Enums\TipoMovimentacao;
+use App\Models\CatalogoItem;
 use App\Models\ItemPedidoCompra;
 use App\Models\ItemRecebimento;
+use App\Models\LoteEstoque;
 use App\Models\MovimentacaoEstoque;
 use App\Models\SaldoEstoque;
 use App\Models\User;
@@ -23,6 +25,16 @@ class EntradaEstoqueAction
      * defensivo aqui; em MySQL/MariaDB de produção passa a ser necessário para
      * evitar race conditions reais entre transações concorrentes.
      *
+     * Lote/validade (v1.1-C): quando o item de catálogo vinculado tem
+     * `controla_lote = true`, `numeroLote` é obrigatório e a entrada credita um
+     * `LoteEstoque` pendurado no saldo — somando à quantidade do lote vivo de mesmo
+     * número (2º recebimento) ou criando um novo — mantendo a invariante
+     * SUM(lotes vivos) == saldo.quantidade. `validade` é opcional (NULL = sem validade).
+     *
+     * A flag `controla_lote` é lida do catálogo via `itemPedidoCompra->item_catalogo_id`
+     * (única fonte: `ItemRecebimento` não carrega catálogo). Itens sem `controla_lote`
+     * ignoram `numeroLote`/`validade` e mantêm comportamento idêntico ao anterior.
+     *
      * @throws ValidationException
      */
     public function execute(
@@ -30,7 +42,13 @@ class EntradaEstoqueAction
         ItemRecebimento $itemRecebimento,
         float $quantidade,
         User $registradoPor,
+        ?string $numeroLote = null,
+        ?string $validade = null,
     ): MovimentacaoEstoque {
+        // O item do pedido é a fonte canônica da entrada (destino, custo, catálogo);
+        // deriva-se do recebimento para não depender de o chamador passar o par coerente.
+        $itemPedidoCompra = $itemRecebimento->itemPedidoCompra;
+
         if (empty($itemPedidoCompra->destino)) {
             throw ValidationException::withMessages([
                 'destino' => "Item \"{$itemPedidoCompra->descricao}\" não tem destino definido — não é possível dar entrada no estoque.",
@@ -43,13 +61,29 @@ class EntradaEstoqueAction
             ]);
         }
 
+        $catalogoId = $itemPedidoCompra->item_catalogo_id;
+
+        // Flag de controle de lote: vive no CatalogoItem, alcançada SÓ pelo item do pedido
+        // (ItemRecebimento não tem item_catalogo_id). Item avulso (sem catálogo) nunca controla.
+        $controlaLote = $catalogoId !== null
+            && (bool) CatalogoItem::withTrashed()->whereKey($catalogoId)->value('controla_lote');
+
+        $numeroLote = $numeroLote !== null ? trim($numeroLote) : null;
+
+        // Guard ANTES de qualquer escrita: item que controla lote exige número de lote.
+        // Falhar aqui impede criar saldo órfão (saldo creditado sem o lote correspondente).
+        if ($controlaLote && ($numeroLote === null || $numeroLote === '')) {
+            throw ValidationException::withMessages([
+                'numero_lote' => "Item \"{$itemPedidoCompra->descricao}\" controla lote — informe o número do lote para registrar a entrada.",
+            ]);
+        }
+
         $pedido = $itemPedidoCompra->pedidoCompra()->withoutGlobalScopes()->first();
         $unidadeId = $pedido->unidade_id;
         $deposito = $itemPedidoCompra->destino;
         $descricaoItem = $itemPedidoCompra->descricao;
         $descricaoNormalizada = SaldoEstoque::normalizarDescricao($descricaoItem);
         $custoUnitario = (float) $itemPedidoCompra->valor_unitario;
-        $catalogoId = $itemPedidoCompra->item_catalogo_id;
 
         // Identidade do saldo: catálogo quando vinculado, descrição normalizada quando avulso.
         // Tombstones de fusão (fundido_para_id != null) nunca entram — a entrada credita
@@ -111,10 +145,19 @@ class EntradaEstoqueAction
             'valor_total' => $qtdNova * $novoCmp,
         ]);
 
+        // Lote: credita/soma na mesma transação para manter SUM(lotes vivos) == saldo.quantidade.
+        // Apenas itens controla_lote chegam aqui com lote; demais mantêm lote_estoque_id null.
+        $loteId = null;
+
+        if ($controlaLote) {
+            $loteId = $this->creditarLote($saldo, $numeroLote, $validade, $quantidade)->id;
+        }
+
         return MovimentacaoEstoque::create([
             'saldo_estoque_id' => $saldo->id,
             'item_recebimento_id' => $itemRecebimento->id,
             'item_pedido_compra_id' => $itemPedidoCompra->id,
+            'lote_estoque_id' => $loteId,
             'tipo' => TipoMovimentacao::Entrada,
             'quantidade' => $quantidade,
             'custo_unitario' => $custoUnitario,
@@ -122,6 +165,54 @@ class EntradaEstoqueAction
             'motivo' => null,
             'registrado_por' => $registradoPor->id,
         ]);
+    }
+
+    /**
+     * Credita a quantidade no lote vivo de mesmo número (somando) ou cria um novo.
+     *
+     * Mantém a invariante SUM(lotes vivos) == saldo.quantidade: a mesma quantidade
+     * creditada no saldo é creditada em exatamente um lote. A validade do lote
+     * existente é preservada no 2º recebimento (a primeira entrada define a validade).
+     */
+    private function creditarLote(SaldoEstoque $saldo, string $numeroLote, ?string $validade, float $quantidade): LoteEstoque
+    {
+        $lote = LoteEstoque::where('saldo_estoque_id', $saldo->id)
+            ->where('numero_lote', $numeroLote)
+            ->whereNull('fundido_para_id')
+            ->lockForUpdate()
+            ->first();
+
+        if ($lote === null) {
+            try {
+                return LoteEstoque::create([
+                    'saldo_estoque_id' => $saldo->id,
+                    'numero_lote' => $numeroLote,
+                    'validade' => ($validade !== null && $validade !== '') ? $validade : null,
+                    'quantidade' => $quantidade,
+                ]);
+            } catch (QueryException $e) {
+                // Corrida: outra transação inseriu o mesmo lote vivo entre o SELECT e o INSERT.
+                // Degrada para soma, re-buscando o lote recém-criado. Outras violações propagam.
+                if (! $this->ehViolacaoUnicidadeLote($e)) {
+                    throw $e;
+                }
+
+                $lote = LoteEstoque::where('saldo_estoque_id', $saldo->id)
+                    ->where('numero_lote', $numeroLote)
+                    ->whereNull('fundido_para_id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($lote === null) {
+                    throw $e;
+                }
+            }
+        }
+
+        // 2º recebimento do mesmo lote vivo: soma à quantidade existente (não duplica).
+        $lote->update(['quantidade' => (float) $lote->quantidade + $quantidade]);
+
+        return $lote;
     }
 
     /**
@@ -143,6 +234,31 @@ class EntradaEstoqueAction
         if ($codigo === 19) {
             return str_contains($mensagem, 'UNIQUE constraint failed')
                 && str_contains($mensagem, 'item_catalogo_id');
+        }
+
+        return false;
+    }
+
+    /**
+     * Indica se a exceção é uma violação do UNIQUE parcial de lote vivo
+     * (lotes_estoque_saldo_lote_unique), e não outra constraint que deve propagar.
+     */
+    private function ehViolacaoUnicidadeLote(QueryException $e): bool
+    {
+        $codigo = $e->errorInfo[1] ?? null;
+        $mensagem = $e->getMessage();
+
+        // MySQL/MariaDB: ER_DUP_ENTRY (1062) cita o nome do índice na mensagem.
+        if ($codigo === 1062) {
+            return str_contains($mensagem, 'lotes_estoque_saldo_lote_unique');
+        }
+
+        // SQLite: SQLITE_CONSTRAINT (19). A mensagem de UNIQUE lista as colunas do índice
+        // parcial; exigir numero_lote distingue de outras constraints futuras da tabela
+        // (a FK reporta "FOREIGN KEY constraint failed", que não casa com o filtro acima).
+        if ($codigo === 19) {
+            return str_contains($mensagem, 'UNIQUE constraint failed')
+                && str_contains($mensagem, 'numero_lote');
         }
 
         return false;

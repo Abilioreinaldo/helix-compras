@@ -534,6 +534,8 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
   - **Como:** com lotes de validade NULL + datas, confirmar no MySQL que NULL sai por último e a saída debita o de menor validade primeiro.
 - [ ] **D11 — Comparação de vencido `validade < hoje`** (date puro, sem `julianday`/`DATEDIFF`).
   - **Como:** lote com `validade` no passado é marcado vencido (alerta) no MySQL, sem erro de função e sem bloquear a saída.
+- [ ] **D12 — Case-sensitivity de `numero_lote` no agrupamento de lote** (Passo 2, `EntradaEstoqueAction::creditarLote`): a busca do lote vivo usa `WHERE numero_lote = ?` e o UNIQUE parcial `(saldo_estoque_id, numero_lote)`. SQLite (binary) trata `'L-001'` ≠ `'l-001'` → **2 lotes**; MySQL com collation padrão `utf8mb4_unicode_ci` trata `'L-001'` = `'l-001'` → **1 lote (soma)**. A invariante `SUM(lotes vivos)==saldo` **não quebra** nos dois casos (ambos somam ao saldo); o que diverge é a granularidade dos lotes. **Decisão do dono pendente:** normalizar `numero_lote` (ex.: `upper(trim())`) na entrada para tornar determinístico entre bancos, ou aceitar a divergência.
+  - **Como:** receber `'L-001'` e depois `'l-001'` no mesmo saldo; conferir `LoteEstoque::count()` (2 em SQLite, 1 em MySQL) e confirmar o comportamento desejado no MySQL real.
 
 ---
 

@@ -23,12 +23,13 @@ class RegistrarRecebimentoAction
 
     /**
      * @param  array<int, float>  $quantidades  item_pedido_compra_id => quantidade_recebida
+     * @param  array<int, array{numero_lote?: string|null, validade?: string|null}>  $lotes  item_pedido_compra_id => dados do lote (apenas itens controla_lote)
      *
      * @throws ValidationException
      */
-    public function execute(PedidoCompra $pedido, User $almoxarife, array $quantidades, ?string $observacoes = null): Recebimento
+    public function execute(PedidoCompra $pedido, User $almoxarife, array $quantidades, ?string $observacoes = null, array $lotes = []): Recebimento
     {
-        $recebimento = DB::transaction(function () use ($pedido, $almoxarife, $quantidades, $observacoes) {
+        $recebimento = DB::transaction(function () use ($pedido, $almoxarife, $quantidades, $observacoes, $lotes) {
             $pedido->refresh();
 
             if ($pedido->status !== StatusPedidoCompra::Emitido) {
@@ -83,11 +84,15 @@ class RegistrarRecebimentoAction
                     'quantidade_recebida' => (float) $qtdNova,
                 ]);
 
+                $dadosLote = $lotes[$itemId] ?? [];
+
                 $this->entradaEstoque->execute(
                     itemPedidoCompra: $itens->get($itemId),
                     itemRecebimento: $itemRecebimento,
                     quantidade: (float) $qtdNova,
                     registradoPor: $almoxarife,
+                    numeroLote: $dadosLote['numero_lote'] ?? null,
+                    validade: $dadosLote['validade'] ?? null,
                 );
             }
 
