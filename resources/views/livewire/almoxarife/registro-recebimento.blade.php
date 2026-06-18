@@ -81,6 +81,25 @@
                                         class="w-28 text-right border-gray-300 rounded shadow-sm text-sm"
                                         placeholder="0,000"
                                     />
+                                    @if($controlaLote[$item->id] ?? false)
+                                        <div class="mt-2 space-y-1">
+                                            <div class="text-[10px] text-gray-400 uppercase tracking-wide text-right">Lote / validade</div>
+                                            <input
+                                                type="text"
+                                                wire:model="lotes.{{ $item->id }}.numero_lote"
+                                                class="w-28 border-gray-300 rounded shadow-sm text-sm"
+                                                placeholder="Nº do lote"
+                                            />
+                                            <input
+                                                type="date"
+                                                wire:model="lotes.{{ $item->id }}.validade"
+                                                class="w-28 border-gray-300 rounded shadow-sm text-sm"
+                                            />
+                                            @error('lotes.'.$item->id.'.numero_lote')
+                                                <span class="block text-xs text-red-600 text-right">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    @endif
                                 @else
                                     <span class="text-xs text-gray-400">—</span>
                                 @endif
