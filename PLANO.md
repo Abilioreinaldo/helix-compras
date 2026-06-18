@@ -1,7 +1,7 @@
 # PLANO — Sistema de Gestão de Compras v1
 # Rede Comendador
 
-**Última atualização:** 2026-06-16
+**Última atualização:** 2026-06-18
 **Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) implementadas. **v1 ainda NÃO está completa** — o PLANO foi realinhado ao ESCOPO.md; ver "Pendências reais de v1" abaixo.
 **Branch principal:** main
 
@@ -429,15 +429,7 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 **Passos:** 0 (guard Sugerir + paginação catálogo) · 1 (FusaoSaldosAction + enum Fusao + tombstone/log) · 2 (comando `estoque:sanear-duplicatas-catalogo`) · 3 (UNIQUE parcial + catch de QueryException).
 
-**⚠️ PONTO CEGO PARA O SEC+QA — validar antes do go-live:**
-- A migration `add_unique_catalogo_to_saldos_estoque` é **driver-aware**: SQLite usa índice UNIQUE **parcial** (`WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL`); MySQL/MariaDB (produção) usa **coluna gerada STORED** (`catalogo_chave_unica`, NULL fora do escopo) + UNIQUE sobre ela.
-- **A suíte de testes roda SÓ em SQLite.** O caminho MySQL — que é o de produção — **NÃO é exercitado por nenhum teste automatizado.** Antes do deploy é obrigatório validar num MySQL real: (a) `migrate` cria a coluna gerada + índice; (b) insert de duas linhas ativas com mesma `(unidade_id, deposito, item_catalogo_id)` é barrado; (c) avulsos (catálogo NULL) e tombstones (fundido_para_id != NULL) coexistem sem colidir.
-- **ORDEM DE DEPLOY OBRIGATÓRIA (MySQL real):**
-  1. `php artisan migrate` até o **Passo 2** (inclusive) — NÃO aplicar ainda a migration do UNIQUE.
-  2. Rodar `estoque:sanear-duplicatas-catalogo --dry-run` para auditar, depois `--executado-por=<id Admin>` para fundir as duplicatas legadas.
-  3. Só então `php artisan migrate` o **Passo 3** (cria o UNIQUE/coluna gerada).
-  Se a constraint do Passo 3 subir ANTES do saneamento num banco com duplicatas, a criação do índice **falha** e o deploy trava. Essa ordem é mandatória — não inverter.
-- O catch de `QueryException` discrimina por `errorInfo[1]` (19 SQLite / 1062 MySQL) + nome da constraint; a degradação para UPDATE foi testada só em SQLite (statement-level rollback). Em MySQL a transação aborta na violação — confirmar o comportamento do retry em MySQL real.
+**⚠️ Validação MySQL:** este passo tem migration driver-aware (índice parcial vs coluna gerada STORED), ordem de deploy obrigatória do UNIQUE e catch `errorInfo` 19/1062 — tudo consolidado na seção **"Checklist de validação MySQL pré-go-live"** (itens A2, A3, C8).
 
 ---
 
@@ -448,9 +440,54 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
 - **R1 — Gastos por Fornecedor/Categoria** ✅ commit `40c5c7d`: `SUM(ipc.valor_total)` de PC emitido agrupado por fornecedor (com coluna categoria) ou por categoria (`COALESCE → 'Sem categoria'`); toggle de agrupamento; filtros ano/mês.
 - **R2 — Tempo Médio de Aprovação por faixa de alçada** 🚧: `AVG` da duração do ciclo em horas, agrupada por faixa. Só ciclos completos (status Aprovada + `aprovacao_iniciada_em` e `aprovada_em` não-nulos) — `whereNotNull` exclui ciclo aberto e evita subtração com nulo.
 
-**⚠️ PONTO CEGO PARA O SEC+QA — validar antes do go-live (mesmo padrão do v1.1-B):**
-- A query de duração do R2 (`TempoAprovacao`) é **driver-aware**: SQLite usa `(julianday(aprovada_em) − julianday(aprovacao_iniciada_em)) × 24`; MySQL/MariaDB (produção) usa `TIMESTAMPDIFF(SECOND, aprovacao_iniciada_em, aprovada_em) / 3600`. `julianday()` **não existe no MySQL**.
-- **A suíte roda SÓ em SQLite.** O ramo MySQL — caminho de produção — **não é exercitado por nenhum teste automatizado.** Antes do deploy, validar num MySQL real: (a) o relatório abre sem erro de SQL para a Compradora/Admin; (b) a média em horas bate com o valor SQLite para os mesmos dados; (c) `GROUP BY faixa` e ordenação por `valor_minimo` retornam as mesmas linhas.
+**⚠️ Validação MySQL:** a query de duração do R2 (`TempoAprovacao`) é driver-aware (`julianday`/`TIMESTAMPDIFF`) — consolidado na seção **"Checklist de validação MySQL pré-go-live"** (item B4).
+
+---
+
+## Checklist de validação MySQL pré-go-live
+
+> **Por que esta seção existe:** a suíte de testes roda **só em SQLite**; produção é **MySQL**. Os itens abaixo têm comportamento ou sintaxe que diferem entre os dois dialetos e **nenhum é exercitado por teste automatizado**. Validar TODOS contra um MySQL real antes do deploy. Marcar `[x]` conforme validado.
+
+### Pré-requisito de ambiente
+
+- [ ] **Criar o banco de produção com `utf8mb4` / `utf8mb4_unicode_ci`.**
+  - **O que validar:** charset e collation do banco e das colunas de texto buscadas.
+  - **Como:** `CREATE DATABASE comendador CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`. Confere com `SHOW TABLE STATUS` e `SHOW FULL COLUMNS` nas colunas de busca (`descricao`, `descricao_normalizada`, `nome`, `codigo`, `cnpj`, `razao_social`). É a base do item C6.
+
+### A. Migrations driver-aware
+
+- [ ] **A1 — Enum `tipo` de `movimentacoes_estoque`** (`add_fusao_to_movimentacoes_estoque_tipo`).
+  - **O que validar:** o `up()` altera o ENUM para incluir `'fusao'` via `ALTER TABLE ... MODIFY COLUMN tipo ENUM(...)` (ramo MySQL, diferente do swap de coluna TEXT do SQLite); o `down()` reverte sem `'fusao'` (assume zero linhas `'fusao'`).
+  - **Como:** rodar `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 5 valores; inserir uma movimentação `tipo='fusao'` e confirmar aceitação; testar `migrate:rollback` num banco sem linhas `'fusao'`.
+- [ ] **A2 — UNIQUE de saldos de catálogo** (`add_unique_catalogo_to_saldos_estoque`): índice **parcial** (SQLite) vs **coluna gerada STORED `catalogo_chave_unica` + UNIQUE** (MySQL).
+  - **O que validar:** `migrate` cria a coluna gerada e o índice; duas linhas **ativas** com mesma `(unidade_id, deposito, item_catalogo_id)` são barradas; avulsos (`item_catalogo_id` NULL) e tombstones (`fundido_para_id` != NULL) coexistem sem colidir.
+  - **Como:** `SHOW CREATE TABLE saldos_estoque` (confere coluna gerada + UNIQUE); tentar inserir duplicata ativa → deve falhar com 1062; inserir 2 avulsos idênticos e 2 tombstones idênticos → devem passar.
+- [ ] **A3 — Ordem de deploy obrigatória do UNIQUE (mandatória, não inverter):**
+  1. `php artisan migrate` até o **Passo 2** (NÃO aplicar ainda a migration do UNIQUE).
+  2. `estoque:sanear-duplicatas-catalogo --dry-run` para auditar → depois `--executado-por=<id Admin>` para fundir as duplicatas legadas.
+  3. **Só então** `php artisan migrate` o **Passo 3** (cria o UNIQUE/coluna gerada).
+  - **Por quê:** se a constraint do Passo 3 subir ANTES do saneamento num banco com duplicatas, a criação do índice **falha e o deploy trava**.
+
+### B. Relatórios driver-aware
+
+> Para cada um: abrir logado como Compradora/Admin, confirmar que **não dá erro de SQL**, e que os números **batem com o SQLite** para os mesmos dados.
+
+- [ ] **B4 — R2 `TempoAprovacao`**: `TIMESTAMPDIFF(SECOND, ...)/3600` (MySQL) vs `(julianday(...) - julianday(...)) * 24` (SQLite). `julianday()` não existe no MySQL.
+  - **O que validar:** abre sem erro; média/mín/máx em horas conferem; `GROUP BY` faixa e ordenação por `valor_minimo` retornam as mesmas linhas.
+- [ ] **B5 — `CustoObra`**: `DATE_FORMAT(pc.emitido_em, '%m')` (MySQL) vs `strftime('%m', ...)` (SQLite). Corrigido no commit `5d09b05` (antes era SQLite-only sem ramo).
+  - **O que validar:** abre sem erro; a curva mensal aloca o valor no mês correto (01–12); acumulado e % de verba conferem.
+
+### C. Comportamentais (não-quebras — validar semântica)
+
+- [ ] **C6 — `like` + collation.** Coberto pelo pré-requisito de ambiente.
+  - **O que validar:** busca nas telas (usuários, fornecedores, centros de custo, catálogo, saldos) continua **case-insensitive** no MySQL (no SQLite é por padrão; no MySQL depende da collation).
+  - **Como:** com `utf8mb4_unicode_ci`, buscar termo em maiúsculas/minúsculas e com/sem acento e confirmar que retorna o esperado.
+- [ ] **C7 — `insertOrIgnore` da sequência de PC** (`EmitirPedidoCompraAction`): `INSERT IGNORE` (MySQL) engole mais classes de erro que `INSERT OR IGNORE` (SQLite).
+  - **O que validar:** a numeração `PC-AAAA-NNNN` sob concorrência silencia **apenas** a colisão de unicidade da sequência, não outros erros (FK/NOT NULL).
+  - **Como:** emitir 2 PCs concorrentes no mesmo ano e confirmar sequência sem buraco nem duplicata.
+- [ ] **C8 — Catch `errorInfo[1]` 19 (SQLite) / 1062 (MySQL)** (`DefinirEstoqueMinimoAction` + catch do UNIQUE de saldos do v1.1-B).
+  - **O que validar:** violação UNIQUE em MySQL cai no ramo 1062 e degrada para UPDATE/relê corretamente. **Atenção:** em MySQL a transação **aborta** na violação (diferente do rollback statement-level do SQLite) — confirmar que o retry funciona.
+  - **Como:** forçar corrida de `updateOrCreate` do mesmo `(unidade, item)` e confirmar resultado consistente sem exceção propagada.
 
 ---
 
