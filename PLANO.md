@@ -441,6 +441,19 @@ Nenhum módulo de negócio implementado até a data deste plano.
 
 ---
 
+### Fatia Relatórios faltantes (#7) — R1–R5 🚧 EM IMPLEMENTAÇÃO (espelha Fase 8)
+
+Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view + rota + link no menu + teste, commitado individualmente. Decisões de PRD já tomadas: R1 categoria do fornecedor; R2 tempo do ciclo (aprovada_em − aprovacao_iniciada_em) por faixa de alçada; R4 consumo por unidade; R5 gasto pela unidade da requisição.
+
+- **R1 — Gastos por Fornecedor/Categoria** ✅ commit `40c5c7d`: `SUM(ipc.valor_total)` de PC emitido agrupado por fornecedor (com coluna categoria) ou por categoria (`COALESCE → 'Sem categoria'`); toggle de agrupamento; filtros ano/mês.
+- **R2 — Tempo Médio de Aprovação por faixa de alçada** 🚧: `AVG` da duração do ciclo em horas, agrupada por faixa. Só ciclos completos (status Aprovada + `aprovacao_iniciada_em` e `aprovada_em` não-nulos) — `whereNotNull` exclui ciclo aberto e evita subtração com nulo.
+
+**⚠️ PONTO CEGO PARA O SEC+QA — validar antes do go-live (mesmo padrão do v1.1-B):**
+- A query de duração do R2 (`TempoAprovacao`) é **driver-aware**: SQLite usa `(julianday(aprovada_em) − julianday(aprovacao_iniciada_em)) × 24`; MySQL/MariaDB (produção) usa `TIMESTAMPDIFF(SECOND, aprovacao_iniciada_em, aprovada_em) / 3600`. `julianday()` **não existe no MySQL**.
+- **A suíte roda SÓ em SQLite.** O ramo MySQL — caminho de produção — **não é exercitado por nenhum teste automatizado.** Antes do deploy, validar num MySQL real: (a) o relatório abre sem erro de SQL para a Compradora/Admin; (b) a média em horas bate com o valor SQLite para os mesmos dados; (c) `GROUP BY faixa` e ordenação por `valor_minimo` retornam as mesmas linhas.
+
+---
+
 ## Sequência de execução
 
 ```
