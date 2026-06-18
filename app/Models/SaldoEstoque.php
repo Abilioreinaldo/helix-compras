@@ -85,6 +85,17 @@ class SaldoEstoque extends Model
         return $this->hasMany(LoteEstoque::class)->whereNull('fundido_para_id');
     }
 
+    /**
+     * Indica se o item de catálogo deste saldo controla lote/validade.
+     * withTrashed: catálogo soft-deleted não rebaixa o saldo (mantém a invariante
+     * SUM(lotes vivos) == saldo.quantidade ao longo das operações de estoque).
+     */
+    public function controlaLote(): bool
+    {
+        return $this->item_catalogo_id !== null
+            && (bool) CatalogoItem::withTrashed()->whereKey($this->item_catalogo_id)->value('controla_lote');
+    }
+
     /** Normaliza a descrição para busca/unicidade: trim + lowercase + colapsa espaços múltiplos. */
     public static function normalizarDescricao(string $descricao): string
     {

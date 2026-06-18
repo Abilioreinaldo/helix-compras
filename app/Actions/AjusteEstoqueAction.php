@@ -52,6 +52,14 @@ class AjusteEstoqueAction
             ]);
         }
 
+        // v1.1-C: ajuste direto não suporta item com controle de lote — mexeria no saldo sem
+        // tocar nos lotes, quebrando SUM(lotes vivos) == saldo. Ajuste por lote → v1.1-D.
+        if ($saldo->controlaLote()) {
+            throw ValidationException::withMessages([
+                'saldo' => 'Ajuste direto não é suportado para item com controle de lote (o ajuste por lote será tratado na v1.1-D).',
+            ]);
+        }
+
         return DB::transaction(function () use ($saldo, $tipo, $quantidade, $motivo, $registradoPor) {
             // withoutGlobalScopes: relocking by id — unidade já foi verificada acima
             $saldo = SaldoEstoque::withoutGlobalScopes()->where('id', $saldo->id)->lockForUpdate()->firstOrFail();

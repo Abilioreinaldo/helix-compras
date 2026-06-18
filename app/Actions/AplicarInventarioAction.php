@@ -45,9 +45,20 @@ class AplicarInventarioAction
             abort(403, 'Perfil insuficiente para aplicar inventário.');
         }
 
-        // Verifica se todos os itens estão contados
         $sessao->load('itens.saldoEstoque');
 
+        // v1.1-C (guard defensivo): se um saldo virou controla_lote após o snapshot, recusa.
+        // O AbrirSessao já exclui esses itens; aqui cobrimos o toggle pós-abertura. Inventário
+        // por lote não é suportado no v1 → v1.1-D.
+        $comLote = $sessao->itens->filter(fn ($item) => $item->saldoEstoque?->controlaLote())->count();
+
+        if ($comLote > 0) {
+            throw ValidationException::withMessages([
+                'itens' => "Existem {$comLote} item(ns) com controle de lote nesta sessão; inventário por lote não é suportado no v1 (v1.1-D).",
+            ]);
+        }
+
+        // Verifica se todos os itens estão contados
         $naoContados = $sessao->itens->filter(fn ($item) => $item->quantidade_contada === null)->count();
 
         if ($naoContados > 0) {

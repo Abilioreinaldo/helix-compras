@@ -62,9 +62,19 @@ class AbrirSessaoInventarioAction
                 'status' => StatusInventario::EmAndamento,
             ]);
 
-            // Snapshot: saldos ativos da unidade (excluindo tombstones de fusão)
+            // Snapshot: saldos ativos da unidade (excluindo tombstones de fusão).
+            // v1.1-C: itens controla_lote ficam fora do inventário no v1 (contagem por lote →
+            // v1.1-D). A subquery na tabela crua ignora de propósito o soft-delete do catálogo,
+            // para um catálogo arquivado mas controla_lote ainda excluir o saldo. Portável
+            // SQLite/MySQL (booleano = 1, sem função de dialeto).
             $query = SaldoEstoque::where('unidade_id', $unidade->id)
-                ->whereNull('fundido_para_id');
+                ->whereNull('fundido_para_id')
+                ->whereNotExists(function ($sub) {
+                    $sub->select(DB::raw(1))
+                        ->from('catalogo_itens')
+                        ->whereColumn('catalogo_itens.id', 'saldos_estoque.item_catalogo_id')
+                        ->where('catalogo_itens.controla_lote', true);
+                });
 
             if ($deposito !== null) {
                 $query->where('deposito', $deposito);
