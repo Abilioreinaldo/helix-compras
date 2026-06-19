@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\CatalogoItens;
 
 use App\Actions\DefinirEstoqueMinimoAction;
+use App\Actions\LigarControleLoteAction;
 use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
@@ -130,6 +131,31 @@ class ListaCatalogoItens extends Component
 
         CatalogoItem::findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Item de catálogo removido.');
+    }
+
+    public function alternarControleLote(int $id): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+
+        $this->resetValidation();
+
+        $item = CatalogoItem::findOrFail($id);
+
+        try {
+            $atualizado = app(LigarControleLoteAction::class)->execute(
+                $item,
+                ! $item->controla_lote,
+                auth()->user(),
+            );
+        } catch (ValidationException $e) {
+            $mensagem = collect($e->errors())->flatten()->first() ?? $e->getMessage();
+            $this->addError("controla_lote_{$id}", $mensagem);
+
+            return;
+        }
+
+        $estado = $atualizado->controla_lote ? 'ligado' : 'desligado';
+        $this->dispatch('notify', mensagem: "Controle de lote {$estado} para \"{$atualizado->descricao}\".");
     }
 
     // ─── Modal mínimos por unidade ────────────────────────────────────────────

@@ -31,6 +31,7 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ativo</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lote</th>
                     <th class="px-4 py-3"></th>
                 </tr>
             </thead>
@@ -46,6 +47,19 @@
                                 {{ $item->ativo ? 'Sim' : 'Não' }}
                             </span>
                         </td>
+                        <td class="px-4 py-3 text-sm">
+                            <button
+                                wire:click="alternarControleLote({{ $item->id }})"
+                                wire:confirm="{{ $item->controla_lote ? 'Desligar o controle de lote deste item?' : 'Ligar o controle de lote deste item?' }}"
+                                type="button"
+                                class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $item->controla_lote ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
+                            >
+                                {{ $item->controla_lote ? 'Controla lote' : 'Sem controle' }}
+                            </button>
+                            @error("controla_lote_{$item->id}")
+                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                        </td>
                         <td class="px-4 py-3 text-right text-sm space-x-2">
                             <button wire:click="abrirModalMinimos({{ $item->id }})" class="text-indigo-600 hover:text-indigo-800">Mínimos</button>
                             <button wire:click="abrirEditar({{ $item->id }})" class="text-blue-600 hover:text-blue-800">Editar</button>
@@ -54,7 +68,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">Nenhum item de catálogo encontrado.</td>
+                        <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nenhum item de catálogo encontrado.</td>
                     </tr>
                 @endforelse
             </tbody>
