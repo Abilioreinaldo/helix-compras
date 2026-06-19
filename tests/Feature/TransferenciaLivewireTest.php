@@ -6,6 +6,7 @@ use App\Models\SaldoEstoque;
 use App\Models\TransferenciaEstoque;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -65,6 +66,23 @@ it('saldos_transferencia_insuficiente_mostra_erro_no_campo', function () {
         ->and((float) $saldo->refresh()->quantidade)->toBe(10.0);
 });
 
+it('saldos_transferencia_para_mesma_unidade_mostra_erro', function () {
+    $u = Unidade::factory()->create();
+    $almox = User::factory()->create();
+    $almox->unidades()->attach($u->id, ['perfil' => Perfil::Almoxarife->value]);
+    $saldo = trlw_saldo($u, 10.0, 50.0);
+
+    Livewire::actingAs($almox)
+        ->test(SaldosEstoque::class)
+        ->call('abrirTransferencia', $saldo->id)
+        ->set('transferDestinoId', (string) $u->id)   // mesma unidade
+        ->set('transferQuantidade', '4')
+        ->call('confirmarTransferencia')
+        ->assertHasErrors('transferQuantidade');
+
+    expect(TransferenciaEstoque::count())->toBe(0);
+});
+
 it('saldos_nao_transfere_saldo_de_unidade_alheia', function () {
     $uOrigem = Unidade::factory()->create();
     $uDestino = Unidade::factory()->create();
@@ -76,7 +94,7 @@ it('saldos_nao_transfere_saldo_de_unidade_alheia', function () {
     expect(fn () => Livewire::actingAs($almoxOutro)
         ->test(SaldosEstoque::class)
         ->call('abrirTransferencia', $saldo->id))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->toThrow(ModelNotFoundException::class);
 
     expect(TransferenciaEstoque::count())->toBe(0);
 });

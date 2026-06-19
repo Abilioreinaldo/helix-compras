@@ -9,6 +9,7 @@ use App\Models\SaldoEstoque;
 use App\Models\TransferenciaEstoque;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -19,11 +20,11 @@ class TransferirEstoqueAction
      * Transfere quantidade de um saldo de origem para a mesma identidade de item na unidade de
      * destino, num único movimento rastreável: saída na origem (pelo CMP vigente, que não muda)
      * + entrada no destino (recalcula o CMP do destino por média ponderada). O valor da rede é
-     * conservado (origem perde, destino ganha o mesmo valor).
+     * conservado ao centavo (origem perde e destino ganha exatamente o mesmo valorTransferido).
      *
      * Guards: Almoxarife da unidade de ORIGEM ou Admin; quantidade > 0; origem ≠ destino; saldo
-     * suficiente. Item com `controla_lote` é BLOQUEADO no v1 (transferência por lote → v1.1-D).
-     * Transação única (falha reverte tudo).
+     * suficiente. Item com `controla_lote` (origem OU destino) é BLOQUEADO no v1 (→ v1.1-D).
+     * Transação única (falha reverte tudo); lock canônico (menor id primeiro) evita deadlock.
      *
      * @throws ValidationException
      */
@@ -53,7 +54,7 @@ class TransferirEstoqueAction
             ]);
         }
 
-        // Bloqueio v1: item com controle de lote (transferência por lote/FEFO → v1.1-D).
+        // Bloqueio v1: item com controle de lote na origem (transferência por lote/FEFO → v1.1-D).
         if ($origem->controlaLote()) {
             throw ValidationException::withMessages([
                 'controla_lote' => 'Transferência de item com controle de lote não é suportada no v1 (será tratada na v1.1-D).',
@@ -61,8 +62,20 @@ class TransferirEstoqueAction
         }
 
         return DB::transaction(function () use ($origem, $destino, $quantidade, $motivo, $executadoPor) {
-            // Relock da origem por id (unidade/autorização já verificadas).
-            $origem = SaldoEstoque::withoutGlobalScopes()->where('id', $origem->id)->lockForUpdate()->firstOrFail();
+            // Identidade do saldo de destino (derivada do origem passado).
+            $destinoExistenteId = $this->baseDestino($origem, $destino)->value('id');
+
+            // Lock CANÔNICO (menor id primeiro) de origem + destino existente: ordem consistente
+            // entre transferências concorrentes A↔B do mesmo item evita deadlock em MySQL.
+            $idsLock = collect([$origem->id, $destinoExistenteId])->filter()->unique()->sort()->values()->all();
+            SaldoEstoque::withoutGlobalScopes()->whereIn('id', $idsLock)->lockForUpdate()->get();
+
+            // Re-lê a origem travada e re-valida que não virou tombstone entre o guard e o lock.
+            $origem = SaldoEstoque::withoutGlobalScopes()
+                ->whereKey($origem->id)
+                ->whereNull('fundido_para_id')
+                ->lockForUpdate()
+                ->firstOrFail();
 
             $qtdOrigem = (float) $origem->quantidade;
 
@@ -72,28 +85,37 @@ class TransferirEstoqueAction
                 ]);
             }
 
+            $destinoSaldo = $destinoExistenteId !== null
+                ? SaldoEstoque::withoutGlobalScopes()->whereKey($destinoExistenteId)->lockForUpdate()->firstOrFail()
+                : $this->criarSaldoDestino($origem, $destino);
+
+            // Guard defensivo: destino que controla lote também bloqueia (a identidade por catálogo
+            // normalmente torna isto redundante com o guard de origem, mas cobre catálogo editado).
+            if ($destinoSaldo->controlaLote()) {
+                throw ValidationException::withMessages([
+                    'controla_lote' => 'O saldo de destino controla lote — transferência não suportada no v1.',
+                ]);
+            }
+
             $cmpOrigem = (float) $origem->custo_medio_ponderado;
             $valorTransferido = $quantidade * $cmpOrigem;
 
-            $destinoSaldo = $this->resolverSaldoDestino($origem, $destino);
-
-            // Debita a origem pelo CMP vigente (CMP da origem NÃO muda).
+            // Debita a origem (CMP NÃO muda). valor_total por subtração direta do valorTransferido.
             $qtdNovaOrigem = max(0.0, $qtdOrigem - $quantidade);
             $origem->update([
                 'quantidade' => $qtdNovaOrigem,
-                'valor_total' => $qtdNovaOrigem * $cmpOrigem,
+                'valor_total' => max(0.0, (float) $origem->valor_total - $valorTransferido),
             ]);
 
-            // Credita o destino por média ponderada (recalcula o CMP do destino).
-            $qtdDestAtual = (float) $destinoSaldo->quantidade;
-            $valorDestAtual = (float) $destinoSaldo->valor_total;
-            $qtdNovaDest = $qtdDestAtual + $quantidade;
-            $valorNovoDest = $valorDestAtual + $valorTransferido;
+            // Credita o destino. valor_total por soma direta (conserva o valor da rede ao centavo);
+            // CMP do destino recalculado por média ponderada.
+            $qtdNovaDest = (float) $destinoSaldo->quantidade + $quantidade;
+            $valorNovoDest = (float) $destinoSaldo->valor_total + $valorTransferido;
             $novoCmpDest = $qtdNovaDest > 0 ? $valorNovoDest / $qtdNovaDest : 0;
             $destinoSaldo->update([
                 'quantidade' => $qtdNovaDest,
                 'custo_medio_ponderado' => $novoCmpDest,
-                'valor_total' => $qtdNovaDest * $novoCmpDest,
+                'valor_total' => $valorNovoDest,
             ]);
 
             $transferencia = TransferenciaEstoque::create([
@@ -108,6 +130,7 @@ class TransferirEstoqueAction
             ]);
 
             // Ledger append-only: uma movimentação na origem e uma no destino, ligadas à transferência.
+            // custo_unitario = CMP da ORIGEM nas duas (o destino só recalcula o próprio CMP do saldo).
             $this->registrarMovimentacao($origem->id, $transferencia->id, TipoMovimentacao::TransferenciaSaida, $quantidade, $cmpOrigem, $valorTransferido, $motivo, $executadoPor->id);
             $this->registrarMovimentacao($destinoSaldo->id, $transferencia->id, TipoMovimentacao::TransferenciaEntrada, $quantidade, $cmpOrigem, $valorTransferido, $motivo, $executadoPor->id);
 
@@ -116,30 +139,32 @@ class TransferirEstoqueAction
     }
 
     /**
-     * Resolve (ou cria) o saldo de destino com a mesma identidade do item da origem, na unidade
-     * de destino e mesmo depósito. Identidade por catálogo quando vinculado; descrição quando avulso.
+     * Query builder da identidade do saldo de destino (catálogo quando vinculado; descrição
+     * normalizada quando avulso), na unidade de destino e mesmo depósito da origem.
      */
-    private function resolverSaldoDestino(SaldoEstoque $origem, Unidade $destino): SaldoEstoque
+    private function baseDestino(SaldoEstoque $origem, Unidade $destino): Builder
     {
-        $catalogoId = $origem->item_catalogo_id;
-
-        $base = SaldoEstoque::where('unidade_id', $destino->id)
+        $base = SaldoEstoque::query()
+            ->where('unidade_id', $destino->id)
             ->where('deposito', $origem->deposito)
             ->whereNull('fundido_para_id');
 
-        if ($catalogoId !== null) {
-            $base->where('item_catalogo_id', $catalogoId);
+        if ($origem->item_catalogo_id !== null) {
+            $base->where('item_catalogo_id', $origem->item_catalogo_id);
         } else {
             $base->where('descricao_normalizada', $origem->descricao_normalizada)
                 ->whereNull('item_catalogo_id');
         }
 
-        $saldo = (clone $base)->lockForUpdate()->first();
+        return $base;
+    }
 
-        if ($saldo !== null) {
-            return $saldo;
-        }
-
+    /**
+     * Cria o saldo de destino zerado com a identidade do item da origem. Degrada para o existente
+     * se uma transferência concorrente o criou (UNIQUE), em vez de duplicar/estourar.
+     */
+    private function criarSaldoDestino(SaldoEstoque $origem, Unidade $destino): SaldoEstoque
+    {
         try {
             return SaldoEstoque::create([
                 'unidade_id' => $destino->id,
@@ -150,11 +175,10 @@ class TransferirEstoqueAction
                 'quantidade' => 0,
                 'custo_medio_ponderado' => 0,
                 'valor_total' => 0,
-                'item_catalogo_id' => $catalogoId,
+                'item_catalogo_id' => $origem->item_catalogo_id,
             ]);
         } catch (UniqueConstraintViolationException $e) {
-            // Corrida: outra transferência criou o saldo de destino entre o SELECT e o INSERT.
-            $saldo = (clone $base)->lockForUpdate()->first();
+            $saldo = $this->baseDestino($origem, $destino)->lockForUpdate()->first();
 
             if ($saldo === null) {
                 throw $e;

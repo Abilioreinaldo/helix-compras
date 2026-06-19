@@ -109,8 +109,65 @@ it('transferencia_gera_duas_movimentacoes_pareadas_e_vinculadas', function () {
         ->and($saida->saldo_estoque_id)->toBe($origem->id)
         ->and($entrada->saldo_estoque_id)->toBe($transf->saldo_destino_id)
         ->and((float) $saida->custo_unitario)->toBe(50.0)            // CMP da origem
+        ->and((float) $entrada->custo_unitario)->toBe(50.0)         // entrada também usa CMP da origem
         ->and((float) $saida->valor_total)->toEqualWithDelta(200.0, 0.01)
         ->and((float) $transf->valor_total)->toEqualWithDelta(200.0, 0.01);
+});
+
+it('transferencia_usa_tipos_dedicados_e_nao_gera_saida_entrada_padrao', function () {
+    $uOrigem = Unidade::factory()->create();
+    $uDestino = Unidade::factory()->create();
+    $origem = tr_saldo($uOrigem, 10.0, 50.0);
+    $almox = tr_almoxarife($uOrigem);
+
+    app(TransferirEstoqueAction::class)->execute($origem, $uDestino, 4.0, 'x', $almox);
+
+    // Relatórios de consumo/rateio filtram tipo='saida' — transferência usa tipos dedicados,
+    // então não é contada como consumo nem como compra.
+    expect(MovimentacaoEstoque::where('tipo', TipoMovimentacao::Saida->value)->count())->toBe(0)
+        ->and(MovimentacaoEstoque::where('tipo', TipoMovimentacao::Entrada->value)->count())->toBe(0)
+        ->and(MovimentacaoEstoque::where('tipo', TipoMovimentacao::TransferenciaSaida->value)->count())->toBe(1)
+        ->and(MovimentacaoEstoque::where('tipo', TipoMovimentacao::TransferenciaEntrada->value)->count())->toBe(1);
+});
+
+it('transferencia_de_100_porcento_zera_quantidade_e_valor_da_origem', function () {
+    $uOrigem = Unidade::factory()->create();
+    $uDestino = Unidade::factory()->create();
+    $origem = tr_saldo($uOrigem, 10.0, 50.0);
+    $almox = tr_almoxarife($uOrigem);
+
+    app(TransferirEstoqueAction::class)->execute($origem, $uDestino, 10.0, 'x', $almox);
+
+    $origem->refresh();
+    expect((float) $origem->quantidade)->toBe(0.0)
+        ->and((float) $origem->valor_total)->toBe(0.0)
+        ->and((float) $origem->custo_medio_ponderado)->toBe(50.0); // CMP preservado mesmo zerado
+});
+
+it('transferencia_com_cmp_nao_redondo_conserva_o_valor_da_rede', function () {
+    $uOrigem = Unidade::factory()->create();
+    $uDestino = Unidade::factory()->create();
+    $origem = tr_saldo($uOrigem, 3.0, 33.3333); // CMP não-redondo
+    $almox = tr_almoxarife($uOrigem);
+
+    $antes = (float) SaldoEstoque::sum('valor_total');
+    app(TransferirEstoqueAction::class)->execute($origem, $uDestino, 3.0, 'x', $almox);
+
+    expect((float) SaldoEstoque::sum('valor_total'))->toEqualWithDelta($antes, 0.01);
+});
+
+it('transferencia_de_saldo_tombstone_e_bloqueada', function () {
+    $uOrigem = Unidade::factory()->create();
+    $uDestino = Unidade::factory()->create();
+    $destinoFusao = tr_saldo($uOrigem, 0.0, 0.0, descricao: 'Destino Fusao');
+    $origem = tr_saldo($uOrigem, 10.0, 50.0);
+    $origem->update(['fundido_para_id' => $destinoFusao->id, 'fundido_em' => now()]);
+    $almox = tr_almoxarife($uOrigem);
+
+    expect(fn () => app(TransferirEstoqueAction::class)->execute($origem, $uDestino, 4.0, 'x', $almox))
+        ->toThrow(ValidationException::class);
+
+    expect(TransferenciaEstoque::count())->toBe(0);
 });
 
 // ─── Guards ───────────────────────────────────────────────────────────────────
