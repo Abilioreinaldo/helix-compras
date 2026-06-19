@@ -66,6 +66,7 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fornecedor</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prazo (dias)</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Validade proposta</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Arquivo</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registrada por</th>
                     <th class="px-4 py-3"></th>
@@ -85,6 +86,15 @@
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-600">
                             {{ $cotacao->prazo_entrega_dias ? $cotacao->prazo_entrega_dias.' dias' : '—' }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-600">
+                            @if ($cotacao->validade_proposta)
+                                @php $vencida = $cotacao->validade_proposta->lt(\Illuminate\Support\Carbon::today()); @endphp
+                                <span class="{{ $vencida ? 'text-red-600 font-medium' : '' }}">{{ $cotacao->validade_proposta->format('d/m/Y') }}</span>
+                                @if ($vencida)<span class="block text-xs text-red-500">vencida</span>@endif
+                            @else
+                                —
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-sm">
                             @if ($cotacao->arquivo_path)
@@ -111,7 +121,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">
+                        <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">
                             Nenhuma cotação registrada ainda.
                         </td>
                     </tr>
@@ -155,6 +165,13 @@
                     <input type="number" min="1" wire:model="prazoEntregaDias"
                         class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Ex: 7">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Validade da proposta</label>
+                    <input type="date" wire:model="validadeProposta"
+                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    @error('validadeProposta') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
 
                 <div>

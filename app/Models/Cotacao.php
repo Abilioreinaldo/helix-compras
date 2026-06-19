@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'fornecedor_id',
     'valor',
     'prazo_entrega_dias',
+    'validade_proposta',
     'arquivo_path',
     'arquivo_nome_original',
     'observacoes',
@@ -41,6 +42,7 @@ class Cotacao extends Model
             'valor' => 'decimal:2',
             'vencedora' => 'boolean',
             'prazo_entrega_dias' => 'integer',
+            'validade_proposta' => 'date',
             'vencedora_definida_em' => 'datetime',
             'cancelada_em' => 'datetime',
         ];

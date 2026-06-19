@@ -21,7 +21,8 @@ class RegistrarCotacaoAction
         float $valor,
         ?UploadedFile $arquivo = null,
         ?int $prazoEntregaDias = null,
-        ?string $observacoes = null
+        ?string $observacoes = null,
+        ?string $validadeProposta = null
     ): Cotacao {
         if (! $fornecedor->homologado || ! $fornecedor->ativo) {
             throw ValidationException::withMessages([
@@ -29,7 +30,7 @@ class RegistrarCotacaoAction
             ]);
         }
 
-        return DB::transaction(function () use ($requisicao, $fornecedor, $valor, $arquivo, $prazoEntregaDias, $observacoes) {
+        return DB::transaction(function () use ($requisicao, $fornecedor, $valor, $arquivo, $prazoEntregaDias, $observacoes, $validadeProposta) {
             $arquivoPath = null;
             $arquivoNomeOriginal = null;
 
@@ -43,6 +44,7 @@ class RegistrarCotacaoAction
                 'fornecedor_id' => $fornecedor->id,
                 'valor' => $valor,
                 'prazo_entrega_dias' => $prazoEntregaDias,
+                'validade_proposta' => $validadeProposta ?: null,
                 'arquivo_path' => $arquivoPath,
                 'arquivo_nome_original' => $arquivoNomeOriginal,
                 'observacoes' => $observacoes,

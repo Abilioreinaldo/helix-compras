@@ -27,6 +27,8 @@ class GestaoCotacoes extends Component
 
     public string $prazoEntregaDias = '';
 
+    public string $validadeProposta = '';
+
     public string $observacoes = '';
 
     /** @var TemporaryUploadedFile|null */
@@ -57,6 +59,7 @@ class GestaoCotacoes extends Component
             'fornecedorId' => 'required|exists:fornecedores,id',
             'valor' => 'required|numeric|min:0.01',
             'prazoEntregaDias' => 'nullable|integer|min:1',
+            'validadeProposta' => 'nullable|date',
             'observacoes' => 'nullable|string|max:1000',
             'arquivo' => 'nullable|file|mimetypes:application/pdf,image/jpeg,image/png|max:10240',
         ], [
@@ -76,7 +79,8 @@ class GestaoCotacoes extends Component
                 (float) $this->valor,
                 $this->arquivo,
                 $this->prazoEntregaDias !== '' ? (int) $this->prazoEntregaDias : null,
-                $this->observacoes ?: null
+                $this->observacoes ?: null,
+                $this->validadeProposta ?: null
             );
         } catch (ValidationException $e) {
             $mensagem = collect($e->errors())->flatten()->first() ?? $e->getMessage();
@@ -131,6 +135,7 @@ class GestaoCotacoes extends Component
         $this->fornecedorId = null;
         $this->valor = '';
         $this->prazoEntregaDias = '';
+        $this->validadeProposta = '';
         $this->observacoes = '';
         $this->arquivo = null;
         $this->mostrarFormulario = false;
