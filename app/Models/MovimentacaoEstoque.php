@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'requisicao_material_id',
     'lote_estoque_id',
     'lote_vencido_em_saida',
+    'rateio_unidade_id',
     'tipo',
     'quantidade',
     'custo_unitario',
@@ -67,5 +68,10 @@ class MovimentacaoEstoque extends Model
     public function loteEstoque(): BelongsTo
     {
         return $this->belongsTo(LoteEstoque::class);
+    }
+
+    public function rateioUnidade(): BelongsTo
+    {
+        return $this->belongsTo(RateioUnidade::class);
     }
 }

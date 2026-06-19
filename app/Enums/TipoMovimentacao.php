@@ -14,6 +14,17 @@ enum TipoMovimentacao: string
      * apenas documenta o evento no ledger append-only.
      */
     case Fusao = 'fusao';
+    /**
+     * Rateio da central: registro FINANCEIRO documental do custo central rateado
+     * para uma unidade (CalcularRateioMensalAction). Não toca saldo de estoque
+     * (saldo_estoque_id null); o valor por unidade vive em rateio_unidades.
+     */
+    case RateioCentral = 'rateio_central';
+    /**
+     * Desconto de rateio: reversa/crédito de um rateio (DescontoRateioAction).
+     * Documental, financeiro — não muta estoque.
+     */
+    case DescontoRateio = 'desconto_rateio';
 
     public function label(): string
     {
@@ -23,6 +34,8 @@ enum TipoMovimentacao: string
             self::AjustePositivo => 'Ajuste (+)',
             self::AjusteNegativo => 'Ajuste (−)',
             self::Fusao => 'Fusão',
+            self::RateioCentral => 'Rateio da Central',
+            self::DescontoRateio => 'Desconto de Rateio',
         };
     }
 
@@ -32,9 +45,20 @@ enum TipoMovimentacao: string
         return match ($this) {
             self::Entrada, self::AjustePositivo => true,
             self::Saida, self::AjusteNegativo => false,
-            // Fusão é documental — o saldo é ajustado explicitamente pela FusaoSaldosAction.
-            // Este método não é chamado para Fusao; lança exceção se for acidentalmente invocado.
-            self::Fusao => throw new \LogicException('TipoMovimentacao::Fusao é documental — use FusaoSaldosAction para ajustar saldos.'),
+            // Tipos documentais — não participam da math de saldo de estoque. A FusaoSaldosAction
+            // ajusta saldos explicitamente; rateio/desconto são puramente financeiros (sem saldo).
+            self::Fusao, self::RateioCentral, self::DescontoRateio => throw new \LogicException(
+                "TipoMovimentacao::{$this->name} é documental — não ajusta saldo de estoque."
+            ),
+        };
+    }
+
+    /** Tipos documentais/financeiros que não mutam saldo de estoque. */
+    public function ehDocumental(): bool
+    {
+        return match ($this) {
+            self::Fusao, self::RateioCentral, self::DescontoRateio => true,
+            default => false,
         };
     }
 }

@@ -33,6 +33,7 @@ use App\Livewire\Relatorios\CustoObra;
 use App\Livewire\Relatorios\GastosCentroCusto;
 use App\Livewire\Relatorios\GastosFornecedor;
 use App\Livewire\Relatorios\PosicaoEstoque;
+use App\Livewire\Relatorios\RelatorioRateioMensalCentral;
 use App\Livewire\Relatorios\RequisicoesAprovador;
 use App\Livewire\Relatorios\TempoAprovacao;
 use App\Livewire\Requisicoes\DetalheRequisicao;
@@ -109,6 +110,7 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
     Route::get('/relatorios/posicao-estoque', PosicaoEstoque::class)->name('relatorios.posicao-estoque');
     Route::get('/relatorios/consumo-unidade', ConsumoUnidade::class)->name('relatorios.consumo-unidade');
     Route::get('/relatorios/comparativo-unidades', ComparativoUnidades::class)->name('relatorios.comparativo-unidades');
+    Route::get('/relatorios/rateio-central', RelatorioRateioMensalCentral::class)->name('relatorios.rateio-central');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
