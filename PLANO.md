@@ -618,3 +618,17 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 - Localização do item no estoque (prateleira/bin) — cosmético, pós-v1
 
 > Catálogo de itens centralizado saiu desta lista: **já implementado** em v1.1-A.
+
+
+
+## D. Checklist MySQL Pré-Go-Live (v1.1-C)
+
+- [x] **D9** — UNIQUE parcial lote: ✅ Índice `lotes_estoque_saldo_lote_unique` validado em MySQL 8.0.46
+- [x] **D10** — Ordenação FEFO portável: ✅ `ORDER BY (validade IS NULL), validade ASC, id ASC` funciona em MySQL
+- [x] **D11** — Vencido (validade < CURDATE()): ✅ Query funciona em MySQL
+- [x] **D12** — Case-sensitivity `numero_lote`: ✅ Mantém `utf8mb4_unicode_ci` (case-insensitive, portável SQLite↔MySQL)
+
+**Status v1.1-C:** ✅ **PRONTA PARA GO-LIVE**
+- Passos 0-6 implementados e testados (406 testes verdes)
+- Sec/QA completo
+- Validação MySQL completa
