@@ -9,6 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable([
     'saldo_estoque_id',
@@ -53,5 +56,38 @@ class LoteEstoque extends Model
     public function fundidosDe(): HasMany
     {
         return $this->hasMany(LoteEstoque::class, 'fundido_para_id');
+    }
+
+    /**
+     * Validade mínima/máxima dos lotes VIVOS com validade, agrupada por saldo.
+     * Lotes sem validade (NULL) são ignorados; saldos sem lote datado não aparecem
+     * no mapa (a UI mostra "—"). MIN/MAX sobre date é portável SQLite/MySQL.
+     *
+     * @param  iterable<int>  $saldoIds
+     * @return Collection<int, object> saldo_estoque_id => {min, max} (datas 'Y-m-d')
+     */
+    public static function validadesVivasPorSaldo(iterable $saldoIds): Collection
+    {
+        $ids = collect($saldoIds)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return DB::table('lotes_estoque')
+            ->whereIn('saldo_estoque_id', $ids->all())
+            ->whereNull('fundido_para_id')
+            ->whereNotNull('validade')
+            ->groupBy('saldo_estoque_id')
+            ->select('saldo_estoque_id', DB::raw('MIN(validade) as min'), DB::raw('MAX(validade) as max'))
+            ->get()
+            // Normaliza para 'Y-m-d' em PHP: o cast date grava datetime na coluna; trim sem
+            // função de data SQL (portável). MIN/MAX lexicográfico = cronológico (mesmo formato).
+            ->map(fn (object $row) => (object) [
+                'saldo_estoque_id' => $row->saldo_estoque_id,
+                'min' => Carbon::parse($row->min)->toDateString(),
+                'max' => Carbon::parse($row->max)->toDateString(),
+            ])
+            ->keyBy('saldo_estoque_id');
     }
 }

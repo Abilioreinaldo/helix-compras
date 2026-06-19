@@ -65,6 +65,7 @@
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depósito</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantidade</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Validade</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CMP</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor Total</th>
                         <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
@@ -92,6 +93,9 @@
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $saldo->unidade->nome }}</td>
                             <td class="px-4 py-3 text-sm text-right {{ (float) $saldo->quantidade <= 0 ? 'text-red-600 font-medium' : '' }}">
                                 {{ number_format($saldo->quantidade, 3, ',', '.') }}
+                            </td>
+                            <td class="px-4 py-3 text-sm">
+                                @include('partials.validade-lote', ['v' => $validades->get($saldo->id)])
                             </td>
                             <td class="px-4 py-3 text-sm text-right">R$ {{ number_format($saldo->custo_medio_ponderado, 4, ',', '.') }}</td>
                             <td class="px-4 py-3 text-sm text-right font-medium">R$ {{ number_format($saldo->valor_total, 2, ',', '.') }}</td>

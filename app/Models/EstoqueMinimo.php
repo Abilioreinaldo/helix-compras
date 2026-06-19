@@ -126,9 +126,9 @@ class EstoqueMinimo extends Model
      * Visibilidade idêntica a itensAReporPara: rede inteira (podeVerTodasUnidades),
      * unidades do pivot (Almoxarife) ou coleção vazia.
      *
-     * Cada linha: {unidade_id, unidade_nome, deposito, item_catalogo_id, descricao_item,
-     *              unidade_medida, saldo_atual, custo_medio_ponderado, valor_total,
-     *              quantidade_minima, em_alerta}
+     * Cada linha: {saldo_id, unidade_id, unidade_nome, deposito, item_catalogo_id,
+     *              descricao_item, unidade_medida, saldo_atual, custo_medio_ponderado,
+     *              valor_total, quantidade_minima, em_alerta}
      *
      * @return Collection<int, object>
      */
@@ -151,6 +151,7 @@ class EstoqueMinimo extends Model
             })
             ->whereNull('s.fundido_para_id')
             ->select([
+                's.id as saldo_id',
                 's.unidade_id',
                 'u.nome as unidade_nome',
                 's.deposito',

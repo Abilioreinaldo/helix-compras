@@ -3,6 +3,7 @@
 namespace App\Livewire\Relatorios;
 
 use App\Models\EstoqueMinimo;
+use App\Models\LoteEstoque;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -42,6 +43,7 @@ class PosicaoEstoque extends Component
         return view('livewire.relatorios.posicao-estoque', [
             'posicao' => $posicao,
             'unidades' => $unidades,
+            'validades' => LoteEstoque::validadesVivasPorSaldo($posicao->pluck('saldo_id')),
             'valorTotalGeral' => $posicao->sum(fn ($linha) => (float) $linha->valor_total),
             'totalEmAlerta' => $posicao->where('em_alerta', true)->count(),
         ])->layout('components.layouts.app');

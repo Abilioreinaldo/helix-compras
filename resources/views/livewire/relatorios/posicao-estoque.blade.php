@@ -31,6 +31,7 @@
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depósito</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Validade</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Mínimo</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CMP</th>
                         <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor Total</th>
@@ -48,6 +49,9 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-sm text-right">{{ number_format($linha->saldo_atual, 3, ',', '.') }} {{ $linha->unidade_medida }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                @include('partials.validade-lote', ['v' => $validades->get($linha->saldo_id)])
+                            </td>
                             <td class="px-4 py-3 text-sm text-right text-gray-500">
                                 @if($linha->quantidade_minima !== null)
                                     {{ number_format($linha->quantidade_minima, 3, ',', '.') }}
@@ -62,7 +66,7 @@
                 </tbody>
                 <tfoot class="bg-gray-50 border-t-2">
                     <tr>
-                        <td colspan="6" class="px-4 py-3 text-sm font-semibold">
+                        <td colspan="7" class="px-4 py-3 text-sm font-semibold">
                             Total ({{ $totalEmAlerta }} em alerta)
                         </td>
                         <td class="px-4 py-3 text-sm text-right font-bold">R$ {{ number_format($valorTotalGeral, 2, ',', '.') }}</td>

@@ -6,6 +6,7 @@ use App\Actions\DefinirEstoqueMinimoAction;
 use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
+use App\Models\LoteEstoque;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
@@ -159,7 +160,9 @@ class SaldosEstoque extends Component
 
         $itensARepor = EstoqueMinimo::itensAReporPara($usuario);
 
-        return view('livewire.almoxarife.saldos-estoque', compact('saldos', 'depositos', 'idsEmAlerta', 'itensARepor'))
+        $validades = LoteEstoque::validadesVivasPorSaldo($saldos->pluck('id'));
+
+        return view('livewire.almoxarife.saldos-estoque', compact('saldos', 'depositos', 'idsEmAlerta', 'itensARepor', 'validades'))
             ->layout('components.layouts.app');
     }
 }
