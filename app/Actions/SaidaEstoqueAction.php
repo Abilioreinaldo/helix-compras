@@ -10,6 +10,7 @@ use App\Models\MovimentacaoEstoque;
 use App\Models\SaldoEstoque;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class SaidaEstoqueAction
@@ -102,6 +103,7 @@ class SaidaEstoqueAction
                     'item_recebimento_id' => null,
                     'item_pedido_compra_id' => null,
                     'requisicao_material_id' => $requisicaoMaterialId,
+                    'lote_vencido_em_saida' => false, // ramo legado: sem lote
                     'tipo' => TipoMovimentacao::Saida,
                     'quantidade' => $quantidade,
                     'custo_unitario' => $cmpVigente,
@@ -164,6 +166,13 @@ class SaidaEstoqueAction
         // há corrupção de dados — aborta e reverte a transação em vez de piorar o estado.
         $somaAntes = (float) $lotes->sum(fn (LoteEstoque $lote) => (float) $lote->quantidade);
         if (abs($somaAntes - $qtdDisponivel) > 0.001) {
+            Log::error('Invariante de lote violada (pré-baixa FEFO) — saída abortada', [
+                'saldo_estoque_id' => $saldo->id,
+                'soma_lotes' => $somaAntes,
+                'saldo_quantidade' => $qtdDisponivel,
+                'quantidade_saida' => $quantidade,
+            ]);
+
             throw new \RuntimeException(
                 "Invariante de lote violada no saldo {$saldo->id}: SUM(lotes)={$somaAntes} != saldo={$qtdDisponivel}."
             );
@@ -200,6 +209,7 @@ class SaidaEstoqueAction
                 'item_pedido_compra_id' => null,
                 'requisicao_material_id' => $requisicaoMaterialId,
                 'lote_estoque_id' => $lote->id,
+                'lote_vencido_em_saida' => $vencido, // auditoria estruturada do vencido
                 'tipo' => TipoMovimentacao::Saida,
                 'quantidade' => $consumir,
                 'custo_unitario' => $cmpVigente, // CMP do saldo, não PEPS valorizado
@@ -212,6 +222,12 @@ class SaidaEstoqueAction
         // Defensivo: com a invariante válida e saldo suficiente, os lotes cobrem a saída.
         // Se sobrou quantidade a debitar, algo está inconsistente — aborta (reverte tudo).
         if ($restante > 0.001 || $ultimaMovimentacao === null) {
+            Log::error('Lotes não cobriram a saída FEFO — saída abortada', [
+                'saldo_estoque_id' => $saldo->id,
+                'quantidade_saida' => $quantidade,
+                'restante_nao_coberto' => $restante,
+            ]);
+
             throw new \RuntimeException(
                 "Lotes não cobriram a saída no saldo {$saldo->id}: faltam {$restante}."
             );
@@ -229,6 +245,13 @@ class SaidaEstoqueAction
         // Assert da invariante pós-baixa antes do commit: SUM(lotes vivos) == saldo.quantidade.
         $somaDepois = (float) $saldo->lotesVivos()->sum('quantidade');
         if (abs($somaDepois - $qtdNova) > 0.001) {
+            Log::error('Invariante de lote violada (pós-baixa FEFO) — saída abortada', [
+                'saldo_estoque_id' => $saldo->id,
+                'soma_lotes' => $somaDepois,
+                'saldo_quantidade_esperada' => $qtdNova,
+                'quantidade_saida' => $quantidade,
+            ]);
+
             throw new \RuntimeException(
                 "Invariante de lote violada pós-baixa no saldo {$saldo->id}: SUM(lotes)={$somaDepois} != saldo={$qtdNova}."
             );

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'item_pedido_compra_id',
     'requisicao_material_id',
     'lote_estoque_id',
+    'lote_vencido_em_saida',
     'tipo',
     'quantidade',
     'custo_unitario',
@@ -34,6 +35,7 @@ class MovimentacaoEstoque extends Model
             'quantidade' => 'decimal:3',
             'custo_unitario' => 'decimal:4',
             'valor_total' => 'decimal:2',
+            'lote_vencido_em_saida' => 'boolean',
         ];
     }
 

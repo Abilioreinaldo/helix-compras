@@ -10,6 +10,7 @@ use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 uses(RefreshDatabase::class);
@@ -175,7 +176,36 @@ it('lote_sem_validade_consumido_nao_marca_alerta_no_motivo', function () {
         ->and($mov->motivo)->not->toContain('ALERTA');
 });
 
+it('saida_marca_lote_vencido_em_saida_so_na_movimentacao_do_lote_vencido', function () {
+    // Hoje = 2026-06-19: 2025-06-01 vencido, 2027-06-01 não.
+    $s = sfefo_setup([
+        ['numero' => 'L-VENC', 'validade' => '2025-06-01', 'qtd' => 5.0],
+        ['numero' => 'L-OK', 'validade' => '2027-06-01', 'qtd' => 5.0],
+    ]);
+
+    // Saída de 7 → 5 do vencido + 2 do OK = 2 movimentações.
+    app(SaidaEstoqueAction::class)->execute($s['saldo'], 7.0, 'Consumo', $s['almoxarife']);
+
+    $movVenc = MovimentacaoEstoque::where('lote_estoque_id', LoteEstoque::where('numero_lote', 'L-VENC')->value('id'))->first();
+    $movOk = MovimentacaoEstoque::where('lote_estoque_id', LoteEstoque::where('numero_lote', 'L-OK')->value('id'))->first();
+
+    expect($movVenc->lote_vencido_em_saida)->toBeTrue()
+        ->and($movOk->lote_vencido_em_saida)->toBeFalse();
+});
+
+it('saida_sem_lote_vencido_mantem_flag_false', function () {
+    $s = sfefo_setup([
+        ['numero' => 'L-OK', 'validade' => '2027-06-01', 'qtd' => 5.0],
+    ]);
+
+    app(SaidaEstoqueAction::class)->execute($s['saldo'], 3.0, 'Consumo', $s['almoxarife']);
+
+    expect(MovimentacaoEstoque::where('tipo', TipoMovimentacao::Saida)->first()->lote_vencido_em_saida)->toBeFalse();
+});
+
 it('invariante_quebrada_saldo_sem_lotes_aborta_e_reverte', function () {
+    Log::spy();
+
     // Saldo controla_lote com quantidade > 0 mas SEM nenhum lote: SUM(lotes)=0 != saldo.
     $unidade = Unidade::factory()->create();
     $almoxarife = User::factory()->create();
@@ -200,6 +230,9 @@ it('invariante_quebrada_saldo_sem_lotes_aborta_e_reverte', function () {
     // Reverteu: saldo intacto, nenhuma movimentação.
     expect((float) $saldo->refresh()->quantidade)->toBe(5.0)
         ->and(MovimentacaoEstoque::count())->toBe(0);
+
+    // Logou o erro de invariante com contexto antes de abortar.
+    Log::shouldHaveReceived('error')->once();
 });
 
 // ─── Vencido: consome com alerta, nunca lança ─────────────────────────────────
