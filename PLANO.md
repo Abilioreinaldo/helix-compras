@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-18
-**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) + **v1.1-C (lote/validade+FEFO)** + **Rateio da central** + **validade da proposta na cotação (#9)** implementados (os três com sec/QA / rito conforme risco). **440 testes verdes.** **v1 quase completa** — faltam só: **transferência entre unidades (#6)** e **lembrete diário +48h (#8)**. Ver "Pendências reais de v1" abaixo.
+**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) + **v1.1-C (lote/validade+FEFO)** + **Rateio da central** + **validade da proposta na cotação (#9)** implementados. **+ transferência entre unidades (#6, sec/QA) + lembrete diário +48h (#8).** **465 testes verdes.** **v1 COMPLETA** — todas as pendências reais entregues. Resta apenas a validação do checklist MySQL pré-go-live (seção A/D abaixo). Ver "Pendências reais de v1" abaixo.
 **Branch principal:** main
 
 ---
@@ -604,7 +604,7 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 | 5 | **Rateio da central** entre unidades | ✅ IMPLEMENTADA + sec/QA | ESCOPO #12 = v1. Documental (não toca estoque); consumo proporcional, maior-resto, idempotente, reversão DescontoRateio, command + relatório Livewire. Pontos cegos MySQL A4/A5 |
 | 6 | **Transferência entre unidades** | ✅ IMPLEMENTADA + sec/QA | Sem aprovação (ESCOPO). `TransferenciaEstoque` + `TransferirEstoqueAction`: saída na origem (CMP inalterado) + entrada no destino (média ponderada), valor da rede conservado, transação única. Tipos dedicados `transferencia_saida`/`entrada`. Item controla_lote BLOQUEADO no v1 (→ v1.1-D). Autorização: Almoxarife da origem + Admin. UI: modal em `SaldosEstoque`. Ponto cego MySQL A6 |
 | 7 | **Relatórios faltantes** (R1–R5) | ✅ CONCLUÍDA | R1 fornecedor/categoria, R2 tempo de aprovação, R3 posição de estoque, R4 consumo por unidade, R5 comparativo entre unidades — commits `40c5c7d`→`a3805ee`, no GitHub. Ver Fatia #7 acima |
-| 8 | **Lembrete diário de pendências +48h** | 🟢 não-iniciado | Notificação por e-mail |
+| 8 | **Lembrete diário de pendências +48h** | ✅ IMPLEMENTADA | Command `aprovacoes:lembrar-pendentes` (agendado diário 08:00): e-mail `LembreteAprovacaoPendente` aos aprovadores do nível da etapa pendente, para requisições `AguardandoAprovacao` com `aprovacao_iniciada_em` > 48h |
 | 9 | **Campos da cotação** (prazo de entrega, validade da proposta) | ✅ IMPLEMENTADA | `prazo_entrega_dias` (já existia) + `validade_proposta` (date) capturados em `RegistrarCotacaoAction`/`GestaoCotacoes`; coluna na lista com indicador de "vencida" |
 
 **Atendimento direto do estoque pela Compradora** (saída sem compra) sai junto do item 1 (depende da Saída).
