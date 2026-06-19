@@ -98,3 +98,41 @@ it('relatorio_admin_reverte_e_gera_desconto', function () {
 
     expect(MovimentacaoEstoque::where('tipo', TipoMovimentacao::DescontoRateio->value)->count())->toBe(1);
 });
+
+it('relatorio_aprovador_de_duas_unidades_ve_ambas', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $uA = Unidade::factory()->create(['nome' => 'Unidade Alfa']);
+    $uB = Unidade::factory()->create(['nome' => 'Unidade Beta']);
+    rcl_consumo($uA, $reg, 100.0);
+    rcl_consumo($uB, $reg, 100.0);
+    $rateio = app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin);
+
+    $gestor = User::factory()->create();
+    $gestor->unidades()->attach($uA->id, ['perfil' => Perfil::Aprovador->value]);
+    $gestor->unidades()->attach($uB->id, ['perfil' => Perfil::Aprovador->value]);
+
+    Livewire::actingAs($gestor)
+        ->test(RelatorioRateioMensalCentral::class)
+        ->call('toggleExpandir', $rateio->id)
+        ->assertSee('Unidade Alfa')
+        ->assertSee('Unidade Beta');
+});
+
+it('relatorio_aprovador_nao_pode_reverter', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $u = Unidade::factory()->create();
+    rcl_consumo($u, $reg, 100.0);
+    $rateio = app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin);
+    $linha = $rateio->unidades->first();
+
+    $gestor = User::factory()->create();
+    $gestor->unidades()->attach($u->id, ['perfil' => Perfil::Aprovador->value]);
+
+    // Gestor (Aprovador) tem acesso ao relatório, mas não pode disparar a reversão.
+    Livewire::actingAs($gestor)
+        ->test(RelatorioRateioMensalCentral::class)
+        ->call('abrirReversao', $linha->id)
+        ->assertForbidden();
+});

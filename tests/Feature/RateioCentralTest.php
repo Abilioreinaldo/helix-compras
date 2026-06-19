@@ -21,14 +21,14 @@ function rc_periodo(): array
     return ['mes' => 5, 'ano' => 2026];
 }
 
-/** Cria uma saída (consumo) de valor $valor numa unidade, datada em maio/2026. */
-function rc_consumo(Unidade $unidade, User $registrador, float $valor): void
+/** Cria uma saída (consumo) de valor $valor numa unidade, datada no mês informado de 2026. */
+function rc_consumo(Unidade $unidade, User $registrador, float $valor, int $mes = 5): void
 {
     $saldo = SaldoEstoque::create([
         'unidade_id' => $unidade->id,
-        'deposito' => 'Depósito Central',
-        'descricao_item' => "Consumo U{$unidade->id}",
-        'descricao_normalizada' => SaldoEstoque::normalizarDescricao("Consumo U{$unidade->id}"),
+        'deposito' => "Depósito {$mes}",
+        'descricao_item' => "Consumo U{$unidade->id} M{$mes}",
+        'descricao_normalizada' => SaldoEstoque::normalizarDescricao("Consumo U{$unidade->id} M{$mes}"),
         'unidade_medida' => 'un',
         'quantidade' => 10.0,
         'custo_medio_ponderado' => $valor,
@@ -46,7 +46,7 @@ function rc_consumo(Unidade $unidade, User $registrador, float $valor): void
     ]);
 
     // created_at no mês de referência (via query builder, sem disparar eventos).
-    MovimentacaoEstoque::where('id', $mov->id)->update(['created_at' => Carbon::create(2026, 5, 15, 12)]);
+    MovimentacaoEstoque::where('id', $mov->id)->update(['created_at' => Carbon::create(2026, $mes, 15, 12)]);
 }
 
 // ─── Cálculo de percentual ────────────────────────────────────────────────────
@@ -302,4 +302,142 @@ it('command_rateio_recusa_nao_admin', function () {
     ])->assertExitCode(1);
 
     expect(RateioCentral::count())->toBe(0);
+});
+
+// ─── Adversários adicionais (pós sec/QA) ──────────────────────────────────────
+
+it('rateio_bloqueia_quando_rede_nao_teve_consumo', function () {
+    $admin = User::factory()->admin()->create();
+    Unidade::factory()->create();
+    Unidade::factory()->create();
+    // Nenhuma saída no período → sem base de consumo.
+
+    expect(fn () => app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin))
+        ->toThrow(ValidationException::class);
+
+    expect(RateioCentral::count())->toBe(0)
+        ->and(MovimentacaoEstoque::where('tipo', TipoMovimentacao::RateioCentral->value)->count())->toBe(0);
+});
+
+it('rateio_maior_resto_fecha_no_valor_e_nao_distorce_distribuicao', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $unidades = collect(range(1, 7))->map(function () use ($reg) {
+        $u = Unidade::factory()->create();
+        rc_consumo($u, $reg, 100.0); // consumo igual
+
+        return $u;
+    });
+
+    // 1000,01 / 7 = 142,8585... → 6 unidades 142,86 + 1 unidade 142,85 = 1000,01.
+    $rateio = app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.01, $admin);
+    $valores = $rateio->unidades->map(fn ($l) => (float) $l->valor_rateado);
+
+    expect((float) $rateio->unidades->sum('valor_rateado'))->toEqualWithDelta(1000.01, 0.001) // fecha exato
+        ->and($valores->min())->toBeGreaterThanOrEqual(142.85)               // sem distorção/negativo
+        ->and(round($valores->max() - $valores->min(), 2))->toBe(0.01);      // diferença de 1 centavo
+});
+
+it('rateio_exclui_unidade_soft_deletada_do_consumo_e_das_linhas', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $ativa = Unidade::factory()->create();
+    $deletada = Unidade::factory()->create();
+    rc_consumo($ativa, $reg, 100.0);
+    rc_consumo($deletada, $reg, 100.0);
+    $deletada->delete(); // soft delete
+
+    $rateio = app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin);
+
+    // Só a unidade ativa entra; consumo da deletada não infla o total → ativa = 100%.
+    expect($rateio->unidades)->toHaveCount(1)
+        ->and($rateio->unidades->first()->unidade_id)->toBe($ativa->id)
+        ->and((float) $rateio->unidades->first()->percentual_consumo)->toBe(1.0)
+        ->and((float) $rateio->unidades->first()->valor_rateado)->toBe(1000.0);
+});
+
+it('rateio_mes_atual_e_permitido', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $u = Unidade::factory()->create();
+
+    $agora = Carbon::now();
+    // Saída no mês atual.
+    $saldo = SaldoEstoque::create([
+        'unidade_id' => $u->id, 'deposito' => 'Depósito Central',
+        'descricao_item' => 'Consumo atual', 'descricao_normalizada' => SaldoEstoque::normalizarDescricao('Consumo atual'),
+        'unidade_medida' => 'un', 'quantidade' => 10.0, 'custo_medio_ponderado' => 100.0, 'valor_total' => 1000.0,
+    ]);
+    $mov = MovimentacaoEstoque::create([
+        'saldo_estoque_id' => $saldo->id, 'tipo' => TipoMovimentacao::Saida, 'quantidade' => 1,
+        'custo_unitario' => 100.0, 'valor_total' => 100.0, 'motivo' => 'x', 'registrado_por' => $reg->id,
+    ]);
+    MovimentacaoEstoque::where('id', $mov->id)->update(['created_at' => $agora->copy()->startOfMonth()->addDays(2)]);
+
+    $rateio = app(CalcularRateioMensalAction::class)->execute($agora->month, $agora->year, 500.0, $admin);
+
+    expect($rateio->mes)->toBe($agora->month)
+        ->and((float) $rateio->unidades->first()->valor_rateado)->toBe(500.0);
+});
+
+it('rateio_mes_invalido_lanca_excecao', function () {
+    $admin = User::factory()->admin()->create();
+    Unidade::factory()->create();
+
+    expect(fn () => app(CalcularRateioMensalAction::class)->execute(0, 2026, 1000.0, $admin))
+        ->toThrow(ValidationException::class);
+    expect(fn () => app(CalcularRateioMensalAction::class)->execute(13, 2026, 1000.0, $admin))
+        ->toThrow(ValidationException::class);
+});
+
+it('rateio_valor_central_nao_positivo_lanca_excecao', function () {
+    $admin = User::factory()->admin()->create();
+    Unidade::factory()->create();
+
+    expect(fn () => app(CalcularRateioMensalAction::class)->execute(5, 2026, 0.0, $admin))
+        ->toThrow(ValidationException::class);
+});
+
+it('rateio_idempotente_ignora_novo_valor_central', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $u = Unidade::factory()->create();
+    rc_consumo($u, $reg, 100.0);
+
+    app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin);
+    $segundo = app(CalcularRateioMensalAction::class)->execute(5, 2026, 9999.0, $admin);
+
+    // 2ª chamada devolve o existente — valor NÃO é atualizado.
+    expect((float) $segundo->valor_total)->toBe(1000.0)
+        ->and(RateioCentral::count())->toBe(1);
+});
+
+it('desconto_recusa_linha_de_outro_rateio', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $u = Unidade::factory()->create();
+    rc_consumo($u, $reg, 100.0, 5);   // consumo em maio
+    rc_consumo($u, $reg, 100.0, 4);   // consumo em abril
+
+    $rateioMaio = app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin);
+    $rateioAbril = app(CalcularRateioMensalAction::class)->execute(4, 2026, 1000.0, $admin);
+    $linhaAbril = $rateioAbril->unidades->first();
+
+    // Reverter linha de abril passando o rateio de maio → recusado.
+    expect(fn () => app(DescontoRateioAction::class)->execute($rateioMaio, $linhaAbril, 'Motivo', $admin))
+        ->toThrow(ValidationException::class);
+});
+
+it('desconto_motivo_em_branco_lanca_excecao', function () {
+    $admin = User::factory()->admin()->create();
+    $reg = User::factory()->create();
+    $u = Unidade::factory()->create();
+    rc_consumo($u, $reg, 100.0);
+    $rateio = app(CalcularRateioMensalAction::class)->execute(5, 2026, 1000.0, $admin);
+    $linha = $rateio->unidades->first();
+
+    expect(fn () => app(DescontoRateioAction::class)->execute($rateio, $linha, '   ', $admin))
+        ->toThrow(ValidationException::class);
+
+    expect(MovimentacaoEstoque::where('tipo', TipoMovimentacao::DescontoRateio->value)->count())->toBe(0);
 });

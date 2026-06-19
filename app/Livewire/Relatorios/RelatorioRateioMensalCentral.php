@@ -82,6 +82,7 @@ class RelatorioRateioMensalCentral extends Component
     /** IDs das unidades onde o usuário é Aprovador (gestor da unidade). */
     private function unidadesDoGestor(): Collection
     {
+        // withoutGlobalScopes: perfil é vínculo global do usuário, não filtrado pela unidade da sessão.
         return auth()->user()->unidades()
             ->withoutGlobalScopes()
             ->wherePivot('perfil', Perfil::Aprovador->value)

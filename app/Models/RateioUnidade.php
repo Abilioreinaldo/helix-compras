@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TipoMovimentacao;
+use App\Models\Concerns\Auditavel;
 use Database\Factories\RateioUnidadeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class RateioUnidade extends Model
 {
     /** @use HasFactory<RateioUnidadeFactory> */
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'rateio_unidades';
 

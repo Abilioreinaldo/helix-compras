@@ -504,6 +504,10 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
   2. `estoque:sanear-duplicatas-catalogo --dry-run` para auditar → depois `--executado-por=<id Admin>` para fundir as duplicatas legadas.
   3. **Só então** `php artisan migrate` o **Passo 3** (cria o UNIQUE/coluna gerada).
   - **Por quê:** se a constraint do Passo 3 subir ANTES do saneamento num banco com duplicatas, a criação do índice **falha e o deploy trava**.
+- [ ] **A4 — Enum `tipo` ampliado para rateio** (`add_rateio_tipos_to_movimentacoes_estoque`): adiciona `'rateio_central'` e `'desconto_rateio'` via `ALTER TABLE ... MODIFY COLUMN tipo ENUM(...)` (só MySQL; no SQLite a coluna já é TEXT puro desde A1 → no-op).
+  - **Como:** `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 7 valores; inserir movimentação `tipo='rateio_central'` com `saldo_estoque_id` NULL e confirmar aceitação.
+- [ ] **A5 — `saldo_estoque_id` NULLABLE** (`make_saldo_estoque_id_nullable_on_movimentacoes_estoque`): `->change()` gera `MODIFY` no MySQL e rebuild no SQLite.
+  - **O que validar:** após `migrate`, `SHOW CREATE TABLE movimentacoes_estoque` mostra `saldo_estoque_id BIGINT UNSIGNED NULL` com a **FK `saldos_estoque` preservada** e o índice intacto; inserir mov de rateio com NULL passa; entrada/saída reais continuam exigindo saldo (a app sempre passa). `down()` é irreversível com dados de rateio (documentado na migration).
 
 ### B. Relatórios driver-aware
 

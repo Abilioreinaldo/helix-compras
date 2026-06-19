@@ -9,7 +9,9 @@ use App\Models\RateioCentral;
 use App\Models\RateioUnidade;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -19,14 +21,16 @@ class CalcularRateioMensalAction
      * Calcula e persiste o rateio mensal do custo da central por unidade.
      *
      * Critério: consumo = % do gasto da unidade (SUM valor_total das SAÍDAS no mês) sobre
-     * o gasto total da rede no mesmo mês. valor_rateado = percentual × valorCentral, com o
-     * resíduo de arredondamento alocado à unidade de maior consumo (sum == valorCentral).
+     * o gasto total da rede no mesmo mês. A alocação usa o método do maior resto (Hamilton)
+     * em centavos inteiros: SUM(valor_rateado) == valorCentral exatamente, cada unidade no
+     * piso ou piso+1 centavo (sem distorção/valor negativo).
      *
      * Documental: cria RateioCentral + RateioUnidade[] + uma MovimentacaoEstoque tipo
-     * RateioCentral por unidade rateada (saldo_estoque_id null — não toca estoque).
+     * RateioCentral por unidade com valor > 0 (saldo_estoque_id null — não toca estoque).
      *
-     * Idempotente: se já existe rateio para (mes, ano), retorna o existente sem duplicar.
-     * Guard: só Admin; período não pode ser futuro. Transação única (falha reverte tudo).
+     * Idempotente: se já existe rateio para (mes, ano), retorna o existente sem duplicar
+     * (inclusive sob corrida, via UNIQUE(mes,ano)). Guard: só Admin; período não pode ser
+     * futuro; bloqueia quando a rede não teve consumo (não há base para ratear).
      *
      * @throws ValidationException
      */
@@ -51,7 +55,7 @@ class CalcularRateioMensalAction
             throw ValidationException::withMessages(['periodo' => 'Não é possível ratear um período futuro.']);
         }
 
-        // Idempotência: rateio do período já existe → devolve sem duplicar.
+        // Idempotência (fast path): rateio do período já existe → devolve sem duplicar.
         $existente = RateioCentral::where('mes', $mes)->where('ano', $ano)->first();
         if ($existente !== null) {
             return $existente;
@@ -60,12 +64,18 @@ class CalcularRateioMensalAction
         return DB::transaction(function () use ($mes, $ano, $valorCentral, $criadoPor) {
             $linhas = $this->calcularLinhas($mes, $ano, $valorCentral);
 
-            $rateio = RateioCentral::create([
-                'mes' => $mes,
-                'ano' => $ano,
-                'valor_total' => $valorCentral,
-                'criado_por' => $criadoPor->id,
-            ]);
+            try {
+                $rateio = RateioCentral::create([
+                    'mes' => $mes,
+                    'ano' => $ano,
+                    'valor_total' => $valorCentral,
+                    'criado_por' => $criadoPor->id,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Corrida: outro processo criou o rateio do período entre o check e o INSERT.
+                // Idempotente: devolve o existente em vez de duplicar/estourar.
+                return RateioCentral::where('mes', $mes)->where('ano', $ano)->firstOrFail();
+            }
 
             foreach ($linhas as $linha) {
                 $rateioUnidade = RateioUnidade::create([
@@ -95,19 +105,24 @@ class CalcularRateioMensalAction
     }
 
     /**
-     * Computa percentual e valor rateado por unidade ativa, com resíduo na maior consumidora.
+     * Computa percentual e valor rateado por unidade ativa pelo método do maior resto.
      *
      * @return array<int, array{unidade_id: int, consumo: float, percentual: float, valor_rateado: float}>
+     *
+     * @throws ValidationException quando a rede não teve consumo no período.
      */
     private function calcularLinhas(int $mes, int $ano, float $valorCentral): array
     {
         $inicio = Carbon::create($ano, $mes, 1)->startOfDay();
         $fim = $inicio->copy()->endOfMonth()->endOfDay();
 
-        // Consumo = SUM(valor_total) das saídas do mês, por unidade (via saldo). Intervalo de
+        // Consumo = SUM(valor_total) das saídas do mês, por unidade (via saldo). Junta unidades
+        // e exclui soft-deletadas — simétrico ao fetch de unidades ativas abaixo. Intervalo de
         // datas é portável SQLite↔MySQL (sem MONTH()/strftime).
         $consumoPorUnidade = DB::table('movimentacoes_estoque as m')
             ->join('saldos_estoque as s', 's.id', '=', 'm.saldo_estoque_id')
+            ->join('unidades as u', 'u.id', '=', 's.unidade_id')
+            ->whereNull('u.deleted_at')
             ->where('m.tipo', TipoMovimentacao::Saida->value)
             ->whereBetween('m.created_at', [$inicio, $fim])
             ->groupBy('s.unidade_id')
@@ -116,56 +131,66 @@ class CalcularRateioMensalAction
 
         $total = (float) $consumoPorUnidade->sum();
 
-        // Todas as unidades ativas da rede (Admin é network-wide).
+        if ($total <= 0) {
+            throw ValidationException::withMessages([
+                'consumo' => "Nenhuma unidade teve consumo (saídas) em {$mes}/{$ano} — não há base de consumo para ratear o custo da central.",
+            ]);
+        }
+
         $unidades = Unidade::withoutGlobalScopes()->whereNull('deleted_at')->orderBy('id')->pluck('id');
+
+        return $this->alocarMaiorResto($unidades, $consumoPorUnidade, $total, $valorCentral);
+    }
+
+    /**
+     * Método do maior resto (Hamilton) em centavos: pisos por proporção + 1 centavo às maiores
+     * partes fracionárias. Garante SUM(valor_rateado) == valorCentral, sem valor negativo.
+     *
+     * @param  Collection<int, int>  $unidades
+     * @param  Collection<int, mixed>  $consumoPorUnidade
+     * @return array<int, array{unidade_id: int, consumo: float, percentual: float, valor_rateado: float}>
+     */
+    private function alocarMaiorResto($unidades, $consumoPorUnidade, float $total, float $valorCentral): array
+    {
+        $totalCentavos = (int) round($valorCentral * 100);
 
         $linhas = [];
         foreach ($unidades as $unidadeId) {
             $consumo = (float) ($consumoPorUnidade[$unidadeId] ?? 0);
-            $percentual = $total > 0 ? round($consumo / $total, 4) : 0.0;
-            $valorRateado = $total > 0 ? round($percentual * $valorCentral, 2) : 0.0;
+            $exatoCentavos = ($consumo / $total) * $totalCentavos;
+            $piso = (int) floor($exatoCentavos + 1e-6);
 
             $linhas[] = [
                 'unidade_id' => (int) $unidadeId,
                 'consumo' => $consumo,
-                'percentual' => $percentual,
-                'valor_rateado' => $valorRateado,
+                'percentual' => round($consumo / $total, 4),
+                'centavos' => $piso,
+                'resto' => $exatoCentavos - $piso,
             ];
         }
 
-        return $this->alocarResiduo($linhas, $valorCentral, $total);
-    }
+        // Distribui os centavos restantes às maiores partes fracionárias (desempate: maior consumo).
+        $faltam = $totalCentavos - array_sum(array_column($linhas, 'centavos'));
+        if ($faltam > 0) {
+            $indices = array_keys($linhas);
+            usort($indices, function ($a, $b) use ($linhas) {
+                if ($linhas[$a]['resto'] === $linhas[$b]['resto']) {
+                    return $linhas[$b]['consumo'] <=> $linhas[$a]['consumo'];
+                }
 
-    /**
-     * Aloca o resíduo de arredondamento (valorCentral − SUM valor_rateado) à unidade de maior
-     * consumo, garantindo SUM(valor_rateado) == valorCentral quando há consumo na rede.
-     *
-     * @param  array<int, array{unidade_id: int, consumo: float, percentual: float, valor_rateado: float}>  $linhas
-     * @return array<int, array{unidade_id: int, consumo: float, percentual: float, valor_rateado: float}>
-     */
-    private function alocarResiduo(array $linhas, float $valorCentral, float $total): array
-    {
-        if ($total <= 0 || $linhas === []) {
-            return $linhas;
-        }
+                return $linhas[$b]['resto'] <=> $linhas[$a]['resto'];
+            });
 
-        $somaRateada = round(array_sum(array_column($linhas, 'valor_rateado')), 2);
-        $residuo = round($valorCentral - $somaRateada, 2);
-
-        if (abs($residuo) < 0.005) {
-            return $linhas;
-        }
-
-        // Índice da unidade de maior consumo (desempate: maior valor_rateado).
-        $maiorIdx = 0;
-        foreach ($linhas as $i => $linha) {
-            if ($linha['consumo'] > $linhas[$maiorIdx]['consumo']) {
-                $maiorIdx = $i;
+            for ($i = 0; $i < $faltam && $i < count($indices); $i++) {
+                $linhas[$indices[$i]]['centavos']++;
             }
         }
 
-        $linhas[$maiorIdx]['valor_rateado'] = round($linhas[$maiorIdx]['valor_rateado'] + $residuo, 2);
-
-        return $linhas;
+        return array_map(fn (array $l): array => [
+            'unidade_id' => $l['unidade_id'],
+            'consumo' => $l['consumo'],
+            'percentual' => $l['percentual'],
+            'valor_rateado' => round($l['centavos'] / 100, 2),
+        ], $linhas);
     }
 }

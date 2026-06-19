@@ -20,6 +20,11 @@ return new class extends Migration
         });
     }
 
+    /**
+     * ATENÇÃO: o down() só é seguro num banco SEM movimentações de rateio/desconto (que têm
+     * saldo_estoque_id null). Com elas presentes, voltar a NOT NULL falha (MySQL) ou zera
+     * indevidamente — tratar como praticamente irreversível em produção após uso do rateio.
+     */
     public function down(): void
     {
         Schema::table('movimentacoes_estoque', function (Blueprint $table) {

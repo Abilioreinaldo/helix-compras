@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditavel;
 use Database\Factories\RateioCentralFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class RateioCentral extends Model
 {
     /** @use HasFactory<RateioCentralFactory> */
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'rateios_centrais';
 
