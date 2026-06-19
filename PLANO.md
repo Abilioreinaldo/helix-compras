@@ -2,7 +2,7 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-18
-**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) implementadas. **342 testes verdes.** **v1 ainda NÃO está completa** — faltam: lote/validade (v1.1-C, em design), rateio da central (sem PRD), transferência entre unidades, validade da proposta na cotação, lembrete +48h. Ver "Pendências reais de v1" abaixo.
+**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) + **v1.1-C (lote/validade+FEFO)** + **Rateio da central** + **validade da proposta na cotação (#9)** implementados (os três com sec/QA / rito conforme risco). **440 testes verdes.** **v1 quase completa** — faltam só: **transferência entre unidades (#6)** e **lembrete diário +48h (#8)**. Ver "Pendências reais de v1" abaixo.
 **Branch principal:** main
 
 ---
@@ -598,12 +598,12 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 |---|-----------------|--------|------------|
 | 1 | **Estoque — Saída de material** (requisição interna) + **Inventário** + **Atendimento direto Compradora** | ✅ IMPLEMENTADA (52 testes novos) | RIM (Aberta→Atendida/Recusada), sessão de inventário com snapshot+ajustes, atendimento direto pela Compradora via `SaidaEstoqueAction` relaxada (B1) |
 | 2 | **Estoque mínimo + alerta de ressuprimento** | ✅ IMPLEMENTADA (45 testes novos) | Tabela `estoque_minimos` (unidade × item catálogo); `DefinirEstoqueMinimoAction`; `EstoqueMinimo::itensAReporPara()` + `itemCatalogoIdsEmAlerta()`; badge e painel em `SaldosEstoque`; modal mínimos por unidade em `ListaCatalogoItens`; painel `Compradora\ItensARepor` com botão de sugestão de requisição; pré-preenchimento do `FormularioRequisicao` via query params |
-| 4 | **Lote/validade + FEFO** (cervejaria) | 🚧 em design (Passo 0 a iniciar) | ESCOPO #10 = v1. Design fechado (TL+sec) na **Fase v1.1-C** acima; decisões 1 e 3 fechadas, decisão 2 (inventário) aguarda confirm |
-| 5 | **Rateio da central** entre unidades | 🟠 não-iniciado | ESCOPO #12 = v1. Indefinido — exige PRD do PM antes de codar |
+| 4 | **Lote/validade + FEFO** (cervejaria) | ✅ IMPLEMENTADA + sec/QA | ESCOPO #10 = v1. Passos 0–6 (schema → opt-in → entrada com lote → FEFO service → ramo FEFO na saída → bloqueio ajuste/inventário → UI). Decisão 2 = bloquear inventário controla_lote. P0 RIM multi-lote corrigido. Pontos cegos MySQL D9–D12 + A4/A5 no checklist |
+| 5 | **Rateio da central** entre unidades | ✅ IMPLEMENTADA + sec/QA | ESCOPO #12 = v1. Documental (não toca estoque); consumo proporcional, maior-resto, idempotente, reversão DescontoRateio, command + relatório Livewire. Pontos cegos MySQL A4/A5 |
 | 6 | **Transferência entre unidades** | 🟡 não-iniciado | Sem aprovação (#8); entidade própria + reconciliação entre unidades |
 | 7 | **Relatórios faltantes** (R1–R5) | ✅ CONCLUÍDA | R1 fornecedor/categoria, R2 tempo de aprovação, R3 posição de estoque, R4 consumo por unidade, R5 comparativo entre unidades — commits `40c5c7d`→`a3805ee`, no GitHub. Ver Fatia #7 acima |
 | 8 | **Lembrete diário de pendências +48h** | 🟢 não-iniciado | Notificação por e-mail |
-| 9 | **Campos da cotação** (prazo de entrega, validade da proposta) | 🟢 parcial | ESCOPO exige por cotação; hoje não capturados na cotação |
+| 9 | **Campos da cotação** (prazo de entrega, validade da proposta) | ✅ IMPLEMENTADA | `prazo_entrega_dias` (já existia) + `validade_proposta` (date) capturados em `RegistrarCotacaoAction`/`GestaoCotacoes`; coluna na lista com indicador de "vencida" |
 
 **Atendimento direto do estoque pela Compradora** (saída sem compra) sai junto do item 1 (depende da Saída).
 
