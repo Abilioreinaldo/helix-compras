@@ -3,6 +3,7 @@
 namespace App\Livewire\Almoxarife;
 
 use App\Actions\DefinirEstoqueMinimoAction;
+use App\Actions\TransferirEstoqueAction;
 use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
@@ -10,6 +11,7 @@ use App\Models\LoteEstoque;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -36,6 +38,18 @@ class SaldosEstoque extends Component
     public string $minimoUnidadeId = '';
 
     public string $minimoQuantidade = '';
+
+    // ─── Modal transferência entre unidades ───────────────────────────────────
+
+    public ?int $transferindoSaldoId = null;
+
+    public string $transferDescricaoItem = '';
+
+    public string $transferDestinoId = '';
+
+    public string $transferQuantidade = '';
+
+    public string $transferMotivo = '';
 
     public function mount(): void
     {
@@ -127,6 +141,74 @@ class SaldosEstoque extends Component
         $this->dispatch('notify', mensagem: 'Estoque mínimo salvo com sucesso.');
     }
 
+    public function abrirTransferencia(int $saldoId): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+
+        $saldo = SaldoEstoque::whereIn('unidade_id', $this->unidadesDoAlmoxarife())->findOrFail($saldoId);
+
+        $this->transferindoSaldoId = $saldo->id;
+        $this->transferDescricaoItem = $saldo->descricao_item;
+        $this->transferDestinoId = '';
+        $this->transferQuantidade = '';
+        $this->transferMotivo = '';
+        $this->resetValidation();
+    }
+
+    public function cancelarTransferencia(): void
+    {
+        $this->transferindoSaldoId = null;
+        $this->transferDescricaoItem = '';
+        $this->transferDestinoId = '';
+        $this->transferQuantidade = '';
+        $this->transferMotivo = '';
+        $this->resetValidation();
+    }
+
+    public function confirmarTransferencia(): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+
+        $this->validate([
+            'transferDestinoId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')],
+            'transferQuantidade' => 'required|numeric|min:0.001',
+            'transferMotivo' => 'nullable|string|max:1000',
+        ], [
+            'transferDestinoId.required' => 'Selecione a unidade de destino.',
+            'transferQuantidade.required' => 'Informe a quantidade a transferir.',
+        ]);
+
+        // O saldo precisa pertencer a uma unidade onde o usuário é Almoxarife.
+        $saldo = SaldoEstoque::whereIn('unidade_id', $this->unidadesDoAlmoxarife())->findOrFail($this->transferindoSaldoId);
+        $destino = Unidade::withoutGlobalScopes()->findOrFail((int) $this->transferDestinoId);
+
+        try {
+            app(TransferirEstoqueAction::class)->execute(
+                $saldo,
+                $destino,
+                (float) $this->transferQuantidade,
+                $this->transferMotivo ?: '',
+                auth()->user(),
+            );
+        } catch (ValidationException $e) {
+            $this->addError('transferQuantidade', collect($e->errors())->flatten()->first() ?? 'Falha na transferência.');
+
+            return;
+        }
+
+        $this->cancelarTransferencia();
+        $this->dispatch('notify', mensagem: 'Transferência realizada com sucesso.');
+    }
+
+    /** @return Collection<int, int> */
+    private function unidadesDoAlmoxarife()
+    {
+        return auth()->user()->unidades()
+            ->withoutGlobalScopes()
+            ->wherePivot('perfil', Perfil::Almoxarife->value)
+            ->pluck('unidades.id');
+    }
+
     public function render(): View
     {
         abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
@@ -162,7 +244,13 @@ class SaldosEstoque extends Component
 
         $validades = LoteEstoque::validadesVivasPorSaldo($saldos->pluck('id'));
 
-        return view('livewire.almoxarife.saldos-estoque', compact('saldos', 'depositos', 'idsEmAlerta', 'itensARepor', 'validades'))
+        // Unidades de destino para transferência (rede inteira; a action bloqueia a própria origem).
+        $unidadesDestino = Unidade::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->orderBy('nome')
+            ->get(['id', 'nome']);
+
+        return view('livewire.almoxarife.saldos-estoque', compact('saldos', 'depositos', 'idsEmAlerta', 'itensARepor', 'validades', 'unidadesDestino'))
             ->layout('components.layouts.app');
     }
 }

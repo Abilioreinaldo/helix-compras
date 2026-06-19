@@ -25,6 +25,15 @@ enum TipoMovimentacao: string
      * Documental, financeiro — não muta estoque.
      */
     case DescontoRateio = 'desconto_rateio';
+    /**
+     * Transferência entre unidades (TransferirEstoqueAction): saída no saldo de origem.
+     * Movimento de estoque real (debita origem) — pareado com TransferenciaEntrada.
+     */
+    case TransferenciaSaida = 'transferencia_saida';
+    /**
+     * Transferência entre unidades: entrada no saldo de destino (credita, recalcula CMP).
+     */
+    case TransferenciaEntrada = 'transferencia_entrada';
 
     public function label(): string
     {
@@ -36,6 +45,8 @@ enum TipoMovimentacao: string
             self::Fusao => 'Fusão',
             self::RateioCentral => 'Rateio da Central',
             self::DescontoRateio => 'Desconto de Rateio',
+            self::TransferenciaSaida => 'Transferência (saída)',
+            self::TransferenciaEntrada => 'Transferência (entrada)',
         };
     }
 
@@ -43,8 +54,8 @@ enum TipoMovimentacao: string
     public function adicionaEstoque(): bool
     {
         return match ($this) {
-            self::Entrada, self::AjustePositivo => true,
-            self::Saida, self::AjusteNegativo => false,
+            self::Entrada, self::AjustePositivo, self::TransferenciaEntrada => true,
+            self::Saida, self::AjusteNegativo, self::TransferenciaSaida => false,
             // Tipos documentais — não participam da math de saldo de estoque. A FusaoSaldosAction
             // ajusta saldos explicitamente; rateio/desconto são puramente financeiros (sem saldo).
             self::Fusao, self::RateioCentral, self::DescontoRateio => throw new \LogicException(

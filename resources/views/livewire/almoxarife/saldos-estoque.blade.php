@@ -99,13 +99,21 @@
                             </td>
                             <td class="px-4 py-3 text-sm text-right">R$ {{ number_format($saldo->custo_medio_ponderado, 4, ',', '.') }}</td>
                             <td class="px-4 py-3 text-sm text-right font-medium">R$ {{ number_format($saldo->valor_total, 2, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-center">
+                            <td class="px-4 py-3 text-center space-x-2 whitespace-nowrap">
                                 @if($saldo->item_catalogo_id)
                                     <button
                                         wire:click="abrirModalMinimo({{ $saldo->id }})"
                                         class="text-xs text-indigo-600 hover:underline"
                                     >
                                         Definir mínimo
+                                    </button>
+                                @endif
+                                @if((float) $saldo->quantidade > 0)
+                                    <button
+                                        wire:click="abrirTransferencia({{ $saldo->id }})"
+                                        class="text-xs text-blue-600 hover:underline"
+                                    >
+                                        Transferir
                                     </button>
                                 @endif
                             </td>
@@ -157,6 +165,44 @@
                     >
                         Salvar
                     </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal: Transferência entre unidades --}}
+    @if($transferindoSaldoId !== null)
+        <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h2 class="text-lg font-semibold mb-1">Transferir entre unidades</h2>
+                <p class="text-sm text-gray-500 mb-4">{{ $transferDescricaoItem }}</p>
+
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Unidade de destino</label>
+                    <select wire:model="transferDestinoId" class="w-full border-gray-300 rounded shadow-sm text-sm">
+                        <option value="">Selecione...</option>
+                        @foreach($unidadesDestino as $u)
+                            <option value="{{ $u->id }}">{{ $u->nome }}</option>
+                        @endforeach
+                    </select>
+                    @error('transferDestinoId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+                    <input wire:model="transferQuantidade" type="number" min="0.001" step="0.001"
+                        class="w-full border-gray-300 rounded shadow-sm text-sm" placeholder="Ex.: 10" />
+                    @error('transferQuantidade') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo <span class="text-gray-400 font-normal">(opcional)</span></label>
+                    <textarea wire:model="transferMotivo" rows="2" class="w-full border-gray-300 rounded shadow-sm text-sm" placeholder="Ex.: realocação entre filiais"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button wire:click="cancelarTransferencia" class="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Cancelar</button>
+                    <button wire:click="confirmarTransferencia" class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Transferir</button>
                 </div>
             </div>
         </div>
