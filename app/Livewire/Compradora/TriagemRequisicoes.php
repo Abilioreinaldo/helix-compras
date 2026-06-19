@@ -6,6 +6,7 @@ use App\Actions\SaidaEstoqueAction;
 use App\Actions\TransicionarStatusRequisicaoAction;
 use App\Enums\Perfil;
 use App\Enums\StatusRequisicao;
+use App\Models\LoteEstoque;
 use App\Models\Requisicao;
 use App\Models\SaldoEstoque;
 use Illuminate\Contracts\View\View;
@@ -97,6 +98,24 @@ class TriagemRequisicoes extends Component
         }
 
         return true;
+    }
+
+    /**
+     * Indica se o atendimento direto desta requisição debitaria algum lote VENCIDO
+     * (item controla_lote com lote vivo de validade < hoje no saldo da unidade).
+     * Apenas alerta visual — não impede o atendimento.
+     */
+    public function temLoteVencido(Requisicao $requisicao): bool
+    {
+        $saldoIds = $requisicao->itens
+            ->filter(fn ($item) => $item->item_catalogo_id)
+            ->map(fn ($item) => SaldoEstoque::where('unidade_id', $requisicao->unidade_id)
+                ->where('item_catalogo_id', $item->item_catalogo_id)
+                ->whereNull('fundido_para_id')
+                ->value('id'))
+            ->filter();
+
+        return LoteEstoque::saldosComLoteVencido($saldoIds)->isNotEmpty();
     }
 
     public function atenderDoEstoque(int $id): void

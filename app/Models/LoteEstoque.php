@@ -90,4 +90,21 @@ class LoteEstoque extends Model
             ])
             ->keyBy('saldo_estoque_id');
     }
+
+    /**
+     * Saldos (dentre os informados) com ao menos um lote vivo VENCIDO (validade < hoje).
+     * Reusa validadesVivasPorSaldo (min já normalizada); comparação de data em PHP, sem
+     * função de data SQL. Vencido é só alerta — não bloqueia a saída.
+     *
+     * @param  iterable<int>  $saldoIds
+     * @return Collection<int, int> ids dos saldos com lote vencido
+     */
+    public static function saldosComLoteVencido(iterable $saldoIds): Collection
+    {
+        $hoje = Carbon::today()->toDateString();
+
+        return static::validadesVivasPorSaldo($saldoIds)
+            ->filter(fn (object $v) => $v->min < $hoje)
+            ->keys();
+    }
 }

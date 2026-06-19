@@ -37,6 +37,9 @@
                             @if ($req->valorTotal() > 0)
                                 <span class="block text-xs text-gray-500">R$ {{ number_format($req->valorTotal(), 2, ',', '.') }}</span>
                             @endif
+                            @if ($this->temLoteVencido($req))
+                                <span class="mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800" title="A saída debitará lote vencido">⚠️ Vencido</span>
+                            @endif
                         </td>
                         <td class="px-4 py-3 text-sm">
                             <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">

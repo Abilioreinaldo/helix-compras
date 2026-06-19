@@ -54,7 +54,12 @@
                         <tr class="hover:bg-gray-50">
                             <td class="px-4 py-3 text-sm text-gray-600">{{ $req->id }}</td>
                             <td class="px-4 py-3 text-sm">{{ $req->solicitante?->name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-sm">{{ $req->saldoEstoque?->descricao_item ?? '—' }}</td>
+                            <td class="px-4 py-3 text-sm">
+                                {{ $req->saldoEstoque?->descricao_item ?? '—' }}
+                                @if ($saldoIdsVencidos->contains($req->saldo_estoque_id))
+                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800" title="A saída debitará lote vencido">⚠️ Vencido</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3 text-sm text-right">{{ number_format($req->quantidade_solicitada, 3, ',', '.') }}</td>
                             <td class="px-4 py-3 text-sm text-right {{ (float)$req->saldoEstoque?->quantidade < (float)$req->quantidade_solicitada ? 'text-red-600 font-medium' : '' }}">
                                 {{ number_format($req->saldoEstoque?->quantidade ?? 0, 3, ',', '.') }}

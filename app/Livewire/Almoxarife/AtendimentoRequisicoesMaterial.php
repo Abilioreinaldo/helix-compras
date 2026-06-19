@@ -6,6 +6,7 @@ use App\Actions\AtenderRequisicaoMaterialAction;
 use App\Actions\RecusarRequisicaoMaterialAction;
 use App\Enums\Perfil;
 use App\Enums\StatusRequisicaoMaterial;
+use App\Models\LoteEstoque;
 use App\Models\RequisicaoMaterial;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
@@ -93,7 +94,9 @@ class AtendimentoRequisicoesMaterial extends Component
             ->orderBy('created_at')
             ->paginate(15);
 
-        return view('livewire.almoxarife.atendimento-requisicoes-material', compact('requisicoes'))
+        $saldoIdsVencidos = LoteEstoque::saldosComLoteVencido($requisicoes->pluck('saldo_estoque_id'));
+
+        return view('livewire.almoxarife.atendimento-requisicoes-material', compact('requisicoes', 'saldoIdsVencidos'))
             ->layout('components.layouts.app');
     }
 }
