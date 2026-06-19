@@ -158,7 +158,48 @@ it('custo_unitario_e_o_cmp_do_saldo_e_o_cmp_nao_muda', function () {
 
     expect((float) $mov->custo_unitario)->toBe(7.5)             // CMP do saldo, não valor por lote
         ->and((float) $mov->valor_total)->toEqualWithDelta(22.5, 0.01)
-        ->and((float) $s['saldo']->refresh()->custo_medio_ponderado)->toBe(7.5); // CMP inalterado
+        ->and((float) $s['saldo']->refresh()->custo_medio_ponderado)->toBe(7.5)   // CMP inalterado
+        ->and((float) $s['saldo']->valor_total)->toEqualWithDelta(52.5, 0.01);    // 7 restantes × 7.5
+});
+
+it('lote_sem_validade_consumido_nao_marca_alerta_no_motivo', function () {
+    $s = sfefo_setup([
+        ['numero' => 'L-NULO', 'validade' => null, 'qtd' => 5.0],
+    ]);
+
+    app(SaidaEstoqueAction::class)->execute($s['saldo'], 3.0, 'Consumo limpo', $s['almoxarife']);
+
+    $mov = MovimentacaoEstoque::where('tipo', TipoMovimentacao::Saida)->first();
+
+    expect($mov->motivo)->toBe('Consumo limpo')               // sem validade → sem [ALERTA]
+        ->and($mov->motivo)->not->toContain('ALERTA');
+});
+
+it('invariante_quebrada_saldo_sem_lotes_aborta_e_reverte', function () {
+    // Saldo controla_lote com quantidade > 0 mas SEM nenhum lote: SUM(lotes)=0 != saldo.
+    $unidade = Unidade::factory()->create();
+    $almoxarife = User::factory()->create();
+    $almoxarife->unidades()->attach($unidade->id, ['perfil' => Perfil::Almoxarife->value]);
+    $catalogo = CatalogoItem::factory()->create(['controla_lote' => true]);
+
+    $saldo = SaldoEstoque::create([
+        'unidade_id' => $unidade->id,
+        'deposito' => 'Depósito Central',
+        'descricao_item' => $catalogo->descricao,
+        'descricao_normalizada' => SaldoEstoque::normalizarDescricao($catalogo->descricao),
+        'unidade_medida' => 'un',
+        'quantidade' => 5.0,
+        'custo_medio_ponderado' => 10.0,
+        'valor_total' => 50.0,
+        'item_catalogo_id' => $catalogo->id,
+    ]);
+
+    expect(fn () => app(SaidaEstoqueAction::class)->execute($saldo, 3.0, 'Tentativa', $almoxarife))
+        ->toThrow(RuntimeException::class);
+
+    // Reverteu: saldo intacto, nenhuma movimentação.
+    expect((float) $saldo->refresh()->quantidade)->toBe(5.0)
+        ->and(MovimentacaoEstoque::count())->toBe(0);
 });
 
 // ─── Vencido: consome com alerta, nunca lança ─────────────────────────────────

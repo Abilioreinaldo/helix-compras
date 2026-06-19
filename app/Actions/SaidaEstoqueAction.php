@@ -28,6 +28,9 @@ class SaidaEstoqueAction
      *                                   requisição (TriagemRequisicoes). É a ÚNICA via pela qual
      *                                   a CompradoraSenior fica autorizada a baixar saldo — fora
      *                                   desse fluxo ela não pode dar saída avulsa.
+     * @param  ?int  $requisicaoMaterialId  Quando a saída atende uma RIM, vincula TODAS as
+     *                                      movimentações geradas (uma por lote no FEFO) à RIM —
+     *                                      rastreabilidade completa do ledger (Decisão 1 v1.1-C).
      *
      * @throws ValidationException
      */
@@ -37,6 +40,7 @@ class SaidaEstoqueAction
         string $motivo,
         User $registradoPor,
         bool $atendimentoDireto = false,
+        ?int $requisicaoMaterialId = null,
     ): MovimentacaoEstoque {
         if ($quantidade <= 0) {
             throw ValidationException::withMessages([
@@ -65,7 +69,9 @@ class SaidaEstoqueAction
             ]);
         }
 
-        return DB::transaction(function () use ($saldo, $quantidade, $motivo, $registradoPor) {
+        return DB::transaction(function () use ($saldo, $quantidade, $motivo, $registradoPor, $requisicaoMaterialId) {
+            // INVARIANTE DE LOCK: adquirir SaldoEstoque ANTES de qualquer LoteEstoque (ordem
+            // consistente evita deadlock em MySQL). Toda action que toque ambos deve respeitar.
             // withoutGlobalScopes: relocking by id — unidade já foi verificada acima
             $saldo = SaldoEstoque::withoutGlobalScopes()->where('id', $saldo->id)->lockForUpdate()->firstOrFail();
 
@@ -95,6 +101,7 @@ class SaidaEstoqueAction
                     'saldo_estoque_id' => $saldo->id,
                     'item_recebimento_id' => null,
                     'item_pedido_compra_id' => null,
+                    'requisicao_material_id' => $requisicaoMaterialId,
                     'tipo' => TipoMovimentacao::Saida,
                     'quantidade' => $quantidade,
                     'custo_unitario' => $cmpVigente,
@@ -104,7 +111,7 @@ class SaidaEstoqueAction
                 ]);
             }
 
-            return $this->baixarFefo($saldo, $quantidade, $motivo, $registradoPor, $qtdDisponivel);
+            return $this->baixarFefo($saldo, $quantidade, $motivo, $registradoPor, $qtdDisponivel, $requisicaoMaterialId);
         });
     }
 
@@ -137,6 +144,7 @@ class SaidaEstoqueAction
         string $motivo,
         User $registradoPor,
         float $qtdDisponivel,
+        ?int $requisicaoMaterialId,
     ): MovimentacaoEstoque {
         $cmpVigente = (float) $saldo->custo_medio_ponderado;
 
@@ -144,7 +152,9 @@ class SaidaEstoqueAction
         // SelecaoFefoService (validade IS NULL, validade ASC, id ASC), agora com lockForUpdate.
         // Filtro estrito por saldo_estoque_id via lotesVivos() — nunca item_catalogo_id solto.
         $lotes = $saldo->lotesVivos()
-            ->orderByRaw('validade IS NULL')
+            // (validade IS NULL) avalia 0/1 igual em SQLite e MySQL → datados primeiro, NULL por
+            // último, sem NULLS LAST. Portabilidade validada no go-live (ponto cego D10 no PLANO).
+            ->orderByRaw('(validade IS NULL)')
             ->orderBy('validade')
             ->orderBy('id')
             ->lockForUpdate()
@@ -188,6 +198,7 @@ class SaidaEstoqueAction
                 'saldo_estoque_id' => $saldo->id,
                 'item_recebimento_id' => null,
                 'item_pedido_compra_id' => null,
+                'requisicao_material_id' => $requisicaoMaterialId,
                 'lote_estoque_id' => $lote->id,
                 'tipo' => TipoMovimentacao::Saida,
                 'quantidade' => $consumir,
@@ -206,7 +217,9 @@ class SaidaEstoqueAction
             );
         }
 
-        $qtdNova = max(0.0, $qtdDisponivel - $quantidade);
+        // round(…, 3) reflete o decimal:3 da coluna e evita falso disparo do assert pós-baixa
+        // por acúmulo de erro de ponto flutuante em saídas multi-lote fracionadas.
+        $qtdNova = round(max(0.0, $qtdDisponivel - $quantidade), 3);
         $saldo->update([
             'quantidade' => $qtdNova,
             // CMP não se altera na saída

@@ -42,15 +42,16 @@ class AtenderRequisicaoMaterialAction
         return DB::transaction(function () use ($rim, $almoxarife) {
             // SaidaEstoqueAction pode lançar ValidationException (saldo insuficiente) — o rollback
             // é automático e a RIM permanece com status Aberta.
+            // requisicaoMaterialId: a saída vincula TODAS as movimentações geradas (uma por lote
+            // no FEFO multi-lote) à RIM, não só a âncora retornada — rastreabilidade completa
+            // do ledger (Decisão 1 v1.1-C). $movimentacao é a última (âncora do rim).
             $movimentacao = $this->saidaEstoqueAction->execute(
                 $rim->saldoEstoque,
                 (float) $rim->quantidade_solicitada,
                 "RIM #{$rim->id}: {$rim->justificativa}",
                 $almoxarife,
+                requisicaoMaterialId: $rim->id,
             );
-
-            // Vincula a movimentação à RIM
-            $movimentacao->update(['requisicao_material_id' => $rim->id]);
 
             $rim->update([
                 'status' => StatusRequisicaoMaterial::Atendida,
