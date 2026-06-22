@@ -493,10 +493,12 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
 
 ### A. Migrations driver-aware
 
-- [ ] **A1 — Enum `tipo` de `movimentacoes_estoque`** (`add_fusao_to_movimentacoes_estoque_tipo`).
+> ✅ **Validado em MySQL 8.0.46 real (2026-06-22)** — `migrate` incremental + inspeção de schema. Achado e corrigido um **bug só-MySQL**: `add_transferencia_estoque_id` e `create_transferencias_estoque` tinham o MESMO timestamp `180811`, e por ordem alfabética o `add_` (FK) rodava ANTES do `create_` (tabela) → erro 1824 (SQLite tolerava FK para tabela inexistente; MySQL não). Corrigido renomeando para `180812`. Lição: migrations com FK entre si NÃO podem compartilhar timestamp.
+
+- [x] **A1 — Enum `tipo` de `movimentacoes_estoque`** (`add_fusao_to_movimentacoes_estoque_tipo`).
   - **O que validar:** o `up()` altera o ENUM para incluir `'fusao'` via `ALTER TABLE ... MODIFY COLUMN tipo ENUM(...)` (ramo MySQL, diferente do swap de coluna TEXT do SQLite); o `down()` reverte sem `'fusao'` (assume zero linhas `'fusao'`).
   - **Como:** rodar `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 5 valores; inserir uma movimentação `tipo='fusao'` e confirmar aceitação; testar `migrate:rollback` num banco sem linhas `'fusao'`.
-- [ ] **A2 — UNIQUE de saldos de catálogo** (`add_unique_catalogo_to_saldos_estoque`): índice **parcial** (SQLite) vs **coluna gerada STORED `catalogo_chave_unica` + UNIQUE** (MySQL).
+- [x] **A2 — UNIQUE de saldos de catálogo** (`add_unique_catalogo_to_saldos_estoque`): índice **parcial** (SQLite) vs **coluna gerada STORED `catalogo_chave_unica` + UNIQUE** (MySQL).
   - **O que validar:** `migrate` cria a coluna gerada e o índice; duas linhas **ativas** com mesma `(unidade_id, deposito, item_catalogo_id)` são barradas; avulsos (`item_catalogo_id` NULL) e tombstones (`fundido_para_id` != NULL) coexistem sem colidir.
   - **Como:** `SHOW CREATE TABLE saldos_estoque` (confere coluna gerada + UNIQUE); tentar inserir duplicata ativa → deve falhar com 1062; inserir 2 avulsos idênticos e 2 tombstones idênticos → devem passar.
 - [ ] **A3 — Ordem de deploy obrigatória do UNIQUE (mandatória, não inverter):**
@@ -504,11 +506,11 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
   2. `estoque:sanear-duplicatas-catalogo --dry-run` para auditar → depois `--executado-por=<id Admin>` para fundir as duplicatas legadas.
   3. **Só então** `php artisan migrate` o **Passo 3** (cria o UNIQUE/coluna gerada).
   - **Por quê:** se a constraint do Passo 3 subir ANTES do saneamento num banco com duplicatas, a criação do índice **falha e o deploy trava**.
-- [ ] **A4 — Enum `tipo` ampliado para rateio** (`add_rateio_tipos_to_movimentacoes_estoque`): adiciona `'rateio_central'` e `'desconto_rateio'` via `ALTER TABLE ... MODIFY COLUMN tipo ENUM(...)` (só MySQL; no SQLite a coluna já é TEXT puro desde A1 → no-op).
+- [x] **A4 — Enum `tipo` ampliado para rateio** (`add_rateio_tipos_to_movimentacoes_estoque`): adiciona `'rateio_central'` e `'desconto_rateio'` via `ALTER TABLE ... MODIFY COLUMN tipo ENUM(...)` (só MySQL; no SQLite a coluna já é TEXT puro desde A1 → no-op).
   - **Como:** `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 7 valores; inserir movimentação `tipo='rateio_central'` com `saldo_estoque_id` NULL e confirmar aceitação.
-- [ ] **A5 — `saldo_estoque_id` NULLABLE** (`make_saldo_estoque_id_nullable_on_movimentacoes_estoque`): `->change()` gera `MODIFY` no MySQL e rebuild no SQLite.
+- [x] **A5 — `saldo_estoque_id` NULLABLE** (`make_saldo_estoque_id_nullable_on_movimentacoes_estoque`): `->change()` gera `MODIFY` no MySQL e rebuild no SQLite.
   - **O que validar:** após `migrate`, `SHOW CREATE TABLE movimentacoes_estoque` mostra `saldo_estoque_id BIGINT UNSIGNED NULL` com a **FK `saldos_estoque` preservada** e o índice intacto; inserir mov de rateio com NULL passa; entrada/saída reais continuam exigindo saldo (a app sempre passa). `down()` é irreversível com dados de rateio (documentado na migration).
-- [ ] **A6 — Enum `tipo` ampliado para transferência** (`add_transferencia_tipos_to_movimentacoes_estoque`): adiciona `'transferencia_saida'` e `'transferencia_entrada'` via `MODIFY COLUMN tipo ENUM(...)` (só MySQL; SQLite TEXT → no-op).
+- [x] **A6 — Enum `tipo` ampliado para transferência** (`add_transferencia_tipos_to_movimentacoes_estoque`): adiciona `'transferencia_saida'` e `'transferencia_entrada'` via `MODIFY COLUMN tipo ENUM(...)` (só MySQL; SQLite TEXT → no-op).
   - **Como:** `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 9 valores; executar uma transferência e confirmar as duas movimentações (`transferencia_saida`/`transferencia_entrada`) aceitas.
 
 ### B. Relatórios driver-aware
