@@ -24,8 +24,9 @@ class MenuLateral extends Component
 
         if ($isCompradora) {
             $grupos['Compras'] = [
-                $this->item('Triagem', 'compradora.triagem', 'inbox'),
                 $this->item('Requisições', 'requisicoes.index', 'document'),
+                $this->item('Cotações', 'cotacoes.index', 'cotacao'),
+                $this->item('Triagem', 'compradora.triagem', 'inbox'),
                 $this->item('Pedidos de Compra', 'compradora.pedidos.index', 'cart'),
             ];
         }

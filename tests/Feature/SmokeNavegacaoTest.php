@@ -40,6 +40,7 @@ it('abre todas as telas principais sem erro 500', function () {
         ['/compradora/triagem', $compradora],
         ['/compradora/itens-a-repor', $compradora],
         ['/compradora/pedidos', $compradora],
+        ['/cotacoes', $compradora],
         ['/aprovacoes', $diretor],
         ['/almoxarife/recebimentos', $almox],
         ['/almoxarife/estoque', $almox],
