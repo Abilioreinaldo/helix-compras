@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\StatusPagamento;
 use App\Models\Pagamento;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
@@ -18,34 +19,38 @@ class CancelarPagamentoAction
      */
     public function execute(Pagamento $pagamento, string $motivo, User $usuario): Pagamento
     {
-        if ($pagamento->status === StatusPagamento::Pago) {
-            throw ValidationException::withMessages([
-                'pagamento' => 'Um pagamento já pago não pode ser cancelado.',
-            ]);
-        }
-
-        if ($pagamento->status === StatusPagamento::Cancelado) {
-            throw ValidationException::withMessages([
-                'pagamento' => 'Este pagamento já está cancelado.',
-            ]);
-        }
-
         if (blank($motivo)) {
             throw ValidationException::withMessages(['motivo' => 'Informe o motivo do cancelamento.']);
         }
 
-        $pagamento->update([
-            'status' => StatusPagamento::Cancelado,
-            'observacoes' => $motivo,
-            'atualizado_por' => $usuario->id,
-        ]);
+        return DB::transaction(function () use ($pagamento, $motivo, $usuario) {
+            $pagamento = Pagamento::lockForUpdate()->findOrFail($pagamento->id);
 
-        Log::warning('Pagamento cancelado.', [
-            'pagamento_id' => $pagamento->id,
-            'motivo' => $motivo,
-            'por' => $usuario->id,
-        ]);
+            if ($pagamento->status === StatusPagamento::Pago) {
+                throw ValidationException::withMessages([
+                    'pagamento' => 'Um pagamento já pago não pode ser cancelado.',
+                ]);
+            }
 
-        return $pagamento->fresh();
+            if ($pagamento->status === StatusPagamento::Cancelado) {
+                throw ValidationException::withMessages([
+                    'pagamento' => 'Este pagamento já está cancelado.',
+                ]);
+            }
+
+            $pagamento->update([
+                'status' => StatusPagamento::Cancelado,
+                'observacoes' => $motivo,
+                'atualizado_por' => $usuario->id,
+            ]);
+
+            Log::warning('Pagamento cancelado.', [
+                'pagamento_id' => $pagamento->id,
+                'motivo' => $motivo,
+                'por' => $usuario->id,
+            ]);
+
+            return $pagamento->fresh();
+        });
     }
 }

@@ -26,7 +26,9 @@ class EmitirPedidoCompraAction
     public function execute(PedidoCompra $pedido, User $emissor): PedidoCompra
     {
         $pedido = DB::transaction(function () use ($pedido, $emissor) {
-            $pedido->refresh();
+            // Lock pessimista: evita emissão dupla concorrente (e pagamento duplicado).
+            // withoutGlobalScopes: o pedido já foi autorizado pelo chamador; o lock é por PK.
+            $pedido = PedidoCompra::withoutGlobalScopes()->lockForUpdate()->findOrFail($pedido->id);
 
             if ($pedido->status !== StatusPedidoCompra::Rascunho) {
                 throw ValidationException::withMessages([

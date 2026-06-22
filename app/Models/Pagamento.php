@@ -121,6 +121,8 @@ class Pagamento extends Model
             return false;
         }
 
-        return $this->data_vencimento !== null && $this->data_vencimento->isPast();
+        // O próprio dia do vencimento ainda NÃO está vencido (alinha com o card "Vencido",
+        // que usa data_vencimento < hoje).
+        return $this->data_vencimento !== null && $this->data_vencimento->startOfDay()->isBefore(Carbon::today());
     }
 }

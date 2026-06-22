@@ -52,6 +52,20 @@ it('aceita até a tolerância de 10% (juros/multa de última hora)', function ()
     expect($res->status)->toBe(StatusPagamento::Pago);
 });
 
+it('status pago considera o total devido com desconto (calcularTotal, não valor_total)', function () {
+    $user = User::factory()->financeiro()->create();
+    $pag = pa_pagamento(['valor_total' => 1000, 'valor_desconto' => 100]); // devido = 900
+    $res = app(RegistrarPagamentoAction::class)->execute($pag, 900.00, now()->toDateString(), MetodoPagamento::Boleto, null, null, null, $user);
+    expect($res->status)->toBe(StatusPagamento::Pago);
+});
+
+it('status parcial quando paga só o principal e há juros', function () {
+    $user = User::factory()->financeiro()->create();
+    $pag = pa_pagamento(['valor_total' => 1000, 'valor_juros' => 200]); // devido = 1200
+    $res = app(RegistrarPagamentoAction::class)->execute($pag, 1000.00, now()->toDateString(), MetodoPagamento::Boleto, null, null, null, $user);
+    expect($res->status)->toBe(StatusPagamento::Parcial);
+});
+
 it('rejeita data de pagamento futura', function () {
     $user = User::factory()->financeiro()->create();
     expect(fn () => app(RegistrarPagamentoAction::class)->execute(pa_pagamento(), 100.00, now()->addDay()->toDateString(), MetodoPagamento::Boleto, null, null, null, $user))

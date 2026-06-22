@@ -13,6 +13,7 @@ use App\Models\Pagamento;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -31,6 +32,7 @@ class ListaPagamentos extends Component
     // Modal de registro de pagamento
     public bool $mostrarRegistrar = false;
 
+    #[Locked]
     public ?int $pagamentoId = null;
 
     public string $valorPago = '';
@@ -72,6 +74,11 @@ class ListaPagamentos extends Component
     }
 
     public function updatingFiltroFornecedorId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingFiltroVencimentoAte(): void
     {
         $this->resetPage();
     }

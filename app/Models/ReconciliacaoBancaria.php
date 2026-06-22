@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditavel;
 use Database\Factories\ReconciliacaoBancariaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ReconciliacaoBancaria extends Model
 {
     /** @use HasFactory<ReconciliacaoBancariaFactory> */
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'reconciliacoes_bancarias';
 

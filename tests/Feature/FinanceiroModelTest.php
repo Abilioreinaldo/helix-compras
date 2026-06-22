@@ -31,6 +31,11 @@ it('ehVencido só quando está em aberto e o vencimento passou', function () {
         ->and($futuro->ehVencido())->toBeFalse();
 });
 
+it('não marca como vencido o pagamento que vence hoje', function () {
+    $p = Pagamento::factory()->create(['status' => StatusPagamento::Pendente, 'data_vencimento' => now()->toDateString()]);
+    expect($p->ehVencido())->toBeFalse();
+});
+
 it('apenas Financeiro (ou Admin) pode gerenciar pagamentos', function () {
     $financeiro = User::factory()->financeiro()->create();
     $admin = User::factory()->admin()->create();

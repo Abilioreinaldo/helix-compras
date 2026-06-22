@@ -7,6 +7,7 @@ use App\Models\Banco;
 use App\Models\ReconciliacaoBancaria;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -20,6 +21,7 @@ class Reconciliacao extends Component
     /** @var TemporaryUploadedFile|null */
     public $arquivo = null;
 
+    #[Locked]
     public ?int $reconciliacaoId = null;
 
     public function mount(): void
@@ -33,10 +35,11 @@ class Reconciliacao extends Component
 
         $this->validate([
             'bancoId' => 'required|exists:bancos,id',
-            'arquivo' => 'required|file|max:5120',
+            'arquivo' => 'required|file|mimes:csv,txt|max:5120',
         ], [
             'bancoId.required' => 'Selecione o banco.',
             'arquivo.required' => 'Envie o arquivo do extrato (CSV).',
+            'arquivo.mimes' => 'O arquivo deve ser CSV ou TXT.',
             'arquivo.max' => 'O arquivo não pode ultrapassar 5 MB.',
         ]);
 

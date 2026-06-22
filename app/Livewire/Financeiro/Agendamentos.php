@@ -28,6 +28,7 @@ class Agendamentos extends Component
             ->whereIn('status', [StatusPagamento::Agendado->value, StatusPagamento::Pendente->value, StatusPagamento::Parcial->value])
             ->whereDate('data_vencimento', '<=', $limite)
             ->orderBy('data_vencimento')
+            ->limit(500)
             ->get();
     }
 

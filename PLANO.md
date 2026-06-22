@@ -517,6 +517,9 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
 - [x] **A6 — Enum `tipo` ampliado para transferência** (`add_transferencia_tipos_to_movimentacoes_estoque`): adiciona `'transferencia_saida'` e `'transferencia_entrada'` via `MODIFY COLUMN tipo ENUM(...)` (só MySQL; SQLite TEXT → no-op).
   - **Como:** `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 9 valores; executar uma transferência e confirmar as duas movimentações (`transferencia_saida`/`transferencia_entrada`) aceitas.
 
+- [ ] **A7 — Índice único parcial "1 pagamento ativo por pedido"** (`fix_unique_pagamento_por_pedido`, módulo Financeiro). ⚠️ PONTO CEGO: `unique(pedido_compra_id, deleted_at)` é inócuo (NULL distinto em ambos os bancos). Driver-aware: SQLite usa `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL`; **MySQL** usa coluna gerada `pedido_ativo_key BIGINT GENERATED ALWAYS AS (...) STORED` + unique nela.
+  - **Como validar no MySQL:** `migrate`; `SHOW INDEX FROM pagamentos` deve listar `pagamentos_pedido_ativo_unique`; tentar inserir 2 pagamentos ativos (deleted_at NULL) para o mesmo `pedido_compra_id` → o 2º deve falhar (erro 1062); soft-delete do 1º + novo insert deve passar.
+
 ### B. Relatórios driver-aware
 
 > Para cada um: abrir logado como Compradora/Admin, confirmar que **não dá erro de SQL**, e que os números **batem com o SQLite** para os mesmos dados.

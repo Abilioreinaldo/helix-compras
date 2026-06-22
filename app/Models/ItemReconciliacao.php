@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditavel;
 use Database\Factories\ItemReconciliacaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -23,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ItemReconciliacao extends Model
 {
     /** @use HasFactory<ItemReconciliacaoFactory> */
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'itens_reconciliacao';
 
