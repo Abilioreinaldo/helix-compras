@@ -393,6 +393,28 @@ it('solicitante_seleciona_item_de_catalogo_e_campo_e_propagado_para_item_requisi
         ->and($itemReq->descricao)->toBe('Luva de Raspa de Couro');
 });
 
+it('selecionar_item_de_catalogo_aceita_id_como_string_do_select', function () {
+    // O wire:change do <select> envia o value como STRING (ex.: "18"); sem strict_types o PHP
+    // coage para ?int. Trava o comportamento que substituiu o Number() no blade.
+    $unidade = Unidade::factory()->create();
+    $solicitante = User::factory()->create();
+    $solicitante->unidades()->attach($unidade->id, ['perfil' => Perfil::Solicitante->value]);
+    $catalogoItem = CatalogoItem::factory()->create();
+
+    $component = Livewire::actingAs($solicitante)
+        ->test(FormularioRequisicao::class)
+        ->call('selecionarItemCatalogo', 0, (string) $catalogoItem->id)
+        ->assertHasNoErrors();
+
+    expect($component->get('itens')[0]['item_catalogo_id'])->toBe($catalogoItem->id)
+        ->and($component->get('itens')[0]['avulso'])->toBeFalse();
+
+    // Opção "Item avulso" (value vazio → null no blade) volta para avulso.
+    $component->call('selecionarItemCatalogo', 0, null);
+    expect($component->get('itens')[0]['item_catalogo_id'])->toBeNull()
+        ->and($component->get('itens')[0]['avulso'])->toBeTrue();
+});
+
 it('item_de_requisicao_avulso_sem_catalogo_continua_funcionando', function () {
     $unidade = Unidade::factory()->create();
     $solicitante = User::factory()->create();

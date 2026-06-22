@@ -98,7 +98,7 @@
                     <div class="border border-gray-200 rounded-md p-3 space-y-2">
                         <div class="flex gap-2 items-start">
                             <div class="w-56">
-                                <select wire:change="selecionarItemCatalogo({{ $idx }}, $event.target.value ? Number($event.target.value) : null)"
+                                <select wire:change="selecionarItemCatalogo({{ $idx }}, $event.target.value || null)"
                                     class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">Item avulso (descrição livre)</option>
                                     @foreach ($itensCatalogo as $catalogoItem)
