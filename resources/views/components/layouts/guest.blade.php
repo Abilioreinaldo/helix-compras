@@ -7,14 +7,14 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="bg-black font-sans text-slate-100 antialiased">
+<body class="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased">
 
-<div class="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-    {{-- Fundo SVG dark executivo --}}
+<div class="relative min-h-screen overflow-hidden">
+    {{-- Fundo SVG neon --}}
     <x-auth.login-background />
 
-    {{-- Card de autenticação em primeiro plano --}}
-    <div class="relative z-10 w-full max-w-md">
+    {{-- Cada tela de auth controla seu próprio layout (login = split; troca = centrado). --}}
+    <div class="relative z-10 min-h-screen">
         {{ $slot }}
     </div>
 </div>
