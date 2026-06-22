@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -83,6 +84,12 @@ class Cotacao extends Model
     public function fornecedor(): BelongsTo
     {
         return $this->belongsTo(Fornecedor::class);
+    }
+
+    /** Preços por item desta cotação (matriz). O total (coluna `valor`) é a soma das linhas. */
+    public function itensCotacao(): HasMany
+    {
+        return $this->hasMany(ItemCotacao::class);
     }
 
     public function criador(): BelongsTo
