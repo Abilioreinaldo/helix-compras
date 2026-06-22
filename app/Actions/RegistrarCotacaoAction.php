@@ -13,6 +13,14 @@ use Illuminate\Validation\ValidationException;
 class RegistrarCotacaoAction
 {
     /**
+     * Registra uma cotação de fornecedor.
+     *
+     * Quando $precosPorItem é informado (matriz: [item_requisicao_id => valor_unitario]),
+     * cria os ItemCotacao e o total ($valor) passa a ser a SOMA das linhas
+     * (valor_unitario × quantidade). Sem ele, usa o $valor total recebido (legado).
+     *
+     * @param  array<int|string, float|string>|null  $precosPorItem
+     *
      * @throws ValidationException
      */
     public function execute(
@@ -22,7 +30,8 @@ class RegistrarCotacaoAction
         ?UploadedFile $arquivo = null,
         ?int $prazoEntregaDias = null,
         ?string $observacoes = null,
-        ?string $validadeProposta = null
+        ?string $validadeProposta = null,
+        ?array $precosPorItem = null,
     ): Cotacao {
         if (! $fornecedor->homologado || ! $fornecedor->ativo) {
             throw ValidationException::withMessages([
@@ -30,7 +39,32 @@ class RegistrarCotacaoAction
             ]);
         }
 
-        return DB::transaction(function () use ($requisicao, $fornecedor, $valor, $arquivo, $prazoEntregaDias, $observacoes, $validadeProposta) {
+        // Caminho por item: valida ids contra a requisição e recalcula o total.
+        $linhas = [];
+        if ($precosPorItem !== null) {
+            $itensReq = $requisicao->itens()->get()->keyBy('id');
+            $valor = 0.0;
+
+            foreach ($precosPorItem as $itemId => $unitario) {
+                $item = $itensReq->get((int) $itemId);
+                if (! $item) {
+                    continue; // ignora ids que não pertencem à requisição
+                }
+                $unitario = round((float) $unitario, 2);
+                $linhas[(int) $itemId] = $unitario;
+                $valor += $unitario * (float) $item->quantidade;
+            }
+
+            $valor = round($valor, 2);
+
+            if ($linhas === []) {
+                throw ValidationException::withMessages([
+                    'precos' => 'Informe o preço de ao menos um item.',
+                ]);
+            }
+        }
+
+        return DB::transaction(function () use ($requisicao, $fornecedor, $valor, $arquivo, $prazoEntregaDias, $observacoes, $validadeProposta, $linhas) {
             $arquivoPath = null;
             $arquivoNomeOriginal = null;
 
@@ -51,6 +85,13 @@ class RegistrarCotacaoAction
                 'vencedora' => false,
                 'criada_por' => auth()->id(),
             ]);
+
+            foreach ($linhas as $itemId => $unitario) {
+                $cotacao->itensCotacao()->create([
+                    'item_requisicao_id' => $itemId,
+                    'valor_unitario' => $unitario,
+                ]);
+            }
 
             if ($requisicao->primeira_cotacao_em === null) {
                 $requisicao->update(['primeira_cotacao_em' => now()]);

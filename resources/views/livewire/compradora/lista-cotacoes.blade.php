@@ -81,9 +81,14 @@
                                 </td>
                                 <td class="px-4 py-3 text-slate-400">{{ ($req->submetida_em ?? $req->created_at)?->format('d/m/Y') }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('compradora.cotacoes', $req->id) }}" class="text-xs font-medium text-emerald-400 hover:text-emerald-300">
-                                        Ver detalhes
-                                    </a>
+                                    <div class="flex items-center justify-end gap-3">
+                                        <a href="{{ route('compradora.mapa-cotacao', ['requisicaoId' => $req->id]) }}" class="text-xs text-slate-400 hover:text-slate-200">
+                                            Mapa
+                                        </a>
+                                        <a href="{{ route('compradora.cotacoes', $req->id) }}" class="text-xs font-medium text-emerald-400 hover:text-emerald-300">
+                                            Ver detalhes
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach

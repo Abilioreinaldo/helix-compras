@@ -68,6 +68,7 @@ it('abre todas as telas principais sem erro 500', function () {
         $req ? ['/requisicoes/'.$req->id, $admin] : null,
         $reqEditavel ? ['/requisicoes/'.$reqEditavel->id.'/editar', $solic] : null,
         $reqCotacao ? ['/compradora/cotacoes/'.$reqCotacao->id, $compradora] : null,
+        $reqCotacao ? ['/requisicoes/'.$reqCotacao->id.'/mapa-cotacao', $compradora] : null,
         $reqAprov ? ['/aprovacoes/'.$reqAprov->id, $diretor] : null,
         $pc ? ['/compradora/pedidos/'.$pc->id, $compradora] : null,
         $pc ? ['/compradora/pedidos/'.$pc->id.'/pdf', $compradora] : null,

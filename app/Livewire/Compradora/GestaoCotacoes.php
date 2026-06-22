@@ -27,6 +27,9 @@ class GestaoCotacoes extends Component
 
     public string $valor = '';
 
+    /** @var array<int|string, string> preço unitário por item (item_requisicao_id => preço) */
+    public array $precos = [];
+
     public string $prazoEntregaDias = '';
 
     public string $validadeProposta = '';
@@ -60,16 +63,25 @@ class GestaoCotacoes extends Component
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
-        $dados = $this->validate([
+        // Preços por item (matriz). Vazio => caminho legado por valor total.
+        $precosPorItem = collect($this->precos)
+            ->filter(fn ($v) => $v !== '' && $v !== null && is_numeric($v) && (float) $v > 0)
+            ->map(fn ($v) => (float) $v)
+            ->all();
+        $usaItens = $precosPorItem !== [];
+
+        $regras = [
             'fornecedorId' => 'required|exists:fornecedores,id',
-            'valor' => 'required|numeric|min:0.01',
             'prazoEntregaDias' => 'nullable|integer|min:1',
             'validadeProposta' => 'nullable|date',
             'observacoes' => 'nullable|string|max:1000',
             'arquivo' => 'nullable|file|mimetypes:application/pdf,image/jpeg,image/png|max:10240',
-        ], [
+        ];
+        $regras[$usaItens ? 'precos.*' : 'valor'] = $usaItens ? 'nullable|numeric|min:0' : 'required|numeric|min:0.01';
+
+        $this->validate($regras, [
             'fornecedorId.required' => 'Selecione um fornecedor.',
-            'valor.required' => 'Informe o valor da cotação.',
+            'valor.required' => 'Informe o preço dos itens ou o valor total.',
             'valor.min' => 'O valor deve ser maior que zero.',
             'arquivo.mimetypes' => 'O arquivo deve ser PDF, JPG ou PNG.',
             'arquivo.max' => 'O arquivo não pode ultrapassar 10 MB.',
@@ -81,11 +93,12 @@ class GestaoCotacoes extends Component
             app(RegistrarCotacaoAction::class)->execute(
                 $this->requisicao,
                 $fornecedor,
-                (float) $this->valor,
+                $usaItens ? 0.0 : (float) $this->valor,
                 $this->arquivo,
                 $this->prazoEntregaDias !== '' ? (int) $this->prazoEntregaDias : null,
                 $this->observacoes ?: null,
-                $this->validadeProposta ?: null
+                $this->validadeProposta ?: null,
+                $usaItens ? $precosPorItem : null,
             );
         } catch (ValidationException $e) {
             $mensagem = collect($e->errors())->flatten()->first() ?? $e->getMessage();
@@ -220,6 +233,7 @@ class GestaoCotacoes extends Component
     {
         $this->fornecedorId = null;
         $this->valor = '';
+        $this->precos = [];
         $this->prazoEntregaDias = '';
         $this->validadeProposta = '';
         $this->observacoes = '';

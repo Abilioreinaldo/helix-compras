@@ -26,6 +26,7 @@ use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\GestaoPedidosCompra;
 use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\ListaCotacoes;
+use App\Livewire\Compradora\MapaCotacao;
 use App\Livewire\Compradora\TriagemRequisicoes;
 use App\Livewire\Dashboard;
 use App\Livewire\Relatorios\ComparativoUnidades;
@@ -82,6 +83,7 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 3 — Cotações (Compradora) — rota estática 'arquivo' deve vir ANTES do parâmetro dinâmico {id}
     Route::get('/cotacoes', ListaCotacoes::class)->name('cotacoes.index');
+    Route::get('/requisicoes/{requisicaoId}/mapa-cotacao', MapaCotacao::class)->name('compradora.mapa-cotacao');
     Route::get('/compradora/cotacoes/arquivo/{cotacao}', DownloadArquivoCotacaoController::class)->name('compradora.cotacoes.arquivo');
     Route::get('/compradora/cotacoes/{id}', GestaoCotacoes::class)->name('compradora.cotacoes');
 
