@@ -162,14 +162,17 @@ class RegistroRecebimento extends Component
 
         $controlaLote = $this->controlaLotePorItem($pedido);
 
-        // Quantidade já recebida por item
+        // Quantidade já recebida por item. SUM precisa de alias: sem ele, o pluck do Laravel
+        // tenta ler a propriedade "quantidade_recebida" da linha (cuja coluna é "SUM(...)") e
+        // estoura "Undefined property" quando há recebimentos.
         $jaRecebidoPorItem = DB::table('itens_recebimento')
             ->join('recebimentos', 'itens_recebimento.recebimento_id', '=', 'recebimentos.id')
             ->where('recebimentos.pedido_compra_id', $pedido->id)
             ->whereNull('itens_recebimento.deleted_at')
             ->whereNull('recebimentos.deleted_at')
             ->groupBy('itens_recebimento.item_pedido_compra_id')
-            ->pluck(DB::raw('SUM(itens_recebimento.quantidade_recebida)'), 'itens_recebimento.item_pedido_compra_id');
+            ->selectRaw('itens_recebimento.item_pedido_compra_id, SUM(itens_recebimento.quantidade_recebida) as total')
+            ->pluck('total', 'itens_recebimento.item_pedido_compra_id');
 
         return view('livewire.almoxarife.registro-recebimento', compact('pedido', 'jaRecebidoPorItem', 'controlaLote'))
             ->layout('components.layouts.app');
