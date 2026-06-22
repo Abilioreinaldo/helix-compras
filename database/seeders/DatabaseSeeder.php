@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             UnidadeSeeder::class,
             CatalogoItemSeeder::class,
             FornecedorSeeder::class,
+            BancoSeeder::class,
             CentroCustoSeeder::class,
             RequisicaoSeeder::class,
             CargaMediaSeeder::class,

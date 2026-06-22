@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'is_admin', 'is_compradora', 'status', 'precisa_trocar_senha'])]
+#[Fillable(['name', 'email', 'password', 'is_admin', 'is_compradora', 'is_financeiro', 'status', 'precisa_trocar_senha'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -29,6 +29,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'is_compradora' => 'boolean',
+            'is_financeiro' => 'boolean',
             'precisa_trocar_senha' => 'boolean',
         ];
     }
@@ -52,6 +53,7 @@ class User extends Authenticatable
         return match ($perfil) {
             Perfil::Admin => $this->is_admin,
             Perfil::CompradoraSenior => $this->is_compradora,
+            Perfil::Financeiro => $this->is_financeiro,
             default => $this->belongsToMany(Unidade::class, 'unidade_user')
                 ->withoutGlobalScopes()
                 ->withPivot('perfil')
@@ -66,5 +68,17 @@ class User extends Authenticatable
     public function podeVerTodasUnidades(): bool
     {
         return $this->is_admin || $this->is_compradora;
+    }
+
+    /** Pode visualizar o módulo financeiro (contas a pagar). */
+    public function podeVerPagamentos(): bool
+    {
+        return $this->is_financeiro || $this->is_admin;
+    }
+
+    /** Pode registrar/agendar/cancelar/reconciliar pagamentos. */
+    public function podeGerenciarPagamentos(): bool
+    {
+        return $this->is_financeiro || $this->is_admin;
     }
 }

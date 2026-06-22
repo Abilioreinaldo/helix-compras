@@ -10,4 +10,5 @@ enum Perfil: string
     case Aprovador = 'aprovador';
     case Solicitante = 'solicitante';
     case Almoxarife = 'almoxarife';
+    case Financeiro = 'financeiro';
 }

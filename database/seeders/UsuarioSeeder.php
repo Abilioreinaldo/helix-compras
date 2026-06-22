@@ -25,6 +25,12 @@ class UsuarioSeeder extends Seeder
             'password' => Hash::make('senha@123'),
         ]);
 
+        User::factory()->financeiro()->create([
+            'name' => 'Financeiro',
+            'email' => 'financeiro@comendador.com.br',
+            'password' => Hash::make('senha@123'),
+        ]);
+
         // Diretor que participará de 2 unidades (vínculo criado no UnidadeSeeder)
         User::factory()->create([
             'name' => 'Diretor Regional',

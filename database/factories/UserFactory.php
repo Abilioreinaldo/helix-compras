@@ -30,6 +30,7 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'is_admin' => false,
             'is_compradora' => false,
+            'is_financeiro' => false,
             'status' => 'ativo',
             'precisa_trocar_senha' => false,
         ];
@@ -59,6 +60,14 @@ class UserFactory extends Factory
     public function compradora(): static
     {
         return $this->state(['is_compradora' => true]);
+    }
+
+    /**
+     * Usuário do financeiro (gestão de pagamentos).
+     */
+    public function financeiro(): static
+    {
+        return $this->state(['is_financeiro' => true]);
     }
 
     /**
