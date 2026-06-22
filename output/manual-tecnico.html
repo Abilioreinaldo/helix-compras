@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Técnico — Comendador Compras v1</title>
+    <style>
+        /* Reset + base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #0f172a;
+            background: #ffffff;
+            line-height: 1.6;
+            font-size: 11pt;
+        }
+
+        /* A4 Print */
+        @media print {
+            body { margin: 0; padding: 0; }
+            .page-break { page-break-after: always; }
+            a { color: #1e40af; text-decoration: none; }
+        }
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 24pt;
+            font-weight: 700;
+            margin: 24pt 0 12pt 0;
+            color: #0f172a;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 8pt;
+        }
+        h2 {
+            font-size: 16pt;
+            font-weight: 600;
+            margin: 18pt 0 10pt 0;
+            color: #1e3a8a;
+        }
+        h3 {
+            font-size: 13pt;
+            font-weight: 600;
+            margin: 12pt 0 8pt 0;
+            color: #334155;
+        }
+        h4, h5, h6 {
+            font-size: 11pt;
+            font-weight: 600;
+            margin: 10pt 0 6pt 0;
+            color: #475569;
+        }
+
+        p {
+            margin: 8pt 0;
+            text-align: justify;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin: 10pt 0;
+            padding-left: 20pt;
+        }
+        li {
+            margin: 4pt 0;
+        }
+
+        /* Code blocks */
+        pre, code {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 9pt;
+            background: #f1f5f9;
+            border-left: 3pt solid #64748b;
+            padding: 8pt;
+            overflow-x: auto;
+            margin: 8pt 0;
+        }
+        pre {
+            padding: 12pt;
+            border-radius: 4px;
+        }
+        code {
+            padding: 2pt 4pt;
+            display: inline-block;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12pt 0;
+            font-size: 10pt;
+        }
+        th {
+            background: #1e293b;
+            color: #ffffff;
+            padding: 8pt;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 8pt;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        /* Blockquote */
+        blockquote {
+            border-left: 4pt solid #3b82f6;
+            padding-left: 12pt;
+            margin: 12pt 0;
+            color: #475569;
+            font-style: italic;
+        }
+
+        /* Alert boxes */
+        .alert {
+            padding: 12pt;
+            margin: 12pt 0;
+            border-radius: 4px;
+            border-left: 4pt solid #dc2626;
+        }
+        .alert-warning {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+            color: #7f1d1d;
+        }
+        .alert-info {
+            background: #eff6ff;
+            border-left-color: #3b82f6;
+            color: #1e3a8a;
+        }
+        .alert-success {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+            color: #166534;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 24pt;
+            padding-top: 12pt;
+            border-top: 1px solid #e2e8f0;
+            font-size: 9pt;
+            color: #64748b;
+            text-align: center;
+        }
+
+        /* Index/TOC */
+        .toc {
+            page-break-after: always;
+            background: #f8fafc;
+            padding: 16pt;
+            border-radius: 4px;
+            margin: 12pt 0;
+        }
+        .toc ol {
+            font-size: 10pt;
+        }
+
+        /* Pre > code: evita borda dupla do code dentro do pre */
+        pre code {
+            border-left: 0;
+            padding: 0;
+            background: transparent;
+            display: inline;
+        }
+
+        /* Links */
+        a {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+<nav class="toc"><p style="font-weight:700;margin-bottom:8pt;">Índice</p><ol><li><a href="#índice">Índice</a></li><li><a href="#1-arquitetura">1. Arquitetura</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#stack">Stack</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#diagrama-de-componentes">Diagrama de Componentes</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#isolamento-multi-unidade">Isolamento Multi-Unidade</a></li><li><a href="#2-pré-requisitos-e-deploy">2. Pré-requisitos e Deploy</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#pré-requisitos-mínimos-do-servidor">Pré-requisitos mínimos do servidor</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#resumo-dos-passos-de-deploy">Resumo dos passos de deploy</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#ordem-obrigatória-das-migrations-em-banco-com-dados-legados">⚠️ Ordem obrigatória das migrations em banco com dados legados</a></li><li><a href="#3-variáveis-de-ambiente">3. Variáveis de Ambiente</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#aplicação-e-banco">Aplicação e Banco</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#fila">Fila</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#e-mail-smtp-de-envio">E-mail (SMTP de envio)</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#imap-captura-de-respostas-de-cotação-opcional">IMAP (captura de respostas de cotação — opcional)</a></li><li><a href="#4-configuração-imap">4. Configuração IMAP</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#o-que-é">O que é</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-a-passo-para-habilitar">Passo a passo para habilitar</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#como-o-scheduler-dispara-a-captura">Como o scheduler dispara a captura</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#comportamento-sem-imap-configurado">Comportamento sem IMAP configurado</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#detalhes-do-cliente-imap">Detalhes do cliente IMAP</a></li><li><a href="#5-scheduler-e-jobs">5. Scheduler e Jobs</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#cron-único-do-servidor">Cron único do servidor</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#commands-agendados">Commands agendados</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#commands-manuais-não-agendados">Commands manuais (não agendados)</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#worker-de-fila">Worker de fila</a></li><li><a href="#6-monitoring">6. Monitoring</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#health-checks-sugeridos">Health checks sugeridos</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#logs">Logs</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#alertas-recomendados">Alertas recomendados</a></li><li><a href="#7-troubleshooting">7. Troubleshooting</a></li><li><a href="#8-backup-e-restore">8. Backup e Restore</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#backup-do-banco-de-dados">Backup do banco de dados</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#restore-do-banco-de-dados">Restore do banco de dados</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#backup-dos-arquivos-de-cotação">Backup dos arquivos de cotação</a></li><li><a href="#9-performance-tuning">9. Performance Tuning</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#cache-de-produção">Cache de produção</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#índices">Índices</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#n1">N+1</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#fila-para-e-mails">Fila para e-mails</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#front-end">Front-end</a></li><li><a href="#10-segurança">10. Segurança</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#implementado-e-validado">Implementado e validado</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#recomendações-operacionais">Recomendações operacionais</a></li><li><a href="#11-update-upgrade-path">11. Update / Upgrade Path</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#procedimento-padrão-de-atualização">Procedimento padrão de atualização</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#verificação-pós-update">Verificação pós-update</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#suíte-de-testes">Suíte de testes</a></li><li><a href="#rodapé">Rodapé</a></li></ol></nav>
+<h1 id="manual-técnico-comendador-compras-v1">Manual Técnico — Comendador Compras v1</h1>
+<p><strong>Versão v1 · 22/06/2026 · Público: TI, DevOps, Tech Lead</strong></p>
+<hr />
+<h2 id="índice">Índice</h2>
+<ol>
+<li><a href="#1-arquitetura">Arquitetura</a></li>
+<li><a href="#2-pr%C3%A9-requisitos-e-deploy">Pré-requisitos e Deploy</a></li>
+<li><a href="#3-vari%C3%A1veis-de-ambiente">Variáveis de Ambiente</a></li>
+<li><a href="#4-configura%C3%A7%C3%A3o-imap">Configuração IMAP</a></li>
+<li><a href="#5-scheduler-e-jobs">Scheduler e Jobs</a></li>
+<li><a href="#6-monitoring">Monitoring</a></li>
+<li><a href="#7-troubleshooting">Troubleshooting</a></li>
+<li><a href="#8-backup-e-restore">Backup e Restore</a></li>
+<li><a href="#9-performance-tuning">Performance Tuning</a></li>
+<li><a href="#10-seguran%C3%A7a">Segurança</a></li>
+<li><a href="#11-update--upgrade-path">Update / Upgrade Path</a></li>
+</ol>
+<hr />
+<h2 id="1-arquitetura">1. Arquitetura</h2>
+<h3 id="stack">Stack</h3>
+<table>
+<thead>
+<tr>
+<th>Camada</th>
+<th>Tecnologia</th>
+<th>Versão</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linguagem</td>
+<td>PHP</td>
+<td>8.4</td>
+</tr>
+<tr>
+<td>Framework</td>
+<td>Laravel</td>
+<td>13</td>
+</tr>
+<tr>
+<td>UI reativa</td>
+<td>Livewire</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Front-end CSS</td>
+<td>Tailwind CSS</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Bundler</td>
+<td>Vite</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Banco (produção)</td>
+<td>MySQL</td>
+<td>8.0+</td>
+</tr>
+<tr>
+<td>Banco (dev/testes)</td>
+<td>SQLite</td>
+<td>—</td>
+</tr>
+<tr>
+<td>IMAP (PHP puro)</td>
+<td>webklex/php-imap</td>
+<td>^6.2</td>
+</tr>
+<tr>
+<td>Fila padrão</td>
+<td>database</td>
+<td>—</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>barryvdh/laravel-dompdf</td>
+<td>^3.1</td>
+</tr>
+<tr>
+<td>Testes</td>
+<td>Pest</td>
+<td>4</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Redis:</strong> NÃO é usado nem requerido pelo projeto. Pode ser adotado opcionalmente para fila/cache em escala substituindo <code>QUEUE_CONNECTION=database</code>, mas o padrão funcional é <code>database</code>.</p>
+</blockquote>
+<h3 id="diagrama-de-componentes">Diagrama de Componentes</h3>
+<pre><code>┌──────────────────────────────────────────────────────────────────┐
+│  Navegador                                                       │
+│  (HTML/Tailwind + Alpine.js via Livewire)                        │
+└──────────────────────┬───────────────────────────────────────────┘
+                       │ HTTPS
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  Proxy reverso (Nginx / Apache / Caddy)                          │
+│  TLS termination · headers de segurança                          │
+└──────────────────────┬───────────────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  Laravel 13 + Livewire 4  (PHP 8.4 / PHP-FPM)                   │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────┐  │
+│  │  Controllers │  │  Livewire    │  │  Eloquent / Query     │  │
+│  │  Requests    │  │  Components  │  │  Builder              │  │
+│  └──────────────┘  └──────────────┘  └───────────┬───────────┘  │
+│                                                   │              │
+└───────────────────────────────────────────────────┼──────────────┘
+                                                    │
+                       ┌────────────────────────────▼──────────┐
+                       │  MySQL 8.0+  (utf8mb4_unicode_ci)     │
+                       │  tabela jobs (fila database)          │
+                       └───────────────────────────────────────┘
+
+── Scheduler (cron único: * * * * * php artisan schedule:run) ─────
+
+  ┌──────────────────────────────────────────────────────────────┐
+  │  php artisan schedule:run  (a cada minuto via cron)          │
+  │                                                              │
+  │  ├─ requisicoes:marcar-atrasadas    (a cada hora)            │
+  │  ├─ aprovacoes:lembrar-pendentes   (diário 08:00)            │
+  │  └─ cotacoes:capturar-respostas    (a cada 5 min, sem overlap│
+  └───────┬──────────────────────────────────┬───────────────────┘
+          │                                  │
+          ▼                                  ▼
+  ┌───────────────┐                 ┌────────────────────────────┐
+  │  MySQL        │                 │  Caixa IMAP (opcional)     │
+  │  (atualiza    │                 │  IMAP_HOST:993 / SSL       │
+  │   status SLA) │                 │  webklex/php-imap (PHP     │
+  └───────────────┘                 │  puro, sem ext-imap)       │
+                                    └────────────────────────────┘
+
+── Worker de fila (se QUEUE_CONNECTION=database) ──────────────────
+
+  php artisan queue:work --tries=3
+         │
+         ▼  processa tabela `jobs`
+  ┌─────────────────────────────────────┐
+  │  Mailables (aprovação, recebimento, │  ──►  SMTP externo
+  │  lembrete +48h)                     │
+  └─────────────────────────────────────┘
+</code></pre>
+<h3 id="isolamento-multi-unidade">Isolamento Multi-Unidade</h3>
+<p>Cada usuário enxerga apenas os dados das suas próprias unidades via global scope <code>PertenceAUnidade</code>. Perfis Admin e CompradoraSenior têm visibilidade irrestrita. Os perfis existentes são: <strong>Admin</strong>, <strong>CompradoraSenior</strong>, <strong>Aprovador</strong> (sub-níveis: Gestor / Diretor / CEO), <strong>Solicitante</strong> e <strong>Almoxarife</strong>.</p>
+<hr />
+<h2 id="2-pré-requisitos-e-deploy">2. Pré-requisitos e Deploy</h2>
+<h3 id="pré-requisitos-mínimos-do-servidor">Pré-requisitos mínimos do servidor</h3>
+<ul>
+<li>PHP 8.4 com extensões padrão do Laravel (mbstring, pdo_mysql, openssl, etc.)</li>
+<li>Composer</li>
+<li>Node 18+ (somente para o build do front; não precisa ficar no servidor em produção)</li>
+<li>MySQL 8.0+ com banco criado em <strong>utf8mb4 / utf8mb4_unicode_ci</strong></li>
+<li>SMTP configurado para envio de e-mails</li>
+<li>Cron disponível para o scheduler</li>
+</ul>
+<h3 id="resumo-dos-passos-de-deploy">Resumo dos passos de deploy</h3>
+<p>O detalhe completo e atualizado está em <strong><a href="../RUNBOOK-GO-LIVE.md">../RUNBOOK-GO-LIVE.md</a></strong>. O resumo abaixo serve de orientação rápida:</p>
+<pre><code class="language-bash"># 1. Clonar / atualizar o repositório
+git pull origin master
+
+# 2. Criar banco MySQL (instalação nova)
+# CREATE DATABASE comendador CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+# 3. Configurar .env de produção (ver Seção 3)
+php artisan key:generate   # se ainda não houver APP_KEY
+
+# 4. Instalar dependências PHP e buildar front
+composer install --no-dev --optimize-autoloader
+npm ci &amp;&amp; npm run build
+
+# 5. Migrations (ver aviso abaixo)
+php artisan migrate --force
+
+# 6. Cache de produção
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 7. Subir scheduler (ver Seção 5) e worker de fila (se QUEUE_CONNECTION=database)
+</code></pre>
+<h3 id="ordem-obrigatória-das-migrations-em-banco-com-dados-legados">⚠️ Ordem obrigatória das migrations em banco com dados legados</h3>
+<p>Em uma <strong>instalação nova</strong> (banco vazio), <code>php artisan migrate --force</code> roda tudo de uma vez sem problema.</p>
+<p>Em um <strong>banco com dados legados de estoque</strong>, a constraint UNIQUE de catálogo (<code>saldos_estoque_catalogo_unique</code>) trava se já existirem registros duplicados. Siga esta sequência:</p>
+<p><strong>Passo A</strong> — Migrar até antes da migration do UNIQUE de catálogo (<code>2026_06_16_153000_add_unique_catalogo_to_saldos_estoque</code>):</p>
+<pre><code class="language-bash">php artisan migrate --force --step   # avance passo a passo até o ponto anterior ao UNIQUE
+</code></pre>
+<p><strong>Passo B</strong> — Sanear duplicatas legadas:</p>
+<pre><code class="language-bash">php artisan estoque:sanear-duplicatas-catalogo --dry-run --executado-por=&lt;ID do Admin&gt;
+php artisan estoque:sanear-duplicatas-catalogo --executado-por=&lt;ID do Admin&gt;
+</code></pre>
+<p><strong>Passo C</strong> — Só então aplicar o restante das migrations:</p>
+<pre><code class="language-bash">php artisan migrate --force
+</code></pre>
+<blockquote>
+<p>Se a ordem for invertida num banco com duplicatas, o MySQL retorna erro 1062 (Duplicate entry) e o deploy trava. Consulte o RUNBOOK-GO-LIVE.md, seção 3b, para o detalhe completo.</p>
+</blockquote>
+<hr />
+<h2 id="3-variáveis-de-ambiente">3. Variáveis de Ambiente</h2>
+<p>Tabela de todas as variáveis essenciais para produção. Copie <code>.env.example</code> e ajuste.</p>
+<h3 id="aplicação-e-banco">Aplicação e Banco</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Exemplo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>APP_ENV</code></td>
+<td><code>production</code></td>
+<td>Ambiente da aplicação. Use <code>production</code> em produção.</td>
+</tr>
+<tr>
+<td><code>APP_DEBUG</code></td>
+<td><code>false</code></td>
+<td>Nunca <code>true</code> em produção (expõe stack traces).</td>
+</tr>
+<tr>
+<td><code>APP_KEY</code></td>
+<td><code>base64:...</code></td>
+<td>Chave de criptografia. Gerar com <code>php artisan key:generate</code>.</td>
+</tr>
+<tr>
+<td><code>APP_URL</code></td>
+<td><code>https://compras.suaempresa.com</code></td>
+<td>URL base da aplicação (sem barra final).</td>
+</tr>
+<tr>
+<td><code>DB_CONNECTION</code></td>
+<td><code>mysql</code></td>
+<td>Driver do banco. Em dev/testes usa-se <code>sqlite</code>.</td>
+</tr>
+<tr>
+<td><code>DB_HOST</code></td>
+<td><code>127.0.0.1</code></td>
+<td>Host do MySQL.</td>
+</tr>
+<tr>
+<td><code>DB_PORT</code></td>
+<td><code>3306</code></td>
+<td>Porta do MySQL.</td>
+</tr>
+<tr>
+<td><code>DB_DATABASE</code></td>
+<td><code>comendador</code></td>
+<td>Nome do banco de dados.</td>
+</tr>
+<tr>
+<td><code>DB_USERNAME</code></td>
+<td><code>comendador</code></td>
+<td>Usuário do banco.</td>
+</tr>
+<tr>
+<td><code>DB_PASSWORD</code></td>
+<td><code>&lt;senha forte&gt;</code></td>
+<td>Senha do banco.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="fila">Fila</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Exemplo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>QUEUE_CONNECTION</code></td>
+<td><code>database</code></td>
+<td>Driver de fila. <code>database</code> recomendado (requer worker). Use <code>sync</code> para envio inline sem worker. Redis é opcional e não configurado por padrão.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="e-mail-smtp-de-envio">E-mail (SMTP de envio)</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Exemplo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>MAIL_MAILER</code></td>
+<td><code>smtp</code></td>
+<td>Mailer padrão. <code>log</code> em dev (grava em storage/logs).</td>
+</tr>
+<tr>
+<td><code>MAIL_HOST</code></td>
+<td><code>smtp.suaempresa.com</code></td>
+<td>Servidor SMTP.</td>
+</tr>
+<tr>
+<td><code>MAIL_PORT</code></td>
+<td><code>587</code></td>
+<td>Porta SMTP.</td>
+</tr>
+<tr>
+<td><code>MAIL_USERNAME</code></td>
+<td><code>compras@suaempresa.com</code></td>
+<td>Usuário SMTP.</td>
+</tr>
+<tr>
+<td><code>MAIL_PASSWORD</code></td>
+<td><code>&lt;senha&gt;</code></td>
+<td>Senha SMTP.</td>
+</tr>
+<tr>
+<td><code>MAIL_FROM_ADDRESS</code></td>
+<td><code>compras@suaempresa.com</code></td>
+<td>Endereço remetente dos e-mails do sistema.</td>
+</tr>
+<tr>
+<td><code>MAIL_FROM_NAME</code></td>
+<td><code>Comendador Compras</code></td>
+<td>Nome do remetente.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="imap-captura-de-respostas-de-cotação-opcional">IMAP (captura de respostas de cotação — opcional)</h3>
+<table>
+<thead>
+<tr>
+<th>Variável</th>
+<th>Exemplo</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>IMAP_HOST</code></td>
+<td><code>imap.suaempresa.com</code></td>
+<td>Host IMAP. <strong>Se ausente, a captura é desativada sem erros.</strong></td>
+</tr>
+<tr>
+<td><code>IMAP_PORT</code></td>
+<td><code>993</code></td>
+<td>Porta IMAP. Padrão: 993 (SSL).</td>
+</tr>
+<tr>
+<td><code>IMAP_USERNAME</code></td>
+<td><code>cotacoes@suaempresa.com</code></td>
+<td>Usuário da caixa dedicada de cotações.</td>
+</tr>
+<tr>
+<td><code>IMAP_PASSWORD</code></td>
+<td><code>&lt;senha&gt;</code></td>
+<td>Senha da caixa IMAP.</td>
+</tr>
+<tr>
+<td><code>IMAP_ENCRYPTION</code></td>
+<td><code>ssl</code></td>
+<td>Protocolo de criptografia (<code>ssl</code> ou <code>tls</code>).</td>
+</tr>
+<tr>
+<td><code>IMAP_MAILBOX</code></td>
+<td><code>INBOX</code></td>
+<td>Pasta monitorada. Padrão: <code>INBOX</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>As variáveis de IMAP alimentam o bloco <code>mail.imap</code> em <code>config/mail.php</code>. O binding condicional em <code>AppServiceProvider</code> usa <code>webklex/php-imap</code> quando <code>mail.imap.host</code> está definido; caso contrário, ativa o fallback <code>LeitorCaixaCotacoesIndisponivel</code> (não quebra nada).</p>
+<hr />
+<h2 id="4-configuração-imap">4. Configuração IMAP</h2>
+<h3 id="o-que-é">O que é</h3>
+<p>O command <code>cotacoes:capturar-respostas</code> monitora uma caixa de e-mail dedicada e casa automaticamente as respostas dos fornecedores com as cotações abertas. A correspondência é feita pelo token <code>[COT-{id}]</code> no assunto do e-mail, com validação de que o remetente coincide com o <code>contato_email</code> cadastrado no fornecedor. Os campos gravados na tabela <code>cotacoes</code> são: <code>valor_respondido</code>, <code>prazo_respondido</code>, <code>observacoes_fornecedor</code>, <code>resposta_recebida_em</code> e <code>email_externo_id</code> (UNIQUE para idempotência). O valor oficial da cotação nunca é alterado automaticamente (caráter advisory).</p>
+<p>A biblioteca <code>webklex/php-imap</code> é PHP puro — <strong>não exige a extensão <code>ext-imap</code> do PHP</strong>.</p>
+<h3 id="passo-a-passo-para-habilitar">Passo a passo para habilitar</h3>
+<p><strong>1. Criar uma caixa de e-mail dedicada</strong> no provedor de e-mail da empresa (ex.: <code>cotacoes@suaempresa.com</code>). Recomenda-se uma caixa separada da caixa de envio do sistema para evitar processar e-mails não relacionados.</p>
+<p><strong>2. Adicionar as variáveis ao <code>.env</code> de produção:</strong></p>
+<pre><code class="language-dotenv">IMAP_HOST=imap.suaempresa.com
+IMAP_PORT=993
+IMAP_USERNAME=cotacoes@suaempresa.com
+IMAP_PASSWORD=&lt;senha da caixa&gt;
+IMAP_ENCRYPTION=ssl
+IMAP_MAILBOX=INBOX
+</code></pre>
+<p><strong>3. Limpar e regenerar o cache de configuração:</strong></p>
+<pre><code class="language-bash">php artisan config:clear
+php artisan config:cache
+</code></pre>
+<p><strong>4. Validar a conexão</strong> inspecionando o log após o próximo ciclo do scheduler (a cada 5 minutos) ou forçando manualmente:</p>
+<pre><code class="language-bash">php artisan cotacoes:capturar-respostas
+</code></pre>
+<p>Erros de conexão são registrados em <code>storage/logs/laravel.log</code> com <code>Log::error</code>.</p>
+<h3 id="como-o-scheduler-dispara-a-captura">Como o scheduler dispara a captura</h3>
+<p>O command é registrado em <code>routes/console.php</code>:</p>
+<pre><code class="language-php">Schedule::command('cotacoes:capturar-respostas')-&gt;everyFiveMinutes()-&gt;withoutOverlapping();
+</code></pre>
+<p>O modificador <code>withoutOverlapping()</code> garante que uma execução não se sobrepõe à anterior caso o processamento de muitos e-mails demore mais de 5 minutos.</p>
+<p>O scheduler é acionado pelo cron único do servidor (ver Seção 5).</p>
+<h3 id="comportamento-sem-imap-configurado">Comportamento sem IMAP configurado</h3>
+<p>Se <code>IMAP_HOST</code> não estiver definido no <code>.env</code>, o <code>AppServiceProvider</code> registra automaticamente o fallback <code>LeitorCaixaCotacoesIndisponivel</code>. O command <code>cotacoes:capturar-respostas</code> executa sem erros e sem efeito colateral — nenhuma exception é lançada, nenhum log de erro é gerado. O restante do sistema não é afetado.</p>
+<h3 id="detalhes-do-cliente-imap">Detalhes do cliente IMAP</h3>
+<ul>
+<li>Classe concreta: <code>App\Imap\WebklexLeitorCaixaCotacoes</code></li>
+<li>Interface mockável: <code>App\Imap\LeitorCaixaCotacoes</code></li>
+<li>Modo de leitura: PEEK (não marca como lido imediatamente)</li>
+<li>Após processar com sucesso: marca a mensagem como lida</li>
+<li>Idempotência: <code>email_externo_id</code> UNIQUE impede reprocessamento do mesmo e-mail</li>
+</ul>
+<hr />
+<h2 id="5-scheduler-e-jobs">5. Scheduler e Jobs</h2>
+<h3 id="cron-único-do-servidor">Cron único do servidor</h3>
+<p>Adicione <strong>uma única linha</strong> no crontab do servidor (ou do usuário que executa o PHP):</p>
+<pre><code class="language-cron">* * * * * cd /caminho/absoluto/do/projeto &amp;&amp; php artisan schedule:run &gt;&gt; /dev/null 2&gt;&amp;1
+</code></pre>
+<p>Todo o controle de frequência fica no <code>routes/console.php</code> — não é preciso criar entradas individuais no cron.</p>
+<h3 id="commands-agendados">Commands agendados</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Frequência</th>
+<th>Função</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>requisicoes:marcar-atrasadas</code></td>
+<td>A cada hora</td>
+<td>Marca requisições sem triagem há mais de 24h como atrasadas (SLA de triagem).</td>
+</tr>
+<tr>
+<td><code>aprovacoes:lembrar-pendentes</code></td>
+<td>Diário às 08:00</td>
+<td>Envia lembrete de e-mail para aprovações pendentes há mais de 48h.</td>
+</tr>
+<tr>
+<td><code>cotacoes:capturar-respostas</code></td>
+<td>A cada 5 minutos (withoutOverlapping)</td>
+<td>Lê e-mails UNSEEN da caixa IMAP e grava respostas de fornecedores nas cotações correspondentes.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="commands-manuais-não-agendados">Commands manuais (não agendados)</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Quando usar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>php artisan rateio:executar-mensal --executado-por=&lt;ID do Admin&gt;</code></td>
+<td>Executar o rateio de custos mensais. Requer ID de um usuário Admin.</td>
+</tr>
+<tr>
+<td><code>php artisan estoque:sanear-duplicatas-catalogo [--dry-run] --executado-por=&lt;ID do Admin&gt;</code></td>
+<td>Auditar e fundir registros duplicados no catálogo de estoque. Usar <code>--dry-run</code> primeiro para inspecionar sem alterar dados.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="worker-de-fila">Worker de fila</h3>
+<p>Se <code>QUEUE_CONNECTION=database</code> (recomendado), é preciso manter um worker ativo. Configure via <strong>Supervisor</strong> ou <strong>systemd</strong>:</p>
+<pre><code class="language-bash">php artisan queue:work --tries=3 --max-time=3600
+</code></pre>
+<p>A tabela <code>jobs</code> é criada automaticamente pelo <code>php artisan migrate</code>. Os Mailables do sistema (aprovação, recebimento, lembrete) são <code>Queueable</code> e dependem do worker quando a fila não é <code>sync</code>.</p>
+<hr />
+<h2 id="6-monitoring">6. Monitoring</h2>
+<h3 id="health-checks-sugeridos">Health checks sugeridos</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Como verificar</th>
+<th>Frequência sugerida</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Aplicação responde</td>
+<td>HTTP GET em <code>APP_URL</code> — espera HTTP 200</td>
+<td>A cada 1 min</td>
+</tr>
+<tr>
+<td>Scheduler rodou</td>
+<td>Verificar se <code>storage/logs/laravel.log</code> tem atividade nos últimos 2 min</td>
+<td>A cada 5 min</td>
+</tr>
+<tr>
+<td>Fila processando</td>
+<td>Monitorar o tamanho da tabela <code>jobs</code> no MySQL; alertar se crescer indefinidamente</td>
+<td>A cada 5 min</td>
+</tr>
+<tr>
+<td>Erros de IMAP</td>
+<td>Buscar <code>Log::error</code> com <code>cotacoes:capturar-respostas</code> nos logs</td>
+<td>Contínuo</td>
+</tr>
+</tbody>
+</table>
+<h3 id="logs">Logs</h3>
+<p>Todos os logs da aplicação ficam em:</p>
+<pre><code>storage/logs/laravel.log
+</code></pre>
+<p>O framework usa o canal <code>stack</code> por padrão (configurável em <code>config/logging.php</code>). A captura IMAP registra:</p>
+<ul>
+<li><code>Log::info</code> — quando uma resposta de fornecedor é capturada com sucesso</li>
+<li><code>Log::error</code> — quando há falha de conexão IMAP ou erro ao processar uma mensagem</li>
+</ul>
+<p>Em produção, recomenda-se rotação de logs (logrotate ou canal <code>daily</code> do Laravel).</p>
+<h3 id="alertas-recomendados">Alertas recomendados</h3>
+<ul>
+<li><strong>Worker parado:</strong> alertar quando a tabela <code>jobs</code> ultrapassar N registros sem decrescer por X minutos.</li>
+<li><strong>Scheduler silencioso:</strong> ferramentas como Laravel Pulse, Healthchecks.io ou Cronitor podem verificar se o scheduler &quot;bateu o ponto&quot; nos últimos 2 minutos.</li>
+<li><strong>Erros 5xx crescentes:</strong> monitorar no proxy reverso ou via ferramenta APM.</li>
+<li><strong>Caixa IMAP com falha repetida:</strong> alertar quando <code>Log::error</code> de IMAP aparecer mais de N vezes consecutivas.</li>
+</ul>
+<hr />
+<h2 id="7-troubleshooting">7. Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Sintoma</th>
+<th>Causa provável</th>
+<th>Solução</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Deploy trava com erro MySQL 1062 durante <code>migrate</code></td>
+<td>Tentativa de criar índice UNIQUE de catálogo com dados duplicados preexistentes</td>
+<td>Seguir a <strong>ordem obrigatória</strong> da Seção 2: sanear duplicatas com <code>estoque:sanear-duplicatas-catalogo</code> antes de aplicar a migration do UNIQUE.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>E-mails não saem (aprovação, lembrete)</td>
+<td><code>MAIL_MAILER=log</code> em produção, ou worker parado com <code>QUEUE_CONNECTION=database</code>, ou credenciais SMTP incorretas</td>
+<td>Verificar <code>.env</code> (MAIL_MAILER, MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD). Se <code>QUEUE_CONNECTION=database</code>, verificar se o worker está ativo (<code>php artisan queue:work</code>).</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Captura IMAP não traz respostas de fornecedores</td>
+<td><code>IMAP_HOST</code> não configurado, credenciais inválidas, ou fornecedor respondeu de e-mail diferente do <code>contato_email</code> cadastrado</td>
+<td>Verificar variáveis IMAP no <code>.env</code> e rodar <code>php artisan cotacoes:capturar-respostas</code> manualmente; checar <code>laravel.log</code> para erros de conexão. Confirmar que o e-mail do remetente coincide com o <code>contato_email</code> do fornecedor.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>&quot;Unable to locate file in Vite manifest&quot;</td>
+<td><code>npm run build</code> não foi executado ou o diretório <code>public/build</code> está ausente</td>
+<td>Executar <code>npm ci &amp;&amp; npm run build</code> no servidor. Em dev, rodar <code>npm run dev</code> ou <code>composer run dev</code>.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Cotação não é casada com o e-mail recebido</td>
+<td>Token <code>[COT-{id}]</code> ausente ou alterado no assunto pelo fornecedor, ou e-mail duplicado já processado</td>
+<td>Verificar o assunto do e-mail recebido. O token deve estar exatamente como <code>[COT-{id}]</code>. Se <code>email_externo_id</code> já existe na tabela <code>cotacoes</code>, o e-mail foi processado anteriormente (idempotência).</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Scheduler não roda</td>
+<td>Linha de cron ausente ou incorreta, ou PHP não encontrado no PATH do cron</td>
+<td>Verificar crontab (<code>crontab -l</code>). Usar o caminho absoluto do PHP e do projeto. Testar manualmente: <code>php artisan schedule:run</code>.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Fila parada (jobs acumulando)</td>
+<td>Worker não está rodando ou caiu sem reiniciar automaticamente</td>
+<td>Verificar processo do worker (`ps aux</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Erro 419 / CSRF Token Mismatch</td>
+<td>Sessão expirada, cookie de sessão inválido, ou <code>APP_URL</code> incorreto (protocolo HTTP vs HTTPS)</td>
+<td>Verificar <code>APP_URL</code> no <code>.env</code> (deve coincidir com o protocolo real). Limpar cookies do navegador. Verificar configuração do proxy reverso (headers <code>X-Forwarded-Proto</code>).</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Usuário não vê dados de outra unidade</td>
+<td>Comportamento esperado — isolamento por global scope <code>PertenceAUnidade</code></td>
+<td>Não é bug. Apenas Admin e CompradoraSenior têm visibilidade irrestrita. Se o usuário precisa de acesso a outra unidade, vincular o perfil à unidade correspondente.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Erro de conexão IMAP nos logs (<code>laravel.log</code>)</td>
+<td>Credenciais IMAP erradas, porta/criptografia incorreta, firewall bloqueando saída na porta 993</td>
+<td>Verificar <code>IMAP_HOST</code>, <code>IMAP_PORT</code>, <code>IMAP_USERNAME</code>, <code>IMAP_PASSWORD</code>, <code>IMAP_ENCRYPTION</code> no <code>.env</code>. Testar conectividade de rede do servidor na porta configurada. Limpar cache após ajustar: <code>php artisan config:cache</code>.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-backup-e-restore">8. Backup e Restore</h2>
+<h3 id="backup-do-banco-de-dados">Backup do banco de dados</h3>
+<pre><code class="language-bash"># Dump completo
+mysqldump -u comendador -p comendador &gt; backup_comendador_$(date +%Y%m%d_%H%M%S).sql
+
+# Comprimido
+mysqldump -u comendador -p comendador | gzip &gt; backup_comendador_$(date +%Y%m%d_%H%M%S).sql.gz
+</code></pre>
+<p>Agendar backup diário via cron em horário de baixo uso. Armazenar em local externo ao servidor (S3, NAS, etc.).</p>
+<h3 id="restore-do-banco-de-dados">Restore do banco de dados</h3>
+<pre><code class="language-bash"># A partir de dump não comprimido
+mysql -u comendador -p comendador &lt; backup_comendador_YYYYMMDD_HHmmss.sql
+
+# A partir de dump comprimido
+gunzip -c backup_comendador_YYYYMMDD_HHmmss.sql.gz | mysql -u comendador -p comendador
+</code></pre>
+<h3 id="backup-dos-arquivos-de-cotação">Backup dos arquivos de cotação</h3>
+<p>Os arquivos anexos de cotação (PDF, JPG, PNG) ficam no disco <code>local</code> do Laravel (não público), em:</p>
+<pre><code>storage/app/
+</code></pre>
+<p>Esses arquivos são servidos por rota autenticada — não ficam expostos em <code>public/</code>. Incluir o diretório <code>storage/app/</code> no plano de backup junto com o dump do banco.</p>
+<pre><code class="language-bash"># Exemplo com rsync
+rsync -az /caminho/do/projeto/storage/app/ /destino/backup/storage-app/
+</code></pre>
+<blockquote>
+<p>Restaurar banco e <code>storage/app/</code> do mesmo snapshot para garantir consistência entre registros e arquivos.</p>
+</blockquote>
+<hr />
+<h2 id="9-performance-tuning">9. Performance Tuning</h2>
+<h3 id="cache-de-produção">Cache de produção</h3>
+<p>Sempre manter os caches ativos em produção:</p>
+<pre><code class="language-bash">php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+</code></pre>
+<p>Após qualquer alteração no <code>.env</code> ou em arquivos de configuração, regenerar:</p>
+<pre><code class="language-bash">php artisan config:clear &amp;&amp; php artisan config:cache
+</code></pre>
+<h3 id="índices">Índices</h3>
+<p>O schema conta com índices nas tabelas de maior volume de consultas (<code>requisicoes</code>, <code>cotacoes</code>, <code>saldos_estoque</code> entre as principais). Não remover índices sem análise prévia de impacto. Em caso de lentidão em consultas específicas, usar <code>EXPLAIN</code> no MySQL para diagnóstico.</p>
+<h3 id="n1">N+1</h3>
+<p>O projeto usa Eloquent com relacionamentos. Ao adicionar novas listagens, sempre verificar se os relacionamentos estão sendo carregados com <code>with()</code> (eager loading) para evitar N+1 queries. Em páginas Livewire com listas grandes, considerar paginação.</p>
+<h3 id="fila-para-e-mails">Fila para e-mails</h3>
+<p>Todos os Mailables são <code>Queueable</code>. Com <code>QUEUE_CONNECTION=database</code> e um worker ativo, o envio de e-mail não bloqueia o request do usuário. Em alto volume, avaliar a adoção de Redis como driver de fila (opcional).</p>
+<h3 id="front-end">Front-end</h3>
+<p>O front é buildado com Vite e entregue como arquivos estáticos em <code>public/build/</code>. Configurar o proxy reverso para servir esses assets com headers de cache de longa duração (<code>Cache-Control: max-age=31536000, immutable</code>) — o Vite já gera nomes de arquivo com hash de conteúdo.</p>
+<hr />
+<h2 id="10-segurança">10. Segurança</h2>
+<h3 id="implementado-e-validado">Implementado e validado</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CSRF automático em todos os formulários (Laravel + Livewire)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>SQL injection prevenido — Eloquent/Query Builder sem SQL cru a partir de input do usuário</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Isolamento multi-unidade via global scope <code>PertenceAUnidade</code></td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Autorização por perfil (<code>abort_unless temPerfil</code>) em todas as ações sensíveis</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Upload de cotação com validação de mimetypes (PDF/JPG/PNG, máx 10 MB)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Arquivos de cotação no disco <code>local</code> (servidos por rota autenticada, não acessíveis publicamente)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Senhas armazenadas com bcrypt</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Troca obrigatória de senha no primeiro acesso</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h3 id="recomendações-operacionais">Recomendações operacionais</h3>
+<ul>
+<li><strong>HTTPS/TLS obrigatório:</strong> terminar TLS no proxy reverso (Nginx/Caddy/Apache). A aplicação assume que tráfego externo é sempre HTTPS com <code>APP_URL</code> iniciando com <code>https://</code>.</li>
+<li><strong>Headers de segurança HTTP:</strong> configurar no proxy reverso <code>Strict-Transport-Security</code>, <code>X-Content-Type-Options</code>, <code>X-Frame-Options</code> e <code>Content-Security-Policy</code>.</li>
+<li><strong>Rotação periódica da senha da caixa IMAP:</strong> atualizar <code>IMAP_PASSWORD</code> no <code>.env</code> e regenerar o cache de configuração. Preferir senhas de aplicativo (app password) quando o provedor suportar 2FA.</li>
+<li><strong>Least-privilege no banco:</strong> o usuário MySQL da aplicação deve ter apenas <code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> no schema da aplicação — sem <code>DROP</code>, <code>CREATE</code>, <code>GRANT</code>. Migrations em produção podem ser executadas com um usuário de deploy separado com permissões mais amplas, revogadas após o deploy.</li>
+<li><strong><code>APP_DEBUG=false</code> em produção:</strong> stack traces expostos são vetores de information disclosure.</li>
+<li><strong>Rotação do <code>APP_KEY</code>:</strong> se o <code>APP_KEY</code> for comprometido, gerar novo com <code>php artisan key:generate</code> e invalidar todas as sessões ativas.</li>
+</ul>
+<hr />
+<h2 id="11-update-upgrade-path">11. Update / Upgrade Path</h2>
+<h3 id="procedimento-padrão-de-atualização">Procedimento padrão de atualização</h3>
+<p>Executar o backup do banco antes de qualquer atualização (ver Seção 8).</p>
+<pre><code class="language-bash"># 1. Rodar a suíte completa no ambiente de staging antes de aplicar em produção
+php artisan test --compact
+
+# 2. Atualizar o código
+git pull origin master
+
+# 3. Atualizar dependências PHP (sem pacotes de dev)
+composer install --no-dev --optimize-autoloader
+
+# 4. Aplicar migrations
+php artisan migrate --force
+# ⚠️ Se houver migrations com restrições de unicidade em banco com dados legados,
+#    seguir a ordem da Seção 2 (sanear antes do UNIQUE).
+
+# 5. Rebuildar o front-end
+npm ci &amp;&amp; npm run build
+
+# 6. Regenerar caches
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# 7. Reiniciar o worker de fila
+php artisan queue:restart
+# O comando sinaliza o worker para terminar o job atual e reiniciar.
+# O Supervisor/systemd subirá o processo novamente automaticamente.
+</code></pre>
+<h3 id="verificação-pós-update">Verificação pós-update</h3>
+<ul>
+<li>Confirmar que a aplicação responde (health check HTTP).</li>
+<li>Verificar <code>storage/logs/laravel.log</code> por erros nas primeiras execuções.</li>
+<li>Executar o smoke check descrito no RUNBOOK-GO-LIVE.md (seção 6) se a atualização for significativa.</li>
+</ul>
+<h3 id="suíte-de-testes">Suíte de testes</h3>
+<p>A suíte conta com <strong>490 testes Pest</strong> rodando em SQLite. Rodar antes de qualquer deploy para garantir regressão zero. O banco de produção é MySQL — consultar as seções A–D do <code>PLANO.md</code> para o checklist de validação de dialeto SQL em MySQL real.</p>
+<hr />
+<h2 id="rodapé">Rodapé</h2>
+<p><strong>Comendador Compras — Manual Tecnico · v1 · 22/06/2026</strong></p>
+<p>Documentos relacionados:</p>
+<ul>
+<li><a href="MANUAL-COMPRADORA.md">Manual da Compradora</a></li>
+<li><a href="RUNBOOK-PILOT.md">Runbook de Pilot</a></li>
+<li><a href="../RUNBOOK-GO-LIVE.md">Runbook de Go-Live</a></li>
+</ul>
+
+    <footer>
+        <p>Comendador Compras v1 | Gerado em 22/06/2026 | &copy; 2026 Rede Comendador</p>
+    </footer>
+</body>
+</html>

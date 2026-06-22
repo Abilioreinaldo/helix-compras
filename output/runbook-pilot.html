@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Runbook de Pilot — Comendador Compras v1</title>
+    <style>
+        /* Reset + base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            color: #0f172a;
+            background: #ffffff;
+            line-height: 1.6;
+            font-size: 11pt;
+        }
+
+        /* A4 Print */
+        @media print {
+            body { margin: 0; padding: 0; }
+            .page-break { page-break-after: always; }
+            a { color: #1e40af; text-decoration: none; }
+        }
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 24pt;
+            font-weight: 700;
+            margin: 24pt 0 12pt 0;
+            color: #0f172a;
+            border-bottom: 3px solid #1e40af;
+            padding-bottom: 8pt;
+        }
+        h2 {
+            font-size: 16pt;
+            font-weight: 600;
+            margin: 18pt 0 10pt 0;
+            color: #1e3a8a;
+        }
+        h3 {
+            font-size: 13pt;
+            font-weight: 600;
+            margin: 12pt 0 8pt 0;
+            color: #334155;
+        }
+        h4, h5, h6 {
+            font-size: 11pt;
+            font-weight: 600;
+            margin: 10pt 0 6pt 0;
+            color: #475569;
+        }
+
+        p {
+            margin: 8pt 0;
+            text-align: justify;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin: 10pt 0;
+            padding-left: 20pt;
+        }
+        li {
+            margin: 4pt 0;
+        }
+
+        /* Code blocks */
+        pre, code {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 9pt;
+            background: #f1f5f9;
+            border-left: 3pt solid #64748b;
+            padding: 8pt;
+            overflow-x: auto;
+            margin: 8pt 0;
+        }
+        pre {
+            padding: 12pt;
+            border-radius: 4px;
+        }
+        code {
+            padding: 2pt 4pt;
+            display: inline-block;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12pt 0;
+            font-size: 10pt;
+        }
+        th {
+            background: #1e293b;
+            color: #ffffff;
+            padding: 8pt;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 8pt;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        /* Blockquote */
+        blockquote {
+            border-left: 4pt solid #3b82f6;
+            padding-left: 12pt;
+            margin: 12pt 0;
+            color: #475569;
+            font-style: italic;
+        }
+
+        /* Alert boxes */
+        .alert {
+            padding: 12pt;
+            margin: 12pt 0;
+            border-radius: 4px;
+            border-left: 4pt solid #dc2626;
+        }
+        .alert-warning {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+            color: #7f1d1d;
+        }
+        .alert-info {
+            background: #eff6ff;
+            border-left-color: #3b82f6;
+            color: #1e3a8a;
+        }
+        .alert-success {
+            background: #f0fdf4;
+            border-left-color: #22c55e;
+            color: #166534;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 24pt;
+            padding-top: 12pt;
+            border-top: 1px solid #e2e8f0;
+            font-size: 9pt;
+            color: #64748b;
+            text-align: center;
+        }
+
+        /* Index/TOC */
+        .toc {
+            page-break-after: always;
+            background: #f8fafc;
+            padding: 16pt;
+            border-radius: 4px;
+            margin: 12pt 0;
+        }
+        .toc ol {
+            font-size: 10pt;
+        }
+
+        /* Pre > code: evita borda dupla do code dentro do pre */
+        pre code {
+            border-left: 0;
+            padding: 0;
+            background: transparent;
+            display: inline;
+        }
+
+        /* Links */
+        a {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+
+    </style>
+</head>
+<body>
+<nav class="toc"><p style="font-weight:700;margin-bottom:8pt;">Índice</p><ol><li><a href="#índice">Índice</a></li><li><a href="#1-objetivo-do-pilot">1. Objetivo do Pilot</a></li><li><a href="#2-pré-requisitos">2. Pré-requisitos</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#21-acesso">2.1 Acesso</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#22-credenciais-de-acesso-logins-demo">2.2 Credenciais de Acesso (Logins Demo)</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#23-navegador">2.3 Navegador</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#24-aviso-importante">2.4 Aviso importante</a></li><li><a href="#3-setup-do-ambiente-time-técnico">3. Setup do Ambiente (Time Técnico)</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#31-carregar-dados-demo">3.1 Carregar dados demo</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#32-iniciar-o-servidor-local">3.2 Iniciar o servidor local</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#33-como-abrir">3.3 Como abrir</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#34-captura-de-e-mail-imap-modo-real-vs-modo-simulação">3.4 Captura de e-mail (IMAP) — modo real vs. modo simulação</a></li><li><a href="#4-roteiro-executável">4. Roteiro Executável</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#cenário-do-pilot">Cenário do Pilot</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-1-login-como-solicitante-e-criação-de-requisição">Passo 1 — Login como Solicitante e criação de requisição</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-2-login-como-compradora-e-triagem-da-requisição">Passo 2 — Login como Compradora e triagem da requisição</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-3-cotação-solicitar-por-e-mail-ou-registrar-manualmente">Passo 3 — Cotação: solicitar por e-mail ou registrar manualmente</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-4-simular-respostas-dos-fornecedores">Passo 4 — Simular respostas dos fornecedores</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-5-visualizar-sugestões-na-tela-de-cotações">Passo 5 — Visualizar sugestões na tela de Cotações</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-6-confirmar-valores-e-marcar-a-vencedora">Passo 6 — Confirmar valores e marcar a vencedora</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-7-aprovação-por-alçada-gestor-ou-diretor">Passo 7 — Aprovação por alçada (Gestor ou Diretor)</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-8-emitir-o-pedido-de-compra-e-baixar-o-pdf">Passo 8 — Emitir o Pedido de Compra e baixar o PDF</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-9-recebimento-pelo-almoxarife-opcional">Passo 9 — Recebimento pelo Almoxarife (opcional)</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#passo-10-verificar-o-dashboard">Passo 10 — Verificar o Dashboard</a></li><li><a href="#5-matriz-de-aceite">5. Matriz de Aceite</a></li><li><a href="#6-formulário-de-feedback">6. Formulário de Feedback</a></li><li><a href="#7-problemas-conhecidos-e-workarounds">7. Problemas Conhecidos e Workarounds</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#71-captura-imap-exige-caixa-real">7.1 Captura IMAP exige caixa real</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#72-formato-inesperado-na-resposta-do-fornecedor">7.2 Formato inesperado na resposta do fornecedor</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#73-migratefresh-apaga-todos-os-dados">7.3 migrate:fresh apaga todos os dados</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#74-alçada-de-aprovação-e-valor-total">7.4 Alçada de aprovação e valor total</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#75-auto-replies-são-ignorados">7.5 Auto-replies são ignorados</a></li><li><a href="#8-como-reportar-bugs">8. Como Reportar Bugs</a></li><li style="margin-left:16pt;list-style:circle;"><a href="#onde-reportar">Onde reportar</a></li><li><a href="#9-rodapé-e-links">9. Rodapé e Links</a></li></ol></nav>
+<h1 id="runbook-de-pilot-comendador-compras-v1">Runbook de Pilot — Comendador Compras v1</h1>
+<p><strong>Versão v1 · 22/06/2026 · Público: PM, QA, Compradora Piloto</strong></p>
+<hr />
+<h2 id="índice">Índice</h2>
+<ol>
+<li><a href="#1-objetivo-do-pilot">Objetivo do Pilot</a></li>
+<li><a href="#2-pr%C3%A9-requisitos">Pré-requisitos</a></li>
+<li><a href="#3-setup-do-ambiente-time-t%C3%A9cnico">Setup do Ambiente (Time Técnico)</a></li>
+<li><a href="#4-roteiro-execut%C3%A1vel">Roteiro Executável</a></li>
+<li><a href="#5-matriz-de-aceite">Matriz de Aceite</a></li>
+<li><a href="#6-formul%C3%A1rio-de-feedback">Formulário de Feedback</a></li>
+<li><a href="#7-problemas-conhecidos-e-workarounds">Problemas Conhecidos e Workarounds</a></li>
+<li><a href="#8-como-reportar-bugs">Como Reportar Bugs</a></li>
+<li><a href="#9-rodap%C3%A9-e-links">Rodapé e Links</a></li>
+</ol>
+<hr />
+<h2 id="1-objetivo-do-pilot">1. Objetivo do Pilot</h2>
+<p>O pilot tem como finalidade:</p>
+<ul>
+<li>Validar o fluxo ponta a ponta — da abertura de requisição até a emissão do Pedido de Compra e entrada no estoque — em condições próximas ao uso real.</li>
+<li>Identificar bugs, comportamentos inesperados e pontos de atrito antes da entrada em produção.</li>
+<li>Coletar feedback qualitativo da compradora piloto sobre usabilidade, clareza das telas e aderência ao processo real da Rede Comendador.</li>
+<li>Confirmar que os controles de aprovação por alçada (Gestor / Diretor / CEO) e o isolamento por unidade funcionam corretamente.</li>
+</ul>
+<hr />
+<h2 id="2-pré-requisitos">2. Pré-requisitos</h2>
+<h3 id="21-acesso">2.1 Acesso</h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>URL do sistema</td>
+<td><code>http://127.0.0.1:8000</code> (ou a porta exibida pelo <code>php artisan serve</code>)</td>
+</tr>
+<tr>
+<td>Tela de login</td>
+<td><code>http://127.0.0.1:8000/login</code></td>
+</tr>
+<tr>
+<td>Ambiente</td>
+<td><strong>TESTE — dados fake</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-credenciais-de-acesso-logins-demo">2.2 Credenciais de Acesso (Logins Demo)</h3>
+<p>Todos os usuários abaixo usam a mesma senha: <strong><code>senha@123</code></strong></p>
+<table>
+<thead>
+<tr>
+<th>Perfil</th>
+<th>E-mail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Admin</td>
+<td><code>admin@comendador.com.br</code></td>
+</tr>
+<tr>
+<td>Compradora Sênior</td>
+<td><code>compradora@comendador.com.br</code></td>
+</tr>
+<tr>
+<td>Aprovador Diretor</td>
+<td><code>diretor@comendador.com.br</code></td>
+</tr>
+<tr>
+<td>Aprovador Gestor</td>
+<td><code>gestor@comendador.com.br</code></td>
+</tr>
+<tr>
+<td>Solicitante</td>
+<td><code>solicitante@comendador.com.br</code></td>
+</tr>
+<tr>
+<td>Almoxarife</td>
+<td><code>almoxarife@comendador.com.br</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="23-navegador">2.3 Navegador</h3>
+<p>Chrome ou Edge (versão recente). Não foi homologado em Firefox ou Safari.</p>
+<h3 id="24-aviso-importante">2.4 Aviso importante</h3>
+<blockquote>
+<p>⚠️ <strong>Este é um ambiente de TESTE com dados completamente fictícios. Nenhuma compra real será realizada. Você pode errar, criar, cancelar e tentar novamente à vontade. Se algo quebrar, avise o time técnico — esse é exatamente o objetivo do pilot.</strong></p>
+</blockquote>
+<hr />
+<h2 id="3-setup-do-ambiente-time-técnico">3. Setup do Ambiente (Time Técnico)</h2>
+<h3 id="31-carregar-dados-demo">3.1 Carregar dados demo</h3>
+<p>Execute o comando abaixo para criar o banco do zero e popular com usuários, unidades, fornecedores, catálogo, requisições e estoque fake:</p>
+<pre><code class="language-bash">/c/Users/Usuario/.config/herd/bin/php84/php.exe artisan migrate:fresh --seed
+</code></pre>
+<p>⚠️ <strong>Este comando apaga todos os dados existentes.</strong> Execute apenas uma vez antes do pilot. Se precisar reiniciar do zero durante o pilot, avise todos os participantes antes de rodar novamente.</p>
+<h3 id="32-iniciar-o-servidor-local">3.2 Iniciar o servidor local</h3>
+<pre><code class="language-bash">/c/Users/Usuario/.config/herd/bin/php84/php.exe artisan serve
+</code></pre>
+<p>Anote a URL exibida no terminal (ex.: <code>http://127.0.0.1:8000</code>). Compartilhe essa URL com a compradora piloto. O terminal deve permanecer aberto durante todo o pilot.</p>
+<h3 id="33-como-abrir">3.3 Como abrir</h3>
+<p>Abra a URL no Chrome ou Edge. Você verá a tela de login em <code>/login</code>.</p>
+<h3 id="34-captura-de-e-mail-imap-modo-real-vs-modo-simulação">3.4 Captura de e-mail (IMAP) — modo real vs. modo simulação</h3>
+<p>O sistema suporta dois modos de operação para a etapa de cotação por e-mail:</p>
+<hr />
+<p><strong>MODO REAL (com caixa IMAP configurada)</strong></p>
+<ul>
+<li>Requer as variáveis <code>IMAP_*</code> configuradas no <code>.env</code> (host, porta, usuário, senha, caixa).</li>
+<li>O fornecedor responde ao e-mail com o token <code>[COT-{id}]</code> no assunto e o corpo no formato: <code>Valor: R$ X | Prazo: Y dias</code>.</li>
+<li>O comando abaixo lê a caixa, casa o token, valida o remetente e grava a sugestão:</li>
+</ul>
+<pre><code class="language-bash">/c/Users/Usuario/.config/herd/bin/php84/php.exe artisan cotacoes:capturar-respostas
+</code></pre>
+<p>Em produção esse comando é agendado para rodar automaticamente a cada 5 minutos.</p>
+<hr />
+<p><strong>MODO SIMULAÇÃO (sem caixa IMAP — recomendado para o pilot)</strong></p>
+<p>Sem IMAP configurado, simule a etapa de resposta do fornecedor por uma das duas formas abaixo:</p>
+<p><strong>(a) A compradora registra o valor manualmente:</strong>
+Na tela de Cotações (<code>/compradora/cotacoes/{id}</code>), use o botão <strong>&quot;+ Nova Cotação&quot;</strong> para digitar o valor e o prazo diretamente para cada fornecedor. Esta é a forma mais simples para o pilot.</p>
+<p><strong>(b) Inserção técnica direta para demonstração:</strong>
+O time técnico pode inserir a sugestão diretamente no banco de dados (via tinker ou ferramenta de banco) para simular a chegada da resposta do fornecedor. Use esta opção apenas se quiser demonstrar o fluxo de sugestão automática sem depender de e-mail real.</p>
+<blockquote>
+<p>⚠️ <strong>Para o pilot, recomenda-se o Modo Simulação (a) — registro manual pela compradora.</strong> O Modo Real exige IMAP configurado e caixa de e-mail ativa, o que vai além do escopo do pilot.</p>
+</blockquote>
+<hr />
+<h2 id="4-roteiro-executável">4. Roteiro Executável</h2>
+<h3 id="cenário-do-pilot">Cenário do Pilot</h3>
+<ul>
+<li><strong>Unidade:</strong> Obra Expansão Norte</li>
+<li><strong>Item:</strong> Cimento CP-II 50kg</li>
+<li><strong>Quantidade:</strong> 200 sacos</li>
+<li><strong>Fornecedores:</strong> Construfácil Ltda · Materiais Norte SA · Cimentos União</li>
+<li><strong>Valores de referência:</strong> R$ 32,00 / R$ 33,50 / R$ 31,80 por saco</li>
+</ul>
+<hr />
+<h3 id="passo-1-login-como-solicitante-e-criação-de-requisição">Passo 1 — Login como Solicitante e criação de requisição</h3>
+<p><strong>AÇÃO:</strong> Abra <code>/login</code>. Faça login com <code>solicitante@comendador.com.br</code> / <code>senha@123</code>. No menu, acesse <strong>Requisições → Nova Requisição</strong> (<code>/requisicoes/nova</code>).</p>
+<p><strong>DADO:</strong></p>
+<ul>
+<li>Unidade solicitante: <code>Obra Expansão Norte</code></li>
+<li>Item: <code>Cimento CP-II 50kg</code></li>
+<li>Quantidade: <code>200</code></li>
+<li>Justificativa (se solicitada): <code>Consumo previsto para alvenaria do bloco C</code></li>
+</ul>
+<p><strong>RESULTADO ESPERADO:</strong> A requisição é criada com status <strong>&quot;Aguardando Triagem&quot;</strong>. Ela aparece na lista em <code>/requisicoes</code>.</p>
+<hr />
+<h3 id="passo-2-login-como-compradora-e-triagem-da-requisição">Passo 2 — Login como Compradora e triagem da requisição</h3>
+<p><strong>AÇÃO:</strong> Faça logout. Acesse <code>/login</code> e entre com <code>compradora@comendador.com.br</code> / <code>senha@123</code>. Navegue até <strong>Triagem</strong> (<code>/compradora/triagem</code>). Localize a requisição de Cimento CP-II 50kg da Obra Expansão Norte. Clique em <strong>Aceitar</strong>.</p>
+<p><strong>DADO:</strong> Nenhum dado adicional. Apenas confirmar a ação.</p>
+<p><strong>RESULTADO ESPERADO:</strong> A requisição muda de status para <strong>&quot;Em Cotação&quot;</strong> e desaparece da fila de triagem. Uma mensagem de confirmação deve aparecer na tela.</p>
+<hr />
+<h3 id="passo-3-cotação-solicitar-por-e-mail-ou-registrar-manualmente">Passo 3 — Cotação: solicitar por e-mail ou registrar manualmente</h3>
+<p><strong>AÇÃO:</strong> Acesse <strong>Cotações</strong> (<code>/compradora/cotacoes/{id}</code> — o <code>{id}</code> corresponde à requisição aceita). Localize o painel <strong>&quot;Solicitar por e-mail&quot;</strong>.</p>
+<p><strong>Modo Real (IMAP configurado):</strong>
+Selecione os 3 fornecedores: <code>Construfácil Ltda</code>, <code>Materiais Norte SA</code>, <code>Cimentos União</code>. Clique em <strong>&quot;Enviar solicitação&quot;</strong>.</p>
+<p><strong>Modo Simulação (recomendado para o pilot):</strong>
+Clique em <strong>&quot;+ Nova Cotação&quot;</strong> para cada fornecedor. Informe o valor e prazo manualmente (ver Passo 4-b).</p>
+<p><strong>RESULTADO ESPERADO (Modo Real):</strong> As 3 cotações aparecem com status <strong>&quot;Aguardando resposta&quot;</strong>. Os e-mails são enviados com o token <code>[COT-{id}]</code> no assunto.</p>
+<p><strong>RESULTADO ESPERADO (Modo Simulação):</strong> As cotações aparecem na lista com os valores informados.</p>
+<hr />
+<h3 id="passo-4-simular-respostas-dos-fornecedores">Passo 4 — Simular respostas dos fornecedores</h3>
+<p><strong>Modo Real (com caixa IMAP configurada):</strong></p>
+<p>Cada fornecedor deve responder o e-mail recebido (com o token <code>[COT-{id}]</code> mantido no assunto) com o corpo no formato:</p>
+<pre><code>Valor: R$ 32,00 | Prazo: 7 dias
+</code></pre>
+<p>Após as respostas chegarem à caixa, rode o comando de captura:</p>
+<pre><code class="language-bash">/c/Users/Usuario/.config/herd/bin/php84/php.exe artisan cotacoes:capturar-respostas
+</code></pre>
+<p><strong>Modo Simulação (b) — inserção técnica:</strong></p>
+<p>O time técnico insere a sugestão diretamente no banco para a cotação de cada fornecedor. O campo a preencher é a sugestão (valor e prazo), mantendo o status da cotação como &quot;Aguardando resposta&quot; até a compradora confirmar.</p>
+<p><strong>RESULTADO ESPERADO:</strong> Após a captura (Modo Real) ou inserção (Modo Simulação b), as cotações exibem o badge <strong>&quot;Sugerido&quot;</strong> com o valor e prazo.</p>
+<hr />
+<h3 id="passo-5-visualizar-sugestões-na-tela-de-cotações">Passo 5 — Visualizar sugestões na tela de Cotações</h3>
+<p><strong>AÇÃO:</strong> Permaneça na tela <code>/compradora/cotacoes/{id}</code>. Aguarde ou recarregue a página após rodar <code>cotacoes:capturar-respostas</code>.</p>
+<p><strong>RESULTADO ESPERADO:</strong> A tela exibe as sugestões em cinza para cada cotação. Exemplo de layout (mockup):</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│  Cotação — Cimento CP-II 50kg (200 un) · Obra Expansão Norte   │
+├──────────────────────────┬──────────────┬───────────────────────┤
+│ Fornecedor               │ Status       │ Sugestão              │
+├──────────────────────────┼──────────────┼───────────────────────┤
+│ Construfácil Ltda        │ Aguardando   │ Sugerido: R$ 32,00    │
+│                          │ resposta     │ Prazo: 7 dias  [cinza]│
+├──────────────────────────┼──────────────┼───────────────────────┤
+│ Materiais Norte SA       │ Aguardando   │ Sugerido: R$ 33,50    │
+│                          │ resposta     │ Prazo: 5 dias  [cinza]│
+├──────────────────────────┼──────────────┼───────────────────────┤
+│ Cimentos União           │ Aguardando   │ Sugerido: R$ 31,80    │
+│                          │ resposta     │ Prazo: 10 dias [cinza]│
+└──────────────────────────┴──────────────┴───────────────────────┘
+         [ Confirmar sugestão ]  [ Editar ]  [ Ignorar ]
+</code></pre>
+<hr />
+<h3 id="passo-6-confirmar-valores-e-marcar-a-vencedora">Passo 6 — Confirmar valores e marcar a vencedora</h3>
+<p><strong>AÇÃO:</strong> Para cada cotação com sugestão, clique em <strong>&quot;Confirmar sugestão&quot;</strong>. O valor muda de cinza (sugerido) para confirmado. Após confirmar as 3 cotações, marque a <strong>vencedora</strong>: selecione <code>Cimentos União</code> (menor preço: R$ 31,80/saco) e clique em <strong>&quot;Marcar como vencedora&quot;</strong> (ou equivalente na interface).</p>
+<p><strong>DADO:</strong></p>
+<ul>
+<li>Vencedora: <code>Cimentos União</code> — R$ 31,80/saco — Prazo: 10 dias</li>
+</ul>
+<p><strong>RESULTADO ESPERADO:</strong> A cotação da Cimentos União aparece destacada como vencedora. As demais ficam como &quot;não selecionada&quot;. O status da requisição avança para <strong>&quot;Aguardando Aprovação&quot;</strong>.</p>
+<hr />
+<h3 id="passo-7-aprovação-por-alçada-gestor-ou-diretor">Passo 7 — Aprovação por alçada (Gestor ou Diretor)</h3>
+<p><strong>AÇÃO:</strong> Faça logout. O perfil que deve aprovar depende do valor total do pedido (200 × R$ 31,80 = <strong>R$ 6.360,00</strong>). Consulte a alçada configurada no sistema. Faça login com o aprovador adequado (<code>gestor@comendador.com.br</code> ou <code>diretor@comendador.com.br</code>, senha <code>senha@123</code>). Acesse <strong>Aprovações</strong> (<code>/aprovacoes</code>). Localize o pedido de Cimento CP-II 50kg. Clique em <strong>Aprovar</strong>.</p>
+<p><strong>DADO:</strong> Nenhum dado adicional. Adicione uma observação opcional se a tela permitir.</p>
+<p><strong>RESULTADO ESPERADO:</strong> A aprovação é registrada. O status avança para <strong>&quot;Aprovado&quot;</strong> ou <strong>&quot;Pedido Gerado&quot;</strong> conforme o fluxo. Se o valor exigir múltiplas alçadas (ex.: Gestor e depois Diretor), repita o passo com cada perfil.</p>
+<hr />
+<h3 id="passo-8-emitir-o-pedido-de-compra-e-baixar-o-pdf">Passo 8 — Emitir o Pedido de Compra e baixar o PDF</h3>
+<p><strong>AÇÃO:</strong> Ainda logado como compradora (<code>compradora@comendador.com.br</code>), acesse <strong>Pedidos</strong> (<code>/compradora/pedidos</code>). Localize o pedido correspondente e clique em <strong>&quot;Emitir Pedido&quot;</strong> (se ainda não emitido automaticamente). Em seguida, clique em <strong>&quot;Baixar PDF&quot;</strong> ou acesse diretamente <code>/compradora/pedidos/{id}/pdf</code>.</p>
+<p><strong>RESULTADO ESPERADO:</strong> O PDF do Pedido de Compra é gerado e baixado. Verifique se contém: número do pedido, unidade, item, quantidade, fornecedor vencedor (Cimentos União), valor unitário (R$ 31,80), valor total (R$ 6.360,00) e prazo de entrega.</p>
+<hr />
+<h3 id="passo-9-recebimento-pelo-almoxarife-opcional">Passo 9 — Recebimento pelo Almoxarife (opcional)</h3>
+<p><strong>AÇÃO:</strong> Faça logout. Login com <code>almoxarife@comendador.com.br</code> / <code>senha@123</code>. Acesse <strong>Estoque</strong> (<code>/almoxarife/estoque</code>). Localize o pedido aguardando recebimento. Registre o recebimento informando a quantidade efetivamente recebida (ex.: 200 sacos).</p>
+<p><strong>DADO:</strong></p>
+<ul>
+<li>Quantidade recebida: <code>200</code></li>
+<li>Data de recebimento: data atual</li>
+</ul>
+<p><strong>RESULTADO ESPERADO:</strong> O estoque é atualizado. Os 200 sacos de Cimento CP-II 50kg aparecem no saldo da unidade Obra Expansão Norte.</p>
+<hr />
+<h3 id="passo-10-verificar-o-dashboard">Passo 10 — Verificar o Dashboard</h3>
+<p><strong>AÇÃO:</strong> Faça login com qualquer perfil que tenha acesso ao Dashboard. Acesse <code>/dashboard</code>.</p>
+<p><strong>RESULTADO ESPERADO:</strong> As métricas refletem o fluxo concluído: a requisição não aparece mais como pendente, o pedido emitido está contabilizado e (se o Passo 9 foi executado) o estoque atualizado aparece nos indicadores relevantes.</p>
+<hr />
+<h2 id="5-matriz-de-aceite">5. Matriz de Aceite</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Item Testado</th>
+<th>Resultado Esperado</th>
+<th>OK?</th>
+<th>Observações</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Login com cada perfil</td>
+<td>Acesso concedido com o perfil correto; redirecionamento para a tela inicial do perfil</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Criar requisição (solicitante)</td>
+<td>Requisição criada com status &quot;Aguardando Triagem&quot;; aparece na lista <code>/requisicoes</code></td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Triagem — aceitar requisição (compradora)</td>
+<td>Requisição muda para &quot;Em Cotação&quot;; desaparece da fila de triagem</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Triagem — devolver requisição (compradora)</td>
+<td>Requisição retorna ao solicitante com motivo; status atualizado</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Solicitar cotação por e-mail (Modo Real)</td>
+<td>E-mails enviados com token <code>[COT-{id}]</code>; cotações com status &quot;Aguardando resposta&quot;</td>
+<td>☐</td>
+<td>Testar apenas se IMAP configurado</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Registrar cotação manualmente (Modo Simulação)</td>
+<td>Cotações criadas com valores informados; visíveis na tela</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>Captura de sugestão via e-mail (<code>cotacoes:capturar-respostas</code>)</td>
+<td>Sugestão aparece em cinza &quot;Sugerido: R$ X / Y dias&quot; na cotação correspondente</td>
+<td>☐</td>
+<td>Testar apenas se IMAP configurado</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Confirmar sugestão (compradora)</td>
+<td>Valor muda de sugerido (cinza) para confirmado; status da cotação atualizado</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>Aprovação por alçada (Gestor / Diretor)</td>
+<td>Aprovador correto visualiza o pedido; aprovação registrada; status avança</td>
+<td>☐</td>
+<td>Verificar se alçada por valor está correta</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Emissão do Pedido de Compra</td>
+<td>Pedido gerado com número único; aparece em <code>/compradora/pedidos</code></td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Download do PDF do Pedido</td>
+<td>PDF gerado e baixado; contém dados completos (fornecedor, item, valor, prazo)</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>12</td>
+<td>Recebimento no estoque (almoxarife)</td>
+<td>Saldo atualizado em <code>/almoxarife/estoque</code>; lote registrado com data e quantidade</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>13</td>
+<td>Dashboard com métricas atualizadas</td>
+<td>Indicadores refletem o fluxo executado (requisição, pedido, estoque)</td>
+<td>☐</td>
+<td></td>
+</tr>
+<tr>
+<td>14</td>
+<td>Isolamento por unidade</td>
+<td>Usuário da Obra Expansão Norte não vê dados de outras unidades; e vice-versa</td>
+<td>☐</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6-formulário-de-feedback">6. Formulário de Feedback</h2>
+<p><em>Imprima esta seção ou preencha digitalmente. Uma via por participante por sessão.</em></p>
+<hr />
+<p><strong>COMENDADOR COMPRAS — FORMULÁRIO DE FEEDBACK DO PILOT</strong></p>
+<hr />
+<p><strong>Nome:</strong> __________________________________________ <strong>Data:</strong> _____ / _____ / ______</p>
+<p><strong>Perfil testado:</strong> ( ) Solicitante ( ) Compradora ( ) Aprovador ( ) Almoxarife ( ) Admin</p>
+<hr />
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Resposta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tela / Rota visitada</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>O que funcionou bem</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>O que travou ou confundiu</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><strong>Severidade do problema</strong></td>
+<td>( ) Baixa — incômodo cosmético ( ) Média — atrapalha mas tem contorno ( ) Alta — impede de continuar</td>
+</tr>
+<tr>
+<td><strong>Sugestão de melhoria</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Repetir para cada tela ou problema encontrado.</em></p>
+<hr />
+<p><strong>Tela / Rota:</strong> _______________________________________________</p>
+<p><strong>O que funcionou:</strong></p>
+<hr />
+<hr />
+<p><strong>O que travou / confundiu:</strong></p>
+<hr />
+<hr />
+<p><strong>Severidade:</strong> ( ) Baixa ( ) Média ( ) Alta</p>
+<p><strong>Sugestão:</strong></p>
+<hr />
+<hr />
+<hr />
+<p><strong>Tela / Rota:</strong> _______________________________________________</p>
+<p><strong>O que funcionou:</strong></p>
+<hr />
+<hr />
+<p><strong>O que travou / confundiu:</strong></p>
+<hr />
+<hr />
+<p><strong>Severidade:</strong> ( ) Baixa ( ) Média ( ) Alta</p>
+<p><strong>Sugestão:</strong></p>
+<hr />
+<hr />
+<hr />
+<p><strong>Impressão geral do sistema (0–10):</strong> _______</p>
+<p><strong>Comentário livre:</strong></p>
+<hr />
+<hr />
+<hr />
+<hr />
+<p><em>Entregue ao PM ou envie para o time técnico ao fim da sessão. Obrigado pela participação.</em></p>
+<hr />
+<h2 id="7-problemas-conhecidos-e-workarounds">7. Problemas Conhecidos e Workarounds</h2>
+<h3 id="71-captura-imap-exige-caixa-real">7.1 Captura IMAP exige caixa real</h3>
+<p><strong>Problema:</strong> O comando <code>cotacoes:capturar-respostas</code> só funciona se as variáveis <code>IMAP_*</code> estiverem configuradas no <code>.env</code> e a caixa de e-mail estiver acessível.</p>
+<p><strong>Workaround para o pilot:</strong> Use o Modo Simulação (a) — registrar o valor manualmente pela compradora via &quot;<strong>+ Nova Cotação</strong>&quot; na tela de Cotações. Isso não afeta nenhum outro passo do fluxo.</p>
+<hr />
+<h3 id="72-formato-inesperado-na-resposta-do-fornecedor">7.2 Formato inesperado na resposta do fornecedor</h3>
+<p><strong>Problema:</strong> Se o fornecedor responder o e-mail fora do formato esperado (<code>Valor: R$ X | Prazo: Y dias</code>), a captura automática não consegue extrair a sugestão e o campo ficará em branco.</p>
+<p><strong>Workaround:</strong> A compradora preenche o valor manualmente na cotação correspondente. O fluxo continua normalmente.</p>
+<hr />
+<h3 id="73-migratefresh-apaga-todos-os-dados">7.3 <code>migrate:fresh</code> apaga todos os dados</h3>
+<p><strong>Problema:</strong> Se o comando <code>php artisan migrate:fresh --seed</code> for executado durante o pilot, todos os dados — inclusive os criados durante o roteiro — serão apagados e substituídos pelos dados fake iniciais.</p>
+<p><strong>Workaround:</strong> Execute <code>migrate:fresh --seed</code> apenas antes do início do pilot, com todos os participantes cientes. Caso precise reiniciar o cenário, avise a todos antes de executar.</p>
+<hr />
+<h3 id="74-alçada-de-aprovação-e-valor-total">7.4 Alçada de aprovação e valor total</h3>
+<p><strong>Problema:</strong> Se o valor total da requisição (quantidade × preço unitário) não atingir o limite mínimo da alçada configurada, o pedido pode ir direto para emissão sem passar por aprovação, ou pode exigir um aprovador diferente do esperado.</p>
+<p><strong>Workaround:</strong> Verifique as faixas de alçada configuradas no sistema antes de iniciar o pilot. Para o cenário do Cimento (R$ 6.360,00), confirme qual aprovador é o correto e ajuste o roteiro se necessário.</p>
+<hr />
+<h3 id="75-auto-replies-são-ignorados">7.5 Auto-replies são ignorados</h3>
+<p><strong>Comportamento esperado (não é bug):</strong> O sistema ignora respostas automáticas de ausência ou confirmação de entrega de e-mail. Apenas respostas com conteúdo de valor e prazo são processadas.</p>
+<hr />
+<h2 id="8-como-reportar-bugs">8. Como Reportar Bugs</h2>
+<p>Ao encontrar um comportamento inesperado, anote as informações abaixo antes de reportar:</p>
+<ol>
+<li><strong>Tela e rota:</strong> qual página você estava (ex.: <code>/compradora/cotacoes/3</code>).</li>
+<li><strong>Passo a passo:</strong> o que você fez exatamente, na ordem em que fez.</li>
+<li><strong>Resultado obtido:</strong> o que o sistema mostrou ou fez.</li>
+<li><strong>Resultado esperado:</strong> o que deveria ter acontecido conforme o roteiro.</li>
+<li><strong>Print de tela:</strong> capture a tela com o erro visível (incluindo a URL no navegador).</li>
+<li><strong>Perfil logado:</strong> qual usuário estava autenticado (ex.: <code>compradora@comendador.com.br</code>).</li>
+<li><strong>Hora aproximada:</strong> para facilitar a busca nos logs do servidor.</li>
+</ol>
+<h3 id="onde-reportar">Onde reportar</h3>
+<p>Registre o bug diretamente no canal de comunicação do projeto com o time técnico. Para detalhes sobre logs de servidor, configuração de ambiente e acesso ao banco, consulte o <strong><a href="MANUAL-TECNICO.md">Manual Técnico</a></strong>.</p>
+<blockquote>
+<p>⚠️ <strong>Não tente corrigir o ambiente por conta própria durante o pilot.</strong> Anote o problema e chame o time técnico. Um ambiente quebrado pode gerar dados inconsistentes e comprometer as demais etapas do roteiro.</p>
+</blockquote>
+<hr />
+<h2 id="9-rodapé-e-links">9. Rodapé e Links</h2>
+<hr />
+<p><strong>Comendador Compras — Runbook de Pilot · v1 · 22/06/2026</strong></p>
+<ul>
+<li><a href="MANUAL-COMPRADORA.md">Manual da Compradora</a></li>
+<li><a href="MANUAL-TECNICO.md">Manual Técnico</a></li>
+</ul>
+
+    <footer>
+        <p>Comendador Compras v1 | Gerado em 22/06/2026 | &copy; 2026 Rede Comendador</p>
+    </footer>
+</body>
+</html>
