@@ -25,6 +25,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'vencedora_definida_por',
     'cancelada_em',
     'motivo_cancelamento',
+    // Captura IMAP (advisory) — sugestão extraída do e-mail do fornecedor.
+    'valor_respondido',
+    'prazo_respondido',
+    'observacoes_fornecedor',
+    'resposta_recebida_em',
+    'email_externo_id',
 ])]
 class Cotacao extends Model
 {
@@ -45,7 +51,28 @@ class Cotacao extends Model
             'validade_proposta' => 'date',
             'vencedora_definida_em' => 'datetime',
             'cancelada_em' => 'datetime',
+            'valor_respondido' => 'decimal:2',
+            'prazo_respondido' => 'integer',
+            'resposta_recebida_em' => 'datetime',
         ];
+    }
+
+    /** Há uma sugestão de valor capturada do e-mail do fornecedor (ainda não confirmada). */
+    public function temRespostaSugerida(): bool
+    {
+        return $this->valor_respondido !== null;
+    }
+
+    /** A compradora já confirmou um valor oficial para esta cotação. */
+    public function valorConfirmado(): bool
+    {
+        return $this->valor !== null;
+    }
+
+    /** Dias decorridos desde a criação/solicitação da cotação. */
+    public function diasAguardando(): int
+    {
+        return (int) $this->created_at->diffInDays(now());
     }
 
     public function requisicao(): BelongsTo

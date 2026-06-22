@@ -115,4 +115,24 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Caixa IMAP de cotações
+    |--------------------------------------------------------------------------
+    |
+    | Caixa dedicada que recebe as respostas dos fornecedores. O command
+    | `cotacoes:capturar-respostas` lê os e-mails não lidos e registra a sugestão
+    | de valor/prazo. Sem IMAP_HOST configurado, a captura é simplesmente ignorada.
+    |
+    */
+
+    'imap' => [
+        'host' => env('IMAP_HOST'),
+        'port' => env('IMAP_PORT', 993),
+        'username' => env('IMAP_USERNAME'),
+        'password' => env('IMAP_PASSWORD'),
+        'encryption' => env('IMAP_ENCRYPTION', 'ssl'),
+        'mailbox' => env('IMAP_MAILBOX', 'INBOX'),
+    ],
+
 ];

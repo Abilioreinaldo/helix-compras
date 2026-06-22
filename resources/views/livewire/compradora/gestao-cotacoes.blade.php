@@ -45,6 +45,30 @@
         @enderror
     </x-report-card>
 
+    {{-- Solicitar cotação por e-mail (captura IMAP preenche a sugestão depois) --}}
+    <x-report-card title="Solicitar cotação por e-mail" icon="truck" subtitle="Cria uma cotação aguardando e envia o pedido ao fornecedor. A resposta é capturada automaticamente.">
+        @error('fornecedoresSolicitar')
+            <div class="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{{ $message }}</div>
+        @enderror
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div class="flex-1">
+                <label class="mb-1 block text-sm font-medium text-slate-300">Fornecedores</label>
+                <select multiple wire:model="fornecedoresSolicitar" size="4" class="input-dark w-full">
+                    @foreach ($fornecedores as $f)
+                        <option value="{{ $f->id }}" @disabled(! $f->contato_email)>
+                            {{ $f->nome_fantasia }}{{ $f->contato_email ? '' : ' (sem e-mail)' }}
+                        </option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-slate-500">Segure Ctrl/Cmd para selecionar vários.</p>
+            </div>
+            <button wire:click="solicitarPorEmail" wire:loading.attr="disabled"
+                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500">
+                Enviar solicitação
+            </button>
+        </div>
+    </x-report-card>
+
     {{-- Lista de cotações --}}
     <x-report-card padding="p-0">
         <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
@@ -77,10 +101,24 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 font-medium text-slate-200">
-                                R$ {{ number_format((float) $cotacao->valor, 2, ',', '.') }}
+                                @if ($cotacao->valor !== null)
+                                    R$ {{ number_format((float) $cotacao->valor, 2, ',', '.') }}
+                                @elseif ($cotacao->valor_respondido !== null)
+                                    <span class="font-normal text-slate-500" @if($cotacao->observacoes_fornecedor) title="{{ \Illuminate\Support\Str::limit($cotacao->observacoes_fornecedor, 300) }}" @endif>
+                                        Sugerido: R$ {{ number_format((float) $cotacao->valor_respondido, 2, ',', '.') }}
+                                    </span>
+                                @else
+                                    <span class="font-normal italic text-slate-500">Aguardando resposta</span>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-slate-300">
-                                {{ $cotacao->prazo_entrega_dias ? $cotacao->prazo_entrega_dias.' dias' : '—' }}
+                                @if ($cotacao->valor !== null)
+                                    {{ $cotacao->prazo_entrega_dias ? $cotacao->prazo_entrega_dias.' dias' : '—' }}
+                                @elseif ($cotacao->prazo_respondido !== null)
+                                    <span class="text-slate-500">Sugerido: {{ $cotacao->prazo_respondido }} dias</span>
+                                @else
+                                    —
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-slate-300">
                                 @if ($cotacao->validade_proposta)
@@ -106,12 +144,17 @@
                                 <span class="block text-xs text-slate-500">{{ $cotacao->created_at?->format('d/m/Y H:i') }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
-                                @unless ($cotacao->vencedora)
+                                @if ($cotacao->valor === null && $cotacao->valor_respondido !== null)
+                                    <button wire:click="confirmarSugestao({{ $cotacao->id }})"
+                                        class="text-xs font-medium text-emerald-400 hover:text-emerald-300">
+                                        Confirmar sugestão
+                                    </button>
+                                @elseif ($cotacao->valor !== null && ! $cotacao->vencedora)
                                     <button wire:click="marcarVencedora({{ $cotacao->id }})"
                                         class="text-xs text-emerald-400 hover:text-emerald-300">
                                         Marcar vencedora
                                     </button>
-                                @endunless
+                                @endif
                             </td>
                         </tr>
                     @empty
