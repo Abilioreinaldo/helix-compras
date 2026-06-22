@@ -30,9 +30,9 @@
             <p style="margin:4px 0 0;font-size:20px;font-weight:bold;font-family:monospace;">{{ $pedido->numero }}</p>
         </div>
         <div style="display: table-cell; vertical-align: top; text-align: right; font-size: 11px;">
-            <p style="margin:0"><strong>Emitido em:</strong> {{ $pedido->emitido_em->format('d/m/Y H:i') }}</p>
+            <p style="margin:0"><strong>Emitido em:</strong> {{ $pedido->emitido_em?->format('d/m/Y H:i') }}</p>
             <p style="margin:2px 0"><strong>Emitido por:</strong> {{ $pedido->emissor?->name }}</p>
-            <p style="margin:0"><strong>Unidade:</strong> {{ $pedido->unidade->nome }}</p>
+            <p style="margin:0"><strong>Unidade:</strong> {{ $pedido->unidade?->nome }}</p>
         </div>
     </div>
 </div>
@@ -88,7 +88,7 @@
             <td>{{ $item->unidade_medida }}</td>
             <td class="text-right">R$ {{ number_format((float)$item->valor_unitario, 2, ',', '.') }}</td>
             <td class="text-right">R$ {{ number_format((float)$item->valor_total, 2, ',', '.') }}</td>
-            <td style="font-size:10px;">{{ $item->requisicao->codigo }}</td>
+            <td style="font-size:10px;">{{ $item->requisicao?->codigo }}</td>
         </tr>
         @endforeach
         <tr class="subtotal">

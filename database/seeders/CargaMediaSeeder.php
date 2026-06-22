@@ -255,6 +255,7 @@ class CargaMediaSeeder extends Seeder
             ->with('itens', 'cotacoes')
             ->take(8)->get();
 
+        $seq = 0;
         foreach ($reqsAprovadas as $req) {
             $cotacao = $req->cotacoes->firstWhere('vencedora', true) ?? $req->cotacoes->first();
             $itemReq = $req->itens->first();
@@ -263,6 +264,7 @@ class CargaMediaSeeder extends Seeder
             }
 
             $pc = PedidoCompra::create([
+                'numero' => 'PC-'.now()->year.'-'.str_pad((string) (++$seq), 4, '0', STR_PAD_LEFT),
                 'status' => StatusPedidoCompra::Emitido->value,
                 'fornecedor_id' => $cotacao->fornecedor_id,
                 'unidade_id' => $req->unidade_id,

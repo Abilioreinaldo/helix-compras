@@ -44,9 +44,13 @@ class BaixarPdfPedidoCompraController extends Controller
 
         $pdf = Pdf::loadView('pdf.pedido-compra', compact('pedido', 'itensPorDestino', 'aprovadores'));
 
+        // Fallback defensivo: PC Emitido sempre tem numero no fluxo real, mas se faltar o nome
+        // não pode virar ".pdf" (o browser salvaria sem extensão).
+        $nomeArquivo = $pedido->numero ?: 'pedido-compra-'.$pedido->id;
+
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"{$pedido->numero}.pdf\"",
+            'Content-Disposition' => "attachment; filename=\"{$nomeArquivo}.pdf\"",
         ]);
     }
 }
