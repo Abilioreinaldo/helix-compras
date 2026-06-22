@@ -100,6 +100,9 @@ class EmitirPedidoCompraAction
                 'emitido_por' => $emissor->id,
             ]);
 
+            // Gera a conta a pagar (Contas a Pagar) de forma atômica com a emissão.
+            app(GerarPagamentoDoPedidoAction::class)->execute($pedido, $emissor);
+
             // Transicionar cada requisição vinculada para EmCompra
             foreach ($requisicaoIds as $requisicaoId) {
                 $requisicao = Requisicao::withoutGlobalScopes()->find($requisicaoId);
