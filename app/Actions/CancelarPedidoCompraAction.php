@@ -48,7 +48,10 @@ class CancelarPedidoCompraAction
 
             if ($eraEmitido) {
                 // Reverter requisições para Aprovada, mas só se não houver outro PC emitido cobrindo-as
-                $requisicaoIds = $pedido->itens()->distinct()->pluck('requisicao_id');
+                // reorder(): a relação itens() ordena por requisicao_id+id; com DISTINCT em só
+                // requisicao_id, o ORDER BY id quebra no MySQL (ONLY_FULL_GROUP_BY). A ordem é
+                // irrelevante aqui — só iteramos os ids.
+                $requisicaoIds = $pedido->itens()->reorder()->distinct()->pluck('requisicao_id');
 
                 foreach ($requisicaoIds as $requisicaoId) {
                     $temOutroPC = ItemPedidoCompra::query()

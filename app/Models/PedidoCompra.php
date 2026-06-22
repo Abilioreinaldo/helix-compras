@@ -138,7 +138,9 @@ class PedidoCompra extends Model
     /** Requisições distintas vinculadas a este pedido via itens. */
     public function requisicoesVinculadas(): Collection
     {
-        $ids = $this->itens()->distinct()->pluck('requisicao_id');
+        // reorder(): DISTINCT em requisicao_id + ORDER BY id (herdado de itens()) quebra no
+        // MySQL (ONLY_FULL_GROUP_BY). A ordem dos ids não importa para o whereIn.
+        $ids = $this->itens()->reorder()->distinct()->pluck('requisicao_id');
 
         return Requisicao::withoutGlobalScopes()->whereIn('id', $ids)->get();
     }
