@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             FornecedorSeeder::class,
             CentroCustoSeeder::class,
             RequisicaoSeeder::class,
+            CargaMediaSeeder::class,
         ]);
     }
 }
