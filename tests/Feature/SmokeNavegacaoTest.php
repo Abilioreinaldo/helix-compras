@@ -24,7 +24,10 @@ it('abre todas as telas principais sem erro 500', function () {
     $solic = $byEmail('solicitante@comendador.com.br');
     $diretor = $byEmail('diretor@comendador.com.br');
 
-    $req = Requisicao::withoutGlobalScopes()->first();
+    // Prefere uma requisição COM logs/itens — exercita o render completo da detalhe
+    // (histórico de status), caminho que não aparece num rascunho vazio.
+    $req = Requisicao::withoutGlobalScopes()->has('logs')->first()
+        ?? Requisicao::withoutGlobalScopes()->first();
     $reqEditavel = Requisicao::withoutGlobalScopes()->whereIn('status', [StatusRequisicao::Rascunho->value, StatusRequisicao::Devolvida->value])->first();
     $reqCotacao = Requisicao::withoutGlobalScopes()->where('status', StatusRequisicao::EmCotacao->value)->first();
     $reqAprov = Requisicao::withoutGlobalScopes()->where('status', StatusRequisicao::AguardandoAprovacao->value)->first();

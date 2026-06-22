@@ -141,7 +141,7 @@
                 <li class="ml-4">
                     <div class="absolute w-2 h-2 bg-gray-400 rounded-full -left-1 mt-1.5"></div>
                     <p class="text-sm text-gray-800">
-                        <span class="font-medium">{{ ucwords(str_replace('_', ' ', $log->status_novo)) }}</span>
+                        <span class="font-medium">{{ ucwords(str_replace('_', ' ', $log->status_novo->value)) }}</span>
                         @if ($log->status_anterior)
                             <span class="text-gray-400"> ← {{ ucwords(str_replace('_', ' ', $log->status_anterior->value)) }}</span>
                         @endif
