@@ -9,6 +9,6 @@ it('tela de login renderiza com o fundo SVG executivo', function () {
 
     $resposta->assertOk()
         ->assertSee('preserveAspectRatio="xMidYMid slice"', false) // SVG responsivo
-        ->assertSee('url(#lb-bg)', false)        // gradiente de fundo escuro
-        ->assertSee('url(#lb-chart)', false);    // gráfico de tendência (verde→azul)
+        ->assertSee('url(#lb-bg)', false)         // gradiente de fundo (azul → rosa)
+        ->assertSee('url(#lb-glow-pink)', false); // glow neon rosa
 });
