@@ -9,9 +9,10 @@
         $max = \Illuminate\Support\Carbon::parse($v->max);
         $vencido = $min->lt(\Illuminate\Support\Carbon::today());
     @endphp
-    <span class="{{ $vencido ? 'text-red-600 font-medium' : 'text-gray-600' }}" @if($vencido) title="Lote vencido" @endif>
+    {{-- Tons 500: legíveis tanto na tela clara (Saldos) quanto no canvas dark (Posição de Estoque). --}}
+    <span class="{{ $vencido ? 'text-rose-500 font-medium' : 'text-slate-500' }}" @if($vencido) title="Lote vencido" @endif>
         {{ $min->format('d/m/Y') }}@if($max->ne($min)) — {{ $max->format('d/m/Y') }}@endif
     </span>
 @else
-    <span class="text-gray-400">—</span>
+    <span class="text-slate-500">—</span>
 @endif

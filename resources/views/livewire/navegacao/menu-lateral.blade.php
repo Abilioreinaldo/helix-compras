@@ -1,12 +1,20 @@
-<ul class="space-y-1 px-3">
-    @foreach ($itens as $item)
-        <li>
-            <a
-                href="{{ $item['href'] }}"
-                class="flex items-center px-3 py-2 text-sm text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
-            >
-                {{ $item['label'] }}
-            </a>
-        </li>
+<div class="space-y-6">
+    @foreach ($grupos as $titulo => $itens)
+        <div>
+            <p class="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">{{ $titulo }}</p>
+            <ul class="space-y-1">
+                @foreach ($itens as $item)
+                    <li class="relative">
+                        <x-sidebar-item
+                            :href="$item['href']"
+                            :icon="$item['icon']"
+                            :active="request()->routeIs($item['route'])"
+                        >
+                            {{ $item['label'] }}
+                        </x-sidebar-item>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
     @endforeach
-</ul>
+</div>

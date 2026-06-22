@@ -26,6 +26,7 @@ use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\GestaoPedidosCompra;
 use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\TriagemRequisicoes;
+use App\Livewire\Dashboard;
 use App\Livewire\Relatorios\ComparativoUnidades;
 use App\Livewire\Relatorios\ComprasEmergenciais;
 use App\Livewire\Relatorios\ConsumoUnidade;
@@ -58,7 +59,7 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
         return redirect()->route('login');
     })->name('logout');
 
-    Route::get('/dashboard', fn () => view('dashboard'))->name('dashboard');
+    Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     // Fase 2 — Requisições (qualquer usuário autenticado)
     Route::get('/requisicoes', ListaRequisicoes::class)->name('requisicoes.index');

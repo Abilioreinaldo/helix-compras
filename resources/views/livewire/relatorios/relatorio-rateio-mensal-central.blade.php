@@ -1,104 +1,170 @@
-<div class="p-6">
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-2xl font-bold">Rateio Mensal da Central</h1>
-    </div>
+<div class="report-canvas">
+    <x-page-header
+        title="Rateio Mensal da Central"
+        icon="layers"
+        subtitle="Distribuição mensal dos custos da central entre as unidades, com histórico de reversões."
+    />
 
-    {{-- Filtros --}}
-    <div class="flex gap-3 mb-4">
-        <input type="number" min="1" max="12" wire:model.live="filtroMes" placeholder="Mês"
-            class="w-28 border-gray-300 rounded shadow-sm text-sm" />
-        <input type="number" min="2000" wire:model.live="filtroAno" placeholder="Ano"
-            class="w-32 border-gray-300 rounded shadow-sm text-sm" />
-    </div>
+    <x-filter-bar>
+        <x-filter-bar.field label="Mês">
+            <input
+                type="number"
+                min="1"
+                max="12"
+                wire:model.live="filtroMes"
+                placeholder="Ex.: 6"
+                class="input-dark"
+            />
+        </x-filter-bar.field>
+        <x-filter-bar.field label="Ano">
+            <input
+                type="number"
+                min="2000"
+                wire:model.live="filtroAno"
+                placeholder="Ex.: 2025"
+                class="input-dark"
+            />
+        </x-filter-bar.field>
+    </x-filter-bar>
 
-    <div class="bg-white border rounded-lg overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Período</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor da Central</th>
-                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Unidades</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse($rateios as $rateio)
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm font-medium">{{ str_pad($rateio->mes, 2, '0', STR_PAD_LEFT) }}/{{ $rateio->ano }}</td>
-                        <td class="px-4 py-3 text-sm text-right">R$ {{ number_format($rateio->valor_total, 2, ',', '.') }}</td>
-                        <td class="px-4 py-3 text-sm text-right">{{ $rateio->unidades->count() }}</td>
-                        <td class="px-4 py-3 text-right">
-                            <button wire:click="toggleExpandir({{ $rateio->id }})" class="text-blue-600 hover:text-blue-800 text-sm">
-                                {{ $expandidoId === $rateio->id ? 'Recolher' : 'Detalhar' }}
-                            </button>
-                        </td>
-                    </tr>
-
-                    @if($expandidoId === $rateio->id)
-                        <tr>
-                            <td colspan="4" class="px-4 py-3 bg-gray-50">
-                                <table class="min-w-full text-sm">
-                                    <thead>
-                                        <tr class="text-xs text-gray-500 uppercase">
-                                            <th class="px-3 py-2 text-left">Unidade</th>
-                                            <th class="px-3 py-2 text-right">% Consumo</th>
-                                            <th class="px-3 py-2 text-right">Valor Rateado</th>
-                                            <th class="px-3 py-2 text-center">Status</th>
-                                            @if($ehAdmin)<th class="px-3 py-2"></th>@endif
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($rateio->unidades as $linha)
-                                            @php
-                                                $revertido = $linha->movimentacoes->contains('tipo', \App\Enums\TipoMovimentacao::DescontoRateio);
-                                            @endphp
-                                            <tr class="border-t border-gray-200">
-                                                <td class="px-3 py-2">{{ $linha->unidade->nome ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-right">{{ number_format((float) $linha->percentual_consumo * 100, 2, ',', '.') }}%</td>
-                                                <td class="px-3 py-2 text-right">R$ {{ number_format($linha->valor_rateado, 2, ',', '.') }}</td>
-                                                <td class="px-3 py-2 text-center">
-                                                    @if($revertido)
-                                                        <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-700">Revertido</span>
-                                                    @else
-                                                        <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Ativo</span>
-                                                    @endif
-                                                </td>
-                                                @if($ehAdmin)
-                                                    <td class="px-3 py-2 text-right">
-                                                        @if(! $revertido && (float) $linha->valor_rateado > 0)
-                                                            <button wire:click="abrirReversao({{ $linha->id }})" class="text-red-600 hover:text-red-800 text-xs">Reverter</button>
-                                                        @endif
-                                                    </td>
-                                                @endif
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </td>
+    @if($rateios->isEmpty())
+        <x-empty-state
+            icon="layers"
+            title="Nenhum rateio encontrado"
+            message="Não há registros de rateio para os filtros selecionados. Ajuste o mês ou o ano para visualizar os dados."
+        />
+    @else
+        <x-report-card title="Períodos Rateados" icon="layers" padding="p-0">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Período</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor da Central</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Unidades</th>
+                            <th class="px-3 py-2.5"></th>
                         </tr>
-                    @endif
-                @empty
-                    <tr>
-                        <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500">Nenhum rateio encontrado.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        @forelse($rateios as $rateio)
+                            <tr class="hover:bg-zinc-800/30 transition-colors">
+                                <td class="px-3 py-2.5 font-medium text-slate-300">
+                                    {{ str_pad($rateio->mes, 2, '0', STR_PAD_LEFT) }}/{{ $rateio->ano }}
+                                </td>
+                                <td class="px-3 py-2.5 text-right font-semibold text-slate-100">
+                                    R$ {{ number_format($rateio->valor_total, 2, ',', '.') }}
+                                </td>
+                                <td class="px-3 py-2.5 text-right text-slate-300">
+                                    {{ $rateio->unidades->count() }}
+                                </td>
+                                <td class="px-3 py-2.5 text-right">
+                                    <button
+                                        wire:click="toggleExpandir({{ $rateio->id }})"
+                                        class="rounded px-2.5 py-1 text-xs font-medium transition-colors {{ $expandidoId === $rateio->id ? 'bg-zinc-700 text-slate-200 hover:bg-zinc-600' : 'bg-zinc-800 text-slate-400 hover:bg-zinc-700 hover:text-slate-200' }}"
+                                    >
+                                        {{ $expandidoId === $rateio->id ? 'Recolher' : 'Detalhar' }}
+                                    </button>
+                                </td>
+                            </tr>
+
+                            @if($expandidoId === $rateio->id)
+                                <tr>
+                                    <td colspan="4" class="bg-zinc-900/60 px-4 py-4">
+                                        <div class="overflow-x-auto rounded-md border border-zinc-800">
+                                            <table class="min-w-full text-sm">
+                                                <thead>
+                                                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                                                        <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                                                        <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">% Consumo</th>
+                                                        <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor Rateado</th>
+                                                        <th class="px-3 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
+                                                        @if($ehAdmin)
+                                                            <th class="px-3 py-2.5"></th>
+                                                        @endif
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-zinc-800">
+                                                    @foreach($rateio->unidades as $linha)
+                                                        @php
+                                                            $revertido = $linha->movimentacoes->contains('tipo', \App\Enums\TipoMovimentacao::DescontoRateio);
+                                                        @endphp
+                                                        <tr class="hover:bg-zinc-800/30 transition-colors">
+                                                            <td class="px-3 py-2.5 text-slate-300">{{ $linha->unidade->nome ?? '—' }}</td>
+                                                            <td class="px-3 py-2.5 text-right text-emerald-400">
+                                                                {{ number_format((float) $linha->percentual_consumo * 100, 2, ',', '.') }}%
+                                                            </td>
+                                                            <td class="px-3 py-2.5 text-right font-semibold text-slate-100">
+                                                                R$ {{ number_format($linha->valor_rateado, 2, ',', '.') }}
+                                                            </td>
+                                                            <td class="px-3 py-2.5 text-center">
+                                                                @if($revertido)
+                                                                    <span class="inline-flex items-center rounded-full bg-zinc-700/60 px-2.5 py-0.5 text-xs font-medium text-zinc-300">Revertido</span>
+                                                                @else
+                                                                    <span class="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Ativo</span>
+                                                                @endif
+                                                            </td>
+                                                            @if($ehAdmin)
+                                                                <td class="px-3 py-2.5 text-right">
+                                                                    @if(! $revertido && (float) $linha->valor_rateado > 0)
+                                                                        <button
+                                                                            wire:click="abrirReversao({{ $linha->id }})"
+                                                                            class="rounded px-2.5 py-1 text-xs font-medium text-rose-400 transition-colors hover:bg-rose-500/15 hover:text-rose-300"
+                                                                        >
+                                                                            Reverter
+                                                                        </button>
+                                                                    @endif
+                                                                </td>
+                                                            @endif
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endif
+                        @empty
+                            <tr>
+                                <td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">Nenhum rateio encontrado.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-report-card>
+    @endif
 
     {{-- Modal de reversão --}}
     @if($revertendoItemId !== null)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <h2 class="text-lg font-bold mb-4">Reverter Rateio</h2>
-                <p class="text-sm text-gray-600 mb-3">Será gerado um crédito (Desconto de Rateio) no valor rateado desta unidade.</p>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
-                <textarea wire:model="motivoReversao" rows="3" class="w-full border-gray-300 rounded shadow-sm text-sm" placeholder="Informe o motivo da reversão"></textarea>
-                @error('motivoReversao') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div class="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+                <h2 class="mb-1 text-base font-semibold text-white">Reverter Rateio</h2>
+                <p class="mb-4 text-sm text-slate-400">Será gerado um crédito (Desconto de Rateio) no valor rateado desta unidade.</p>
 
-                <div class="flex justify-end gap-3 mt-5">
-                    <button wire:click="cancelarReversao" class="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50">Cancelar</button>
-                    <button wire:click="confirmarReversao" class="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700">Confirmar reversão</button>
+                <label class="mb-1.5 block text-xs font-medium uppercase tracking-wide text-slate-500">Motivo</label>
+                <textarea
+                    wire:model="motivoReversao"
+                    rows="3"
+                    placeholder="Informe o motivo da reversão"
+                    class="input-dark w-full resize-none rounded-md"
+                ></textarea>
+                @error('motivoReversao')
+                    <p class="mt-1 text-xs text-rose-400">{{ $message }}</p>
+                @enderror
+
+                <div class="mt-5 flex justify-end gap-3">
+                    <button
+                        wire:click="cancelarReversao"
+                        class="rounded-md border border-zinc-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        wire:click="confirmarReversao"
+                        class="rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-700"
+                    >
+                        Confirmar reversão
+                    </button>
                 </div>
             </div>
         </div>

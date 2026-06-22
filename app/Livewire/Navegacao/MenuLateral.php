@@ -15,66 +15,87 @@ class MenuLateral extends Component
         $isAdmin = $user->temPerfil(Perfil::Admin);
         $isCompradora = $user->temPerfil(Perfil::CompradoraSenior);
 
-        $itens = [['label' => 'Dashboard', 'href' => route('dashboard'), 'todos' => true]];
-
-        if ($isAdmin) {
-            $itens = array_merge($itens, [
-                ['label' => 'Unidades', 'href' => route('admin.unidades')],
-                ['label' => 'Usuários', 'href' => route('admin.usuarios')],
-                ['label' => 'Fornecedores', 'href' => route('admin.fornecedores')],
-                ['label' => 'Alçadas', 'href' => route('admin.alcadas')],
-                ['label' => 'Centros de Custo', 'href' => route('admin.centros-custo')],
-                ['label' => 'Catálogo de Itens', 'href' => route('admin.catalogo-itens')],
-                ['label' => 'Reconciliação de Saldos', 'href' => route('admin.reconciliacao-saldos')],
-            ]);
-        }
+        /** @var array<string, array<int, array{label: string, href: string, route: string, icon: string}>> $grupos */
+        $grupos = [
+            'Geral' => [
+                $this->item('Dashboard', 'dashboard', 'dashboard'),
+            ],
+        ];
 
         if ($isCompradora) {
-            $itens = array_merge($itens, [
-                ['label' => 'Triagem', 'href' => route('compradora.triagem')],
-                ['label' => 'Requisições', 'href' => route('requisicoes.index')],
-                ['label' => 'Pedidos de Compra', 'href' => route('compradora.pedidos.index')],
-            ]);
+            $grupos['Compras'] = [
+                $this->item('Triagem', 'compradora.triagem', 'inbox'),
+                $this->item('Requisições', 'requisicoes.index', 'document'),
+                $this->item('Pedidos de Compra', 'compradora.pedidos.index', 'cart'),
+            ];
         }
 
         if ($isAdmin || $isCompradora) {
-            $itens = array_merge($itens, [
-                ['label' => 'Itens a Repor', 'href' => route('compradora.itens-a-repor')],
-                ['label' => 'Gastos por CC', 'href' => route('relatorios.gastos-cc')],
-                ['label' => 'Gastos por Fornecedor', 'href' => route('relatorios.gastos-fornecedor')],
-                ['label' => 'Tempo de Aprovação', 'href' => route('relatorios.tempo-aprovacao')],
-                ['label' => 'Posição de Estoque', 'href' => route('relatorios.posicao-estoque')],
-                ['label' => 'Consumo por Unidade', 'href' => route('relatorios.consumo-unidade')],
-                ['label' => 'Comparativo entre Unidades', 'href' => route('relatorios.comparativo-unidades')],
-                ['label' => 'Pendentes por Aprovador', 'href' => route('relatorios.pendentes-aprovador')],
-                ['label' => 'Custo por Obra', 'href' => route('relatorios.custo-obra')],
-                ['label' => 'Compras Emergenciais', 'href' => route('relatorios.emergenciais')],
-            ]);
+            $grupos['Compras'][] = $this->item('Itens a Repor', 'compradora.itens-a-repor', 'trending-down');
+
+            $grupos['Relatórios'] = [
+                $this->item('Gastos por CC', 'relatorios.gastos-cc', 'chart-bar'),
+                $this->item('Gastos por Fornecedor', 'relatorios.gastos-fornecedor', 'dollar'),
+                $this->item('Tempo de Aprovação', 'relatorios.tempo-aprovacao', 'clock'),
+                $this->item('Posição de Estoque', 'relatorios.posicao-estoque', 'cube'),
+                $this->item('Consumo por Unidade', 'relatorios.consumo-unidade', 'chart-pie'),
+                $this->item('Comparativo entre Unidades', 'relatorios.comparativo-unidades', 'swap'),
+                $this->item('Pendentes por Aprovador', 'relatorios.pendentes-aprovador', 'check-badge'),
+                $this->item('Custo por Obra', 'relatorios.custo-obra', 'building'),
+                $this->item('Compras Emergenciais', 'relatorios.emergenciais', 'bolt'),
+            ];
         }
 
         if ($user->temPerfil(Perfil::Aprovador)) {
-            $itens[] = ['label' => 'Aprovações', 'href' => route('aprovacoes.fila')];
+            $grupos['Aprovações'] = [
+                $this->item('Aprovações', 'aprovacoes.fila', 'check-badge'),
+            ];
         }
 
         if (! $isAdmin && ! $isCompradora) {
             if ($user->temPerfil(Perfil::Solicitante)) {
-                $itens = array_merge($itens, [
-                    ['label' => 'Minhas Requisições', 'href' => route('requisicoes.index')],
-                    ['label' => 'Nova Requisição', 'href' => route('requisicoes.criar')],
-                    ['label' => 'Requisições de Material', 'href' => route('solicitante.rim.index')],
-                ]);
+                $grupos['Minhas Requisições'] = [
+                    $this->item('Minhas Requisições', 'requisicoes.index', 'document'),
+                    $this->item('Nova Requisição', 'requisicoes.criar', 'plus'),
+                    $this->item('Requisições de Material', 'solicitante.rim.index', 'hand'),
+                ];
             }
 
             if ($user->temPerfil(Perfil::Almoxarife)) {
-                $itens = array_merge($itens, [
-                    ['label' => 'Recebimentos', 'href' => route('almoxarife.recebimentos.index')],
-                    ['label' => 'Estoque', 'href' => route('almoxarife.estoque.index')],
-                    ['label' => 'Atendimento de Material', 'href' => route('almoxarife.rim.index')],
-                    ['label' => 'Inventário', 'href' => route('almoxarife.inventario.index')],
-                ]);
+                $grupos['Estoque'] = [
+                    $this->item('Recebimentos', 'almoxarife.recebimentos.index', 'package'),
+                    $this->item('Estoque', 'almoxarife.estoque.index', 'cube'),
+                    $this->item('Atendimento de Material', 'almoxarife.rim.index', 'hand'),
+                    $this->item('Inventário', 'almoxarife.inventario.index', 'clipboard'),
+                ];
             }
         }
 
-        return view('livewire.navegacao.menu-lateral', ['itens' => $itens]);
+        if ($isAdmin) {
+            $grupos['Administração'] = [
+                $this->item('Unidades', 'admin.unidades', 'building'),
+                $this->item('Usuários', 'admin.usuarios', 'users'),
+                $this->item('Fornecedores', 'admin.fornecedores', 'truck'),
+                $this->item('Alçadas', 'admin.alcadas', 'scale'),
+                $this->item('Centros de Custo', 'admin.centros-custo', 'tag'),
+                $this->item('Catálogo de Itens', 'admin.catalogo-itens', 'book'),
+                $this->item('Reconciliação de Saldos', 'admin.reconciliacao-saldos', 'refresh'),
+            ];
+        }
+
+        return view('livewire.navegacao.menu-lateral', ['grupos' => array_filter($grupos)]);
+    }
+
+    /**
+     * @return array{label: string, href: string, route: string, icon: string}
+     */
+    private function item(string $label, string $route, string $icon): array
+    {
+        return [
+            'label' => $label,
+            'href' => route($route),
+            'route' => $route,
+            'icon' => $icon,
+        ];
     }
 }
