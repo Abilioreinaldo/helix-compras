@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\RegistrarCotacaoAction;
 use App\Enums\StatusRequisicao;
 use App\Livewire\Compradora\MapaCotacao;
 use App\Models\CentroCusto;
@@ -21,7 +22,7 @@ function mc_requisicaoEmCotacao(): Requisicao
     $centro = CentroCusto::factory()->create(['unidade_id' => $unidade->id]);
     $faixa = FaixaAlcada::factory()->create(['minimo_cotacoes' => 3, 'is_emergencial' => false, 'ativo' => true]);
 
-    return Requisicao::create([
+    $req = Requisicao::create([
         'solicitante_id' => $solicitante->id,
         'unidade_id' => $unidade->id,
         'centro_custo_id' => $centro->id,
@@ -32,6 +33,11 @@ function mc_requisicaoEmCotacao(): Requisicao
         'faixa_alcada_id' => $faixa->id,
         'submetida_em' => now(),
     ]);
+
+    $req->itens()->create(['descricao' => 'Mouse', 'quantidade' => 5, 'unidade_medida' => 'un', 'valor_unitario_estimado' => 30, 'avulso' => true]);
+    $req->itens()->create(['descricao' => 'Teclado', 'quantidade' => 10, 'unidade_medida' => 'un', 'valor_unitario_estimado' => 60, 'avulso' => true]);
+
+    return $req->load('itens');
 }
 
 function mc_cotacao(Requisicao $req, ?float $valor, User $criador): Cotacao
@@ -103,4 +109,31 @@ it('bloqueia quem não é compradora (403)', function () {
     $this->actingAs($usuario)
         ->get(route('compradora.mapa-cotacao', ['requisicaoId' => $req->id]))
         ->assertForbidden();
+});
+
+it('monta a matriz por item e destaca o menor de cada linha e o menor total', function () {
+    $compradora = User::factory()->compradora()->create();
+    $this->actingAs($compradora);
+
+    $req = mc_requisicaoEmCotacao();
+    $itens = $req->itens->values();
+
+    $fA = Fornecedor::factory()->homologado()->create(['nome_fantasia' => 'Fornecedor A']);
+    $fB = Fornecedor::factory()->homologado()->create(['nome_fantasia' => 'Fornecedor B']);
+
+    // A: Mouse 30×5=150, Teclado 60×10=600 → total 750
+    $cotA = app(RegistrarCotacaoAction::class)->execute($req, $fA, 0.0, null, null, null, null, precosPorItem: [$itens[0]->id => 30, $itens[1]->id => 60]);
+    // B: Mouse 35×5=175, Teclado 58,50×10=585 → total 760
+    app(RegistrarCotacaoAction::class)->execute($req, $fB, 0.0, null, null, null, null, precosPorItem: [$itens[0]->id => 35, $itens[1]->id => 58.50]);
+
+    $comp = Livewire::actingAs($compradora)->test(MapaCotacao::class, ['requisicaoId' => $req->id]);
+
+    $comp->assertOk()
+        ->assertSee('Fornecedor A')
+        ->assertSee('Fornecedor B')
+        ->assertSee('R$ 150,00')   // melhor do Mouse (A)
+        ->assertSee('R$ 585,00');  // melhor do Teclado (B)
+
+    // Menor total geral = A (750 < 760).
+    expect($comp->instance()->melhorCotacaoId())->toBe($cotA->id);
 });

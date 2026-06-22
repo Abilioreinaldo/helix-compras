@@ -7,14 +7,15 @@ use App\Enums\Perfil;
 use App\Models\Cotacao;
 use App\Models\Requisicao;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Livewire\Component;
 
 /**
- * Mapa de cotação: comparativo lado a lado dos fornecedores de uma requisição,
- * destacando a melhor compra (menor valor confirmado).
+ * Mapa de cotação: matriz Item × Fornecedor de uma requisição, com o menor preço por
+ * item (⭐) e o menor total (💚).
  *
- * Observação: cada Cotacao tem UM valor total por fornecedor (não há preço por item
- * no schema), então a comparação é por fornecedor — não uma matriz item × fornecedor.
+ * Cotações com preço por item (itens_cotacao) preenchem as células; cotações só-total
+ * (legado / confirmadas via IMAP) mostram apenas o total da coluna.
  */
 class MapaCotacao extends Component
 {
@@ -29,18 +30,18 @@ class MapaCotacao extends Component
             ->findOrFail($requisicaoId);
     }
 
-    /** Cotações da requisição, da mais barata para a mais cara (nulos por último). */
-    public function cotacoes()
+    /** Cotações da requisição (colunas), da mais barata para a mais cara. */
+    public function cotacoes(): Collection
     {
         return $this->requisicao->cotacoes()
             ->whereNull('deleted_at')
-            ->with('fornecedor')
+            ->with(['fornecedor', 'itensCotacao'])
             ->get()
             ->sortBy(fn (Cotacao $c) => $c->valor ?? PHP_INT_MAX)
             ->values();
     }
 
-    /** Id da cotação com o menor valor confirmado (melhor compra). */
+    /** Id da cotação com o menor TOTAL confirmado (melhor compra geral). */
     public function melhorCotacaoId(): ?int
     {
         return $this->cotacoes()
@@ -75,19 +76,38 @@ class MapaCotacao extends Component
 
     public function render(): View
     {
+        $itens = $this->requisicao->itens;
         $cotacoes = $this->cotacoes();
-        $confirmadas = $cotacoes->filter(fn (Cotacao $c) => $c->valor !== null);
 
-        $menor = $confirmadas->min('valor');
-        $maior = $confirmadas->max('valor');
-        $economia = ($menor !== null && $maior !== null) ? (float) $maior - (float) $menor : 0.0;
+        // valor da linha (unitário × quantidade) por cotação e item.
+        $precoLinha = []; // [cotacaoId][itemRequisicaoId] => float
+        foreach ($cotacoes as $c) {
+            foreach ($c->itensCotacao as $ic) {
+                $precoLinha[$c->id][$ic->item_requisicao_id] = $ic->valorLinha();
+            }
+        }
+
+        // melhor (menor) preço por item.
+        $melhorPorItem = []; // itemId => ['cotacao_id' => int, 'valor' => float]
+        foreach ($itens as $item) {
+            $menor = null;
+            $melhorCot = null;
+            foreach ($cotacoes as $c) {
+                $v = $precoLinha[$c->id][$item->id] ?? null;
+                if ($v !== null && ($menor === null || $v < $menor)) {
+                    $menor = $v;
+                    $melhorCot = $c->id;
+                }
+            }
+            $melhorPorItem[$item->id] = $melhorCot !== null ? ['cotacao_id' => $melhorCot, 'valor' => $menor] : null;
+        }
 
         return view('livewire.compradora.mapa-cotacao', [
+            'itens' => $itens,
             'cotacoes' => $cotacoes,
-            'melhorId' => $this->melhorCotacaoId(),
-            'menor' => $menor,
-            'maior' => $maior,
-            'economia' => $economia,
+            'precoLinha' => $precoLinha,
+            'melhorPorItem' => $melhorPorItem,
+            'melhorTotalId' => $this->melhorCotacaoId(),
             'emCotacao' => $this->requisicao->status->value === 'em_cotacao',
         ])->layout('components.layouts.app');
     }

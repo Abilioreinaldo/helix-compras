@@ -17,88 +17,95 @@
         <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{{ $message }}</div>
     @enderror
 
-    {{-- Resumo --}}
-    <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <x-metric-card label="Menor cotação" :value="$menor !== null ? 'R$ '.number_format((float) $menor, 2, ',', '.') : '—'" icon="dollar" accent="emerald" />
-        <x-metric-card label="Maior cotação" :value="$maior !== null ? 'R$ '.number_format((float) $maior, 2, ',', '.') : '—'" icon="dollar" accent="slate" />
-        <x-metric-card label="Economia (maior − menor)" :value="'R$ '.number_format((float) $economia, 2, ',', '.')" icon="trending-down" accent="emerald" hint="Potencial ao escolher a mais barata" />
-    </div>
+    @if ($cotacoes->isEmpty())
+        <x-empty-state
+            icon="cotacao"
+            title="Nenhuma cotação ainda"
+            message="Registre cotações dos fornecedores (ou solicite por e-mail) para comparar lado a lado."
+        />
+    @else
+        @if ($cotacoes->count() < 2)
+            <div class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+                Aguarde mais ofertas — apenas {{ $cotacoes->count() }} cotação registrada. O comparativo fica mais útil com 2+ fornecedores.
+            </div>
+        @endif
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {{-- Itens da requisição (contexto) --}}
-        <x-report-card title="Itens cotados" icon="document" class="lg:col-span-1">
-            <ul class="space-y-2 text-sm">
-                @forelse ($requisicao->itens as $item)
-                    <li class="flex items-start justify-between gap-3">
-                        <span class="text-slate-300">{{ $item->descricao }}</span>
-                        <span class="shrink-0 text-slate-500">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</span>
-                    </li>
-                @empty
-                    <li class="text-slate-500">Sem itens.</li>
-                @endforelse
-            </ul>
-            <p class="mt-3 border-t border-zinc-800 pt-3 text-xs text-slate-500">
-                A cotação é por fornecedor (valor total da proposta), não por item.
-            </p>
-        </x-report-card>
-
-        {{-- Comparativo de fornecedores --}}
-        <x-report-card padding="p-0" class="lg:col-span-2">
+        <x-report-card padding="p-0">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="border-b border-zinc-800 bg-zinc-950/40">
-                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Fornecedor</th>
-                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor</th>
-                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Prazo</th>
-                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Validade</th>
-                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Ação</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
+                            <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
+                            @foreach ($cotacoes as $c)
+                                <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    {{ $c->fornecedor->nome_fantasia ?? '—' }}
+                                    @if ($c->vencedora)
+                                        <span class="ml-1 inline-flex rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">Vencedora</span>
+                                    @endif
+                                </th>
+                            @endforeach
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Melhor</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-800">
-                        @forelse ($cotacoes as $cotacao)
-                            @php $melhor = $melhorId !== null && $cotacao->id === $melhorId; @endphp
-                            <tr class="transition-colors hover:bg-zinc-800/40 {{ $cotacao->vencedora ? 'bg-emerald-500/10' : ($melhor ? 'bg-emerald-500/5' : '') }}">
-                                <td class="px-4 py-3 text-slate-200">
-                                    {{ $cotacao->fornecedor->nome_fantasia ?? '—' }}
-                                    @if ($cotacao->vencedora)
-                                        <span class="ml-1 inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">Vencedora</span>
-                                    @elseif ($melhor)
-                                        <span class="ml-1 inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">★ Melhor compra</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-right {{ $melhor ? 'font-bold text-emerald-400' : 'font-medium text-slate-200' }}">
-                                    @if ($cotacao->valor !== null)
-                                        R$ {{ number_format((float) $cotacao->valor, 2, ',', '.') }}
-                                    @elseif ($cotacao->valor_respondido !== null)
-                                        <span class="font-normal text-slate-500">Sugerido: R$ {{ number_format((float) $cotacao->valor_respondido, 2, ',', '.') }}</span>
+                        @foreach ($itens as $item)
+                            @php $melhorItem = $melhorPorItem[$item->id] ?? null; @endphp
+                            <tr class="transition-colors hover:bg-zinc-800/40">
+                                <td class="px-4 py-3 text-slate-300">{{ $item->descricao }}</td>
+                                <td class="px-3 py-3 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
+                                @foreach ($cotacoes as $c)
+                                    @php $v = $precoLinha[$c->id][$item->id] ?? null; $ehMelhor = $melhorItem && $melhorItem['cotacao_id'] === $c->id; @endphp
+                                    <td class="px-4 py-3 text-right {{ $ehMelhor ? 'bg-emerald-500/5 font-semibold text-emerald-400' : 'text-slate-300' }}">
+                                        {{ $v !== null ? 'R$ '.number_format($v, 2, ',', '.') : '—' }}
+                                    </td>
+                                @endforeach
+                                <td class="px-4 py-3 text-right text-emerald-400">
+                                    @if ($melhorItem)
+                                        ★ R$ {{ number_format($melhorItem['valor'], 2, ',', '.') }}
                                     @else
-                                        <span class="font-normal italic text-slate-500">Aguardando</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-right text-slate-300">
-                                    {{ $cotacao->prazo_entrega_dias ? $cotacao->prazo_entrega_dias.' dias' : ($cotacao->prazo_respondido ? $cotacao->prazo_respondido.' dias*' : '—') }}
-                                </td>
-                                <td class="px-4 py-3 text-slate-400">
-                                    {{ $cotacao->validade_proposta?->format('d/m/Y') ?? '—' }}
-                                </td>
-                                <td class="px-4 py-3 text-right">
-                                    @if ($emCotacao && ! $cotacao->vencedora && $cotacao->valor !== null)
-                                        <button wire:click="marcarVencedora({{ $cotacao->id }})"
-                                            class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500">
-                                            Selecionar vencedor
-                                        </button>
+                                        <span class="text-slate-500">—</span>
                                     @endif
                                 </td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">Nenhuma cotação registrada para esta requisição.</td>
-                            </tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
+                    <tfoot>
+                        <tr class="border-t border-zinc-800 bg-zinc-950/40">
+                            <td class="px-4 py-3 font-semibold text-slate-200">Total</td>
+                            <td></td>
+                            @foreach ($cotacoes as $c)
+                                <td class="px-4 py-3 text-right {{ $melhorTotalId === $c->id ? 'font-bold text-emerald-400' : 'font-medium text-slate-200' }}">
+                                    @if ($c->valor !== null)
+                                        {{ $melhorTotalId === $c->id ? '💚 ' : '' }}R$ {{ number_format((float) $c->valor, 2, ',', '.') }}
+                                    @else
+                                        <span class="italic text-slate-500">{{ $c->valor_respondido !== null ? 'Sugerido' : 'Aguardando' }}</span>
+                                    @endif
+                                </td>
+                            @endforeach
+                            <td></td>
+                        </tr>
+                        @if ($emCotacao)
+                            <tr>
+                                <td colspan="2" class="px-4 py-3 text-xs text-slate-500">Selecionar vencedor</td>
+                                @foreach ($cotacoes as $c)
+                                    <td class="px-4 py-2 text-right">
+                                        @if ($c->vencedora)
+                                            <span class="text-xs font-medium text-emerald-400">✓ vencedora</span>
+                                        @elseif ($c->valor !== null)
+                                            <button wire:click="marcarVencedora({{ $c->id }})"
+                                                class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500">
+                                                Selecionar
+                                            </button>
+                                        @endif
+                                    </td>
+                                @endforeach
+                                <td></td>
+                            </tr>
+                        @endif
+                    </tfoot>
                 </table>
             </div>
         </x-report-card>
-    </div>
+    @endif
 </div>
