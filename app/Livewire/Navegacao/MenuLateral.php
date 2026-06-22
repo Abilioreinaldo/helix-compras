@@ -72,6 +72,14 @@ class MenuLateral extends Component
             }
         }
 
+        if ($user->podeVerPagamentos()) {
+            $grupos['Financeiro'] = [
+                $this->item('Pagamentos', 'pagamentos.index', 'dollar'),
+                $this->item('Agendamentos', 'pagamentos.agendamentos', 'clock'),
+                $this->item('Reconciliação', 'pagamentos.reconciliacao', 'refresh'),
+            ];
+        }
+
         if ($isAdmin) {
             $grupos['Administração'] = [
                 $this->item('Unidades', 'admin.unidades', 'building'),

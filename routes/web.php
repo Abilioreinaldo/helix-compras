@@ -29,6 +29,9 @@ use App\Livewire\Compradora\ListaCotacoes;
 use App\Livewire\Compradora\MapaCotacao;
 use App\Livewire\Compradora\TriagemRequisicoes;
 use App\Livewire\Dashboard;
+use App\Livewire\Financeiro\Agendamentos;
+use App\Livewire\Financeiro\ListaPagamentos;
+use App\Livewire\Financeiro\Reconciliacao;
 use App\Livewire\Relatorios\ComparativoUnidades;
 use App\Livewire\Relatorios\ComprasEmergenciais;
 use App\Livewire\Relatorios\ConsumoUnidade;
@@ -116,6 +119,11 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
     Route::get('/relatorios/consumo-unidade', ConsumoUnidade::class)->name('relatorios.consumo-unidade');
     Route::get('/relatorios/comparativo-unidades', ComparativoUnidades::class)->name('relatorios.comparativo-unidades');
     Route::get('/relatorios/rateio-central', RelatorioRateioMensalCentral::class)->name('relatorios.rateio-central');
+
+    // Financeiro — Contas a Pagar (Financeiro / Admin)
+    Route::get('/pagamentos', ListaPagamentos::class)->name('pagamentos.index');
+    Route::get('/pagamentos/reconciliacao', Reconciliacao::class)->name('pagamentos.reconciliacao');
+    Route::get('/pagamentos/agendamentos', Agendamentos::class)->name('pagamentos.agendamentos');
 
     // Fase 1 — somente Admin
     Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
