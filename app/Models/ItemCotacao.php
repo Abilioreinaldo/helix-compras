@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditavel;
 use Database\Factories\ItemCotacaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Preço unitário cotado por um fornecedor (Cotacao) para um item da requisição.
  * A linha vale valor_unitario × quantidade do item; o total da cotação é a soma das linhas.
+ *
+ * Em produção, cotacao_id é sempre definido via relação ($cotacao->itensCotacao()->create);
+ * nenhum caminho passa cotacao_id de input do usuário para create direto.
  */
 #[Fillable([
     'cotacao_id',
@@ -20,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ItemCotacao extends Model
 {
     /** @use HasFactory<ItemCotacaoFactory> */
-    use HasFactory;
+    use Auditavel, HasFactory;
 
     protected $table = 'itens_cotacao';
 

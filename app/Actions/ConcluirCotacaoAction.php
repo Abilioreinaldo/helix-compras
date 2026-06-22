@@ -24,11 +24,15 @@ class ConcluirCotacaoAction
 
             $cotacoes = $requisicao->cotacoes()->whereNull('deleted_at')->get();
 
+            // Só cotações com valor CONFIRMADO contam para o mínimo. Cotações "aguardando"
+            // (valor null, criadas ao solicitar por e-mail) não contam até a compradora confirmar.
+            $confirmadas = $cotacoes->whereNotNull('valor');
+
             $minimoNecessario = $requisicao->is_emergencial ? 1 : ($requisicao->faixaAlcada?->minimo_cotacoes ?? 3);
 
-            if ($cotacoes->count() < $minimoNecessario) {
+            if ($confirmadas->count() < $minimoNecessario) {
                 throw ValidationException::withMessages([
-                    'cotacoes' => "São necessárias ao menos {$minimoNecessario} cotação(ões). Registradas: {$cotacoes->count()}.",
+                    'cotacoes' => "São necessárias ao menos {$minimoNecessario} cotação(ões) com valor confirmado. Confirmadas: {$confirmadas->count()}.",
                 ]);
             }
 

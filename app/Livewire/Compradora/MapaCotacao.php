@@ -33,18 +33,18 @@ class MapaCotacao extends Component
     /** Cotações da requisição (colunas), da mais barata para a mais cara. */
     public function cotacoes(): Collection
     {
+        // SoftDeletes já exclui apagadas. Carrega itemRequisicao para valorLinha() (evita N+1).
         return $this->requisicao->cotacoes()
-            ->whereNull('deleted_at')
-            ->with(['fornecedor', 'itensCotacao'])
+            ->with(['fornecedor', 'itensCotacao.itemRequisicao'])
             ->get()
             ->sortBy(fn (Cotacao $c) => $c->valor ?? PHP_INT_MAX)
             ->values();
     }
 
     /** Id da cotação com o menor TOTAL confirmado (melhor compra geral). */
-    public function melhorCotacaoId(): ?int
+    public function melhorCotacaoId(?Collection $cotacoes = null): ?int
     {
-        return $this->cotacoes()
+        return ($cotacoes ?? $this->cotacoes())
             ->filter(fn (Cotacao $c) => $c->valor !== null)
             ->sortBy('valor')
             ->first()?->id;
@@ -107,7 +107,7 @@ class MapaCotacao extends Component
             'cotacoes' => $cotacoes,
             'precoLinha' => $precoLinha,
             'melhorPorItem' => $melhorPorItem,
-            'melhorTotalId' => $this->melhorCotacaoId(),
+            'melhorTotalId' => $this->melhorCotacaoId($cotacoes),
             'emCotacao' => $this->requisicao->status->value === 'em_cotacao',
         ])->layout('components.layouts.app');
     }

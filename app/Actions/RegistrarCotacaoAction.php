@@ -51,15 +51,19 @@ class RegistrarCotacaoAction
                     continue; // ignora ids que não pertencem à requisição
                 }
                 $unitario = round((float) $unitario, 2);
+                if ($unitario <= 0.0) {
+                    continue; // descarta preço zero/negativo (não distorce o mapa nem o total)
+                }
                 $linhas[(int) $itemId] = $unitario;
-                $valor += $unitario * (float) $item->quantidade;
+                // Soma de linhas já arredondadas → o total bate com a soma exibida no mapa.
+                $valor += round($unitario * (float) $item->quantidade, 2);
             }
 
             $valor = round($valor, 2);
 
-            if ($linhas === []) {
+            if ($linhas === [] || $valor <= 0.0) {
                 throw ValidationException::withMessages([
-                    'precos' => 'Informe o preço de ao menos um item.',
+                    'precos' => 'Informe um preço válido (maior que zero) para ao menos um item.',
                 ]);
             }
         }

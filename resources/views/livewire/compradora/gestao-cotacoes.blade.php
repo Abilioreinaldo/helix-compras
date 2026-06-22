@@ -196,34 +196,45 @@
                     @error('fornecedorId') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
 
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Preço por item <span class="text-rose-400">*</span></label>
-                    <div class="overflow-x-auto rounded-lg border border-zinc-800">
-                        <table class="min-w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-zinc-800 bg-zinc-950/40">
-                                    <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
-                                    <th class="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
-                                    <th class="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Preço unitário (R$)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-800">
-                                @foreach ($requisicao->itens as $item)
-                                    <tr>
-                                        <td class="px-3 py-2 text-slate-300">{{ $item->descricao }}</td>
-                                        <td class="px-3 py-2 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
-                                        <td class="px-3 py-2 text-right">
-                                            <input type="number" step="0.01" min="0" wire:model="precos.{{ $item->id }}"
-                                                class="input-dark w-32 text-right @error('precos.'.$item->id) border-rose-500 @enderror"
-                                                placeholder="0,00">
-                                        </td>
+                @if ($requisicao->itens->isNotEmpty())
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Preço por item <span class="text-rose-400">*</span></label>
+                        <div class="overflow-x-auto rounded-lg border border-zinc-800">
+                            <table class="min-w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                                        <th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
+                                        <th class="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Preço unitário (R$)</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-zinc-800">
+                                    @foreach ($requisicao->itens as $item)
+                                        <tr>
+                                            <td class="px-3 py-2 text-slate-300">{{ $item->descricao }}</td>
+                                            <td class="px-3 py-2 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
+                                            <td class="px-3 py-2 text-right">
+                                                <input type="number" step="0.01" min="0" wire:model="precos.{{ $item->id }}"
+                                                    class="input-dark w-32 text-right @error('precos.'.$item->id) border-rose-500 @enderror"
+                                                    placeholder="0,00">
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500">O total é a soma (preço × quantidade). Itens em branco são ignorados.</p>
                     </div>
-                    <p class="mt-1 text-xs text-slate-500">O total é a soma (preço × quantidade). Itens em branco são ignorados.</p>
-                </div>
+                @else
+                    {{-- Fallback: requisição sem itens cadastrados → valor total (caminho legado). --}}
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Valor total (R$) <span class="text-rose-400">*</span></label>
+                        <input type="number" step="0.01" min="0" wire:model="valor"
+                            class="input-dark w-full @error('valor') border-rose-500 @enderror"
+                            placeholder="0,00">
+                        @error('valor') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
+                    </div>
+                @endif
 
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-1">Prazo de entrega (dias)</label>
