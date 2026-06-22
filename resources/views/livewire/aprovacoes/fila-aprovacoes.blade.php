@@ -1,5 +1,37 @@
 <div class="report-canvas">
+    <nav class="mb-3 flex items-center gap-2 text-xs text-slate-500">
+        <a href="{{ route('dashboard') }}" class="hover:text-slate-300">Dashboard</a>
+        <span>›</span>
+        <span class="text-slate-400">Aprovações</span>
+    </nav>
+
     <x-page-header title="Fila de Aprovações" icon="check-badge" subtitle="Requisições aguardando sua aprovação." />
+
+    <x-filter-bar>
+        <x-filter-bar.field label="Unidade">
+            <select wire:model.live="filtroUnidadeId" class="input-dark">
+                <option value="">Todas</option>
+                @foreach ($unidadesFiltro as $u)
+                    <option value="{{ $u->id }}">{{ $u->nome }}</option>
+                @endforeach
+            </select>
+        </x-filter-bar.field>
+        <x-filter-bar.field label="Faixa de valor">
+            <select wire:model.live="filtroFaixaId" class="input-dark">
+                <option value="">Todas</option>
+                @foreach ($faixas as $f)
+                    <option value="{{ $f->id }}">{{ $f->nome }}</option>
+                @endforeach
+            </select>
+        </x-filter-bar.field>
+        <x-filter-bar.field label="Período">
+            <select wire:model.live="filtroPeriodo" class="input-dark">
+                <option value="">Todos</option>
+                <option value="7">Últimos 7 dias</option>
+                <option value="30">Últimos 30 dias</option>
+            </select>
+        </x-filter-bar.field>
+    </x-filter-bar>
 
     <x-report-card padding="p-0">
         <div class="overflow-x-auto">
