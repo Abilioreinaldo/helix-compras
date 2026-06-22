@@ -1,72 +1,74 @@
-<div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Itens a Repor</h1>
+<div class="report-canvas">
+    <x-page-header title="Itens a Repor" icon="trending-down" subtitle="Itens abaixo do estoque mínimo, por unidade, com sugestão de reposição." />
 
-    {{-- Filtros --}}
-    <div class="flex gap-4 mb-6">
-        <div class="flex-1">
+    <x-filter-bar>
+        <x-filter-bar.field label="Buscar" class="min-w-[220px] flex-1">
             <input
                 wire:model.live.debounce.400ms="busca"
                 type="text"
                 placeholder="Buscar por descrição do item..."
-                class="w-full border-gray-300 rounded shadow-sm text-sm"
+                class="input-dark w-full"
             />
-        </div>
-        <div>
-            <select wire:model.live="filtroUnidadeId" class="border-gray-300 rounded shadow-sm text-sm">
+        </x-filter-bar.field>
+        <x-filter-bar.field label="Unidade">
+            <select wire:model.live="filtroUnidadeId" class="input-dark">
                 <option value="">Todas as unidades</option>
                 @foreach($unidades as $id => $nome)
                     <option value="{{ $id }}">{{ $nome }}</option>
                 @endforeach
             </select>
-        </div>
-    </div>
+        </x-filter-bar.field>
+    </x-filter-bar>
 
     @if($itensPorUnidade->isEmpty())
-        <div class="text-center py-12 text-gray-500">
-            <p class="text-lg">Nenhum item abaixo do estoque mínimo encontrado.</p>
-            <p class="text-sm mt-1">Todos os itens estão dentro dos limites definidos.</p>
-        </div>
+        <x-empty-state
+            icon="check-badge"
+            title="Nenhum item abaixo do estoque mínimo encontrado"
+            message="Todos os itens estão dentro dos limites definidos. Nada a repor no momento."
+        />
     @else
-        @foreach($itensPorUnidade as $unidadeId => $itens)
-            @php $unidadeNome = $itens->first()->unidade_nome; @endphp
-            <div class="mb-8">
-                <h2 class="text-base font-semibold text-gray-700 mb-3 border-b pb-1">{{ $unidadeNome }}</h2>
-                <table class="min-w-full bg-white border rounded-lg shadow-sm text-sm">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Un. Medida</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Mínimo</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo Atual</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">A repor</th>
-                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ação</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @foreach($itens as $item)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3">{{ $item->item_descricao }}</td>
-                                <td class="px-4 py-3 text-gray-500">{{ $item->unidade_medida ?? '—' }}</td>
-                                <td class="px-4 py-3 text-right">{{ number_format((float) $item->quantidade_minima, 3, ',', '.') }}</td>
-                                <td class="px-4 py-3 text-right {{ (float) $item->saldo_atual <= 0 ? 'text-red-600 font-medium' : 'text-gray-700' }}">
-                                    {{ number_format((float) $item->saldo_atual, 3, ',', '.') }}
-                                </td>
-                                <td class="px-4 py-3 text-right font-semibold text-yellow-700">
-                                    {{ number_format((float) $item->quantidade_sugerida, 3, ',', '.') }}
-                                </td>
-                                <td class="px-4 py-3 text-center">
-                                    <button
-                                        wire:click="solicitarReposicao({{ $item->unidade_id }}, {{ $item->item_catalogo_id }}, {{ $item->quantidade_sugerida }})"
-                                        class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                                    >
-                                        Solicitar
-                                    </button>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endforeach
+        <div class="space-y-6">
+            @foreach($itensPorUnidade as $unidadeId => $itens)
+                <x-report-card :title="$itens->first()->unidade_nome" icon="building" padding="p-0">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                                    <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
+                                    <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Un. Medida</th>
+                                    <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Mínimo</th>
+                                    <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Saldo Atual</th>
+                                    <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">A repor</th>
+                                    <th class="px-4 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-800">
+                                @foreach($itens as $item)
+                                    <tr class="transition-colors hover:bg-zinc-800/40">
+                                        <td class="px-4 py-3 text-slate-200">{{ $item->item_descricao }}</td>
+                                        <td class="px-4 py-3 text-slate-500">{{ $item->unidade_medida ?? '—' }}</td>
+                                        <td class="px-4 py-3 text-right text-slate-300">{{ number_format((float) $item->quantidade_minima, 3, ',', '.') }}</td>
+                                        <td class="px-4 py-3 text-right {{ (float) $item->saldo_atual <= 0 ? 'font-medium text-rose-400' : 'text-slate-300' }}">
+                                            {{ number_format((float) $item->saldo_atual, 3, ',', '.') }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right font-semibold text-amber-400">
+                                            {{ number_format((float) $item->quantidade_sugerida, 3, ',', '.') }}
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <button
+                                                wire:click="solicitarReposicao({{ $item->unidade_id }}, {{ $item->item_catalogo_id }}, {{ $item->quantidade_sugerida }})"
+                                                class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500"
+                                            >
+                                                Solicitar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </x-report-card>
+            @endforeach
+        </div>
     @endif
 </div>

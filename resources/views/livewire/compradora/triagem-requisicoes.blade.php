@@ -1,101 +1,101 @@
-<div>
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-bold text-gray-800">Fila de Triagem</h1>
-    </div>
+<div class="report-canvas">
+    <x-page-header title="Fila de Triagem" icon="inbox" subtitle="Requisições aguardando triagem ou em triagem pela compradora sênior." />
 
     @if($erroAtendimentoEstoque)
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
+        <div class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 mb-4">
             {{ $erroAtendimentoEstoque }}
         </div>
     @endif
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Solicitante</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Itens / Total</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submetida</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse ($requisicoes as $req)
-                    <tr class="hover:bg-gray-50 {{ $req->atrasada ? 'bg-red-50' : '' }}">
-                        <td class="px-4 py-3 text-sm font-mono text-gray-700">
-                            {{ $req->codigo }}
-                            @if ($req->atrasada) <span class="ml-1 text-xs text-red-600 font-semibold">⚠ Atrasada</span> @endif
-                            @if ($req->is_emergencial) <span class="ml-1 inline-flex px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700">Emergencial</span> @endif
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-700">{{ $req->solicitante->name ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $req->unidade->nome ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">
-                            {{ $req->itens->count() }} iten(s)
-                            @if ($req->valorTotal() > 0)
-                                <span class="block text-xs text-gray-500">R$ {{ number_format($req->valorTotal(), 2, ',', '.') }}</span>
-                            @endif
-                            @if ($this->temLoteVencido($req))
-                                <span class="mt-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800" title="A saída debitará lote vencido">⚠️ Vencido</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-sm">
-                            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                                {{ ucwords(str_replace('_', ' ', $req->status->value)) }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-500">{{ $req->submetida_em?->format('d/m/Y H:i') ?? '—' }}</td>
-                        <td class="px-4 py-3 text-right text-sm space-x-2">
-                            <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="text-gray-600 hover:text-gray-800">Ver</a>
-                            @if ($req->status->value === 'aguardando_triagem')
-                                <button wire:click="iniciarTriagem({{ $req->id }})" class="text-blue-600 hover:text-blue-800">Iniciar</button>
-                            @endif
-                            @if ($req->status->value === 'em_triagem')
-                                <button wire:click="enviarParaCotacao({{ $req->id }})" class="text-green-600 hover:text-green-800">Cotação</button>
-                                <button wire:click="abrirDevolucao({{ $req->id }})" class="text-orange-600 hover:text-orange-800">Devolver</button>
-                            @endif
-                            @if ($this->todosItensTemSaldo($req))
-                                <button
-                                    wire:click="atenderDoEstoque({{ $req->id }})"
-                                    wire:confirm="Atender esta requisição diretamente do estoque? Os saldos serão baixados imediatamente."
-                                    class="text-purple-600 hover:text-purple-800 font-medium"
-                                >
-                                    Atender do Estoque
-                                </button>
-                            @endif
-                        </td>
+    <x-report-card padding="p-0">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Solicitante</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Itens / Total</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Submetida</th>
+                        <th class="px-4 py-2.5"></th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nenhuma requisição aguardando triagem.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-        <div class="px-4 py-3 border-t border-gray-200">
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                    @forelse ($requisicoes as $req)
+                        <tr class="transition-colors hover:bg-zinc-800/40 {{ $req->atrasada ? 'bg-rose-500/5' : '' }}">
+                            <td class="px-4 py-3 font-mono text-slate-300">
+                                {{ $req->codigo }}
+                                @if ($req->atrasada) <span class="ml-1 text-xs font-semibold text-rose-400">⚠ Atrasada</span> @endif
+                                @if ($req->is_emergencial) <span class="ml-1 inline-flex rounded px-1.5 py-0.5 text-xs bg-rose-500/15 text-rose-400">Emergencial</span> @endif
+                            </td>
+                            <td class="px-4 py-3 text-slate-300">{{ $req->solicitante->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $req->unidade->nome ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-400">
+                                {{ $req->itens->count() }} iten(s)
+                                @if ($req->valorTotal() > 0)
+                                    <span class="block text-xs text-slate-500">R$ {{ number_format($req->valorTotal(), 2, ',', '.') }}</span>
+                                @endif
+                                @if ($this->temLoteVencido($req))
+                                    <span class="mt-1 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-400" title="A saída debitará lote vencido">⚠️ Vencido</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-500/15 text-slate-300">
+                                    {{ ucwords(str_replace('_', ' ', $req->status->value)) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-slate-400">{{ $req->submetida_em?->format('d/m/Y H:i') ?? '—' }}</td>
+                            <td class="px-4 py-3 text-right space-x-2">
+                                <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Ver</a>
+                                @if ($req->status->value === 'aguardando_triagem')
+                                    <button wire:click="iniciarTriagem({{ $req->id }})" class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 transition-colors">Iniciar</button>
+                                @endif
+                                @if ($req->status->value === 'em_triagem')
+                                    <button wire:click="enviarParaCotacao({{ $req->id }})" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 transition-colors">Cotação</button>
+                                    <button wire:click="abrirDevolucao({{ $req->id }})" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition-colors">Devolver</button>
+                                @endif
+                                @if ($this->todosItensTemSaldo($req))
+                                    <button
+                                        wire:click="atenderDoEstoque({{ $req->id }})"
+                                        wire:confirm="Atender esta requisição diretamente do estoque? Os saldos serão baixados imediatamente."
+                                        class="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-500 transition-colors"
+                                    >
+                                        Atender do Estoque
+                                    </button>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-4 py-6 text-center text-sm text-slate-500">Nenhuma requisição aguardando triagem.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 px-4 pb-4 border-t border-zinc-800 pt-3">
             {{ $requisicoes->links() }}
         </div>
-    </div>
+    </x-report-card>
 
     {{-- Modal devolução --}}
     @if ($devolvendo)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Devolver ao Solicitante</h2>
+        <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+                <h2 class="text-lg font-bold text-slate-100 mb-4">Devolver ao Solicitante</h2>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Motivo <span class="text-rose-400">*</span></label>
                     <textarea wire:model="observacaoDevolucao" rows="3"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('observacaoDevolucao') border-red-500 @enderror"
+                        class="input-dark w-full @error('observacaoDevolucao') border-rose-500 @enderror"
                         placeholder="Informe o que precisa ser ajustado..."></textarea>
-                    @error('observacaoDevolucao') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                    @error('observacaoDevolucao') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-3 mt-4">
-                    <button wire:click="$set('devolvendo', null)" class="text-sm text-gray-600 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50">
+                    <button wire:click="$set('devolvendo', null)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="confirmarDevolucao" class="bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-md">
+                    <button wire:click="confirmarDevolucao" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors">
                         Devolver
                     </button>
                 </div>

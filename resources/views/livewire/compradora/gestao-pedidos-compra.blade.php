@@ -1,102 +1,109 @@
-<div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Pedidos de Compra</h1>
+<div class="report-canvas">
+    <x-page-header title="Pedidos de Compra" icon="cart" subtitle="Gerencie sugestões de agrupamento, rascunhos e pedidos emitidos." />
 
     @error('acao')
-        <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{{ $message }}</div>
+        <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{{ $message }}</div>
     @enderror
 
     {{-- Sugestões de agrupamento --}}
     @if($sugestoes->isNotEmpty())
-    <section class="mb-8">
-        <h2 class="text-lg font-semibold mb-3">Sugestões de Agrupamento</h2>
-        <div class="space-y-4">
-            @foreach($sugestoes as $sugestao)
-            <div class="border rounded-lg p-4 bg-white shadow-sm">
-                <div class="flex items-center justify-between mb-2">
-                    <div>
-                        <span class="font-medium">{{ $sugestao['fornecedor']->razao_social }}</span>
-                        <span class="ml-2 text-sm text-gray-500">{{ $sugestao['requisicoes']->count() }} requisição(ões) — R$ {{ number_format($sugestao['valor_total'], 2, ',', '.') }}</span>
+        <x-report-card title="Sugestões de Agrupamento" icon="light-bulb" padding="p-0">
+            <div class="space-y-0 divide-y divide-zinc-800">
+                @foreach($sugestoes as $sugestao)
+                    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                        <div>
+                            <span class="font-medium text-slate-200">{{ $sugestao['fornecedor']->razao_social }}</span>
+                            <span class="ml-2 text-sm text-slate-400">{{ $sugestao['requisicoes']->count() }} requisição(ões) — R$ {{ number_format($sugestao['valor_total'], 2, ',', '.') }}</span>
+                            <div class="mt-1.5 flex flex-wrap gap-1">
+                                @foreach($sugestao['requisicoes'] as $req)
+                                    <span class="inline-block rounded bg-zinc-800 px-2 py-0.5 text-xs text-slate-300">{{ $req->codigo }}</span>
+                                @endforeach
+                            </div>
+                        </div>
+                        <button
+                            wire:click="criarRascunho({{ $sugestao['fornecedor']->id }}, {{ json_encode($sugestao['requisicoes']->pluck('id')->toArray()) }})"
+                            wire:loading.attr="disabled"
+                            class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+                        >
+                            Criar Rascunho
+                        </button>
                     </div>
-                    <button
-                        wire:click="criarRascunho({{ $sugestao['fornecedor']->id }}, {{ json_encode($sugestao['requisicoes']->pluck('id')->toArray()) }})"
-                        wire:loading.attr="disabled"
-                        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                    >
-                        Criar Rascunho
-                    </button>
-                </div>
-                <div class="text-sm text-gray-600">
-                    @foreach($sugestao['requisicoes'] as $req)
-                        <span class="inline-block bg-gray-100 rounded px-2 py-0.5 mr-1">{{ $req->codigo }}</span>
-                    @endforeach
-                </div>
+                @endforeach
             </div>
-            @endforeach
-        </div>
-    </section>
+        </x-report-card>
     @endif
 
     {{-- Rascunhos --}}
     @if($rascunhos->isNotEmpty())
-    <section class="mb-8">
-        <h2 class="text-lg font-semibold mb-3">Rascunhos</h2>
-        <table class="w-full text-sm border-collapse">
-            <thead>
-                <tr class="bg-gray-50 text-left">
-                    <th class="p-2 border">Fornecedor</th>
-                    <th class="p-2 border">Unidade</th>
-                    <th class="p-2 border">Atualizado em</th>
-                    <th class="p-2 border">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($rascunhos as $rascunho)
-                <tr class="hover:bg-gray-50">
-                    <td class="p-2 border">{{ $rascunho->fornecedor->razao_social }}</td>
-                    <td class="p-2 border">{{ $rascunho->unidade->nome }}</td>
-                    <td class="p-2 border">{{ $rascunho->updated_at->format('d/m/Y H:i') }}</td>
-                    <td class="p-2 border">
-                        <a href="{{ route('compradora.pedidos.editar', $rascunho->id) }}" class="text-blue-600 hover:underline">Editar</a>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </section>
+        <x-report-card title="Rascunhos" icon="pencil-square" padding="p-0">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Fornecedor</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Atualizado em</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        @foreach($rascunhos as $rascunho)
+                            <tr class="transition-colors hover:bg-zinc-800/40">
+                                <td class="px-4 py-3 text-slate-200">{{ $rascunho->fornecedor->razao_social }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $rascunho->unidade->nome }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $rascunho->updated_at->format('d/m/Y H:i') }}</td>
+                                <td class="px-4 py-3">
+                                    <a href="{{ route('compradora.pedidos.editar', $rascunho->id) }}" class="rounded-lg bg-zinc-800 px-3 py-1.5 text-sm font-medium text-slate-200 border border-zinc-700 hover:bg-zinc-700">Editar</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-report-card>
     @endif
 
     {{-- Emitidos --}}
-    <section>
-        <h2 class="text-lg font-semibold mb-3">Pedidos Emitidos</h2>
+    <x-report-card title="Pedidos Emitidos" icon="check-circle" padding="p-0">
         @if($emitidos->isEmpty())
-            <p class="text-gray-500">Nenhum pedido emitido.</p>
+            <x-empty-state
+                icon="check-circle"
+                title="Nenhum pedido emitido"
+                message="Nenhum pedido emitido."
+            />
         @else
-        <table class="w-full text-sm border-collapse">
-            <thead>
-                <tr class="bg-gray-50 text-left">
-                    <th class="p-2 border">Número</th>
-                    <th class="p-2 border">Fornecedor</th>
-                    <th class="p-2 border">Unidade</th>
-                    <th class="p-2 border">Emitido em</th>
-                    <th class="p-2 border">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($emitidos as $pedido)
-                <tr class="hover:bg-gray-50">
-                    <td class="p-2 border font-mono">{{ $pedido->numero }}</td>
-                    <td class="p-2 border">{{ $pedido->fornecedor->razao_social }}</td>
-                    <td class="p-2 border">{{ $pedido->unidade->nome }}</td>
-                    <td class="p-2 border">{{ $pedido->emitido_em->format('d/m/Y H:i') }}</td>
-                    <td class="p-2 border space-x-2">
-                        <a href="{{ route('compradora.pedidos.detalhe', $pedido->id) }}" class="text-blue-600 hover:underline">Ver</a>
-                        <a href="{{ route('compradora.pedidos.pdf', $pedido->id) }}" class="text-green-600 hover:underline">PDF</a>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-        {{ $emitidos->links() }}
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Número</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Fornecedor</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Emitido em</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        @foreach($emitidos as $pedido)
+                            <tr class="transition-colors hover:bg-zinc-800/40">
+                                <td class="px-4 py-3 font-mono text-slate-300">{{ $pedido->numero }}</td>
+                                <td class="px-4 py-3 text-slate-200">{{ $pedido->fornecedor->razao_social }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $pedido->unidade->nome }}</td>
+                                <td class="px-4 py-3 text-slate-300">{{ $pedido->emitido_em->format('d/m/Y H:i') }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ route('compradora.pedidos.detalhe', $pedido->id) }}" class="rounded-lg bg-zinc-800 px-3 py-1.5 text-sm font-medium text-slate-200 border border-zinc-700 hover:bg-zinc-700">Ver</a>
+                                        <a href="{{ route('compradora.pedidos.pdf', $pedido->id) }}" class="rounded-lg bg-zinc-800 px-3 py-1.5 text-sm font-medium text-slate-200 border border-zinc-700 hover:bg-zinc-700">PDF</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="border-t border-zinc-800 px-4 py-3">
+                {{ $emitidos->links() }}
+            </div>
         @endif
-    </section>
+    </x-report-card>
 </div>
