@@ -1,50 +1,49 @@
-<div>
-    <div class="mb-6">
-        <h1 class="text-xl font-bold text-gray-800">Fila de Aprovações</h1>
-        <p class="text-sm text-gray-500 mt-1">Requisições aguardando sua aprovação.</p>
-    </div>
+<div class="report-canvas">
+    <x-page-header title="Fila de Aprovações" icon="check-badge" subtitle="Requisições aguardando sua aprovação." />
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Solicitante</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aprovação iniciada</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse ($requisicoes as $req)
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm font-mono text-gray-700">
-                            {{ $req->codigo ?? '—' }}
-                            @if ($req->is_emergencial)
-                                <span class="ml-1 inline-flex px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-800">Emergencial</span>
-                            @endif
-                            @if ($req->urgente)
-                                <span class="ml-1 inline-flex px-1.5 py-0.5 rounded text-xs bg-orange-100 text-orange-700">Urgente</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $req->solicitante?->name ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $req->unidade?->nome ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-500">
-                            {{ $req->aprovacao_iniciada_em?->format('d/m/Y H:i') ?? '—' }}
-                        </td>
-                        <td class="px-4 py-3 text-right">
-                            <a href="{{ route('aprovacoes.painel', $req->id) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Revisar</a>
-                        </td>
+    <x-report-card padding="p-0">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Solicitante</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Aprovação iniciada</th>
+                        <th class="px-4 py-2.5"></th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">Nenhuma aprovação pendente.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-        <div class="px-4 py-3 border-t border-gray-200">
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                    @forelse ($requisicoes as $req)
+                        <tr class="transition-colors hover:bg-zinc-800/40">
+                            <td class="px-4 py-3 font-mono text-slate-300">
+                                {{ $req->codigo ?? '—' }}
+                                @if ($req->is_emergencial)
+                                    <span class="ml-1 inline-flex rounded px-1.5 py-0.5 text-xs bg-rose-500/15 text-rose-400">Emergencial</span>
+                                @endif
+                                @if ($req->urgente)
+                                    <span class="ml-1 inline-flex rounded px-1.5 py-0.5 text-xs bg-amber-500/15 text-amber-400">Urgente</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-slate-300">{{ $req->solicitante?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $req->unidade?->nome ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-400">
+                                {{ $req->aprovacao_iniciada_em?->format('d/m/Y H:i') ?? '—' }}
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <a href="{{ route('aprovacoes.painel', $req->id) }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">Revisar</a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">Nenhuma aprovação pendente.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 px-4 pb-4 border-t border-zinc-800 pt-3">
             {{ $requisicoes->links() }}
         </div>
-    </div>
+    </x-report-card>
 </div>

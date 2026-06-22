@@ -1,117 +1,127 @@
-<div>
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-xl font-bold text-gray-800">{{ $requisicao->codigo ?? 'Rascunho' }}</h1>
-            <p class="text-sm text-gray-500 mt-0.5">Criada em {{ $requisicao->created_at->format('d/m/Y H:i') }} por {{ $requisicao->solicitante->name ?? '—' }}</p>
-        </div>
-        <div class="flex gap-2">
-            @if ($requisicao->status->value === 'em_cotacao' && auth()->user()->temPerfil(\App\Enums\Perfil::CompradoraSenior))
-                <a href="{{ route('compradora.cotacoes', $requisicao->id) }}"
-                    class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-md">
-                    Gerenciar Cotações
-                </a>
-            @endif
-            @if ($requisicao->status->value === 'aguardando_aprovacao' && auth()->user()->temPerfil(\App\Enums\Perfil::Aprovador))
-                <a href="{{ route('aprovacoes.painel', $requisicao->id) }}"
-                    class="text-sm text-green-600 hover:text-green-800 border border-green-300 px-3 py-1.5 rounded-md">
-                    Aprovar
-                </a>
-            @endif
-            @if ($requisicao->status->permiteEdicao())
-                <a href="{{ route('requisicoes.editar', $requisicao->id) }}"
-                    class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-md">
-                    Editar
-                </a>
-            @endif
-            @if (! $requisicao->status->ehTerminal())
-                <button wire:click="abrirModalCancelar"
-                    class="text-sm text-red-600 hover:text-red-800 border border-red-300 px-3 py-1.5 rounded-md">
-                    Cancelar
-                </button>
-            @endif
-        </div>
-    </div>
+<div class="report-canvas">
+    @php
+        $statusValue = $requisicao->status->value;
+        $statusBadge = match(true) {
+            in_array($statusValue, ['aguardando_triagem', 'em_triagem']) => 'bg-amber-500/15 text-amber-400',
+            in_array($statusValue, ['aguardando_cotacao', 'em_cotacao']) => 'bg-sky-500/15 text-sky-400',
+            $statusValue === 'aguardando_aprovacao' => 'bg-violet-500/15 text-violet-400',
+            in_array($statusValue, ['aprovada', 'recebida', 'concluida']) => 'bg-emerald-500/15 text-emerald-400',
+            in_array($statusValue, ['reprovada', 'cancelada']) => 'bg-rose-500/15 text-rose-400',
+            default => 'bg-slate-500/15 text-slate-300',
+        };
+    @endphp
 
-    {{-- Badges --}}
+    <x-page-header
+        title="{{ $requisicao->codigo ?? 'Rascunho' }}"
+        icon="document"
+        subtitle="Criada em {{ $requisicao->created_at->format('d/m/Y H:i') }} por {{ $requisicao->solicitante->name ?? '—' }}"
+    >
+        <x-slot name="actions">
+            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium {{ $statusBadge }}">
+                {{ ucwords(str_replace('_', ' ', $requisicao->status->value)) }}
+            </span>
+            @if ($requisicao->urgente)
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber-500/15 text-amber-400">Urgente</span>
+            @endif
+            @if ($requisicao->is_emergencial)
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-rose-500/15 text-rose-400">Emergencial</span>
+            @endif
+            @if ($requisicao->atrasada)
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-rose-500/15 text-rose-400">Atrasada</span>
+            @endif
+            @if ($requisicao->escalada_verba)
+                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber-500/15 text-amber-400">Escalada (verba)</span>
+            @endif
+        </x-slot>
+    </x-page-header>
+
+    {{-- Ações --}}
     <div class="flex flex-wrap gap-2 mb-6">
-        <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-            {{ ucwords(str_replace('_', ' ', $requisicao->status->value)) }}
-        </span>
-        @if ($requisicao->urgente)
-            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Urgente</span>
+        @if ($requisicao->status->value === 'em_cotacao' && auth()->user()->temPerfil(\App\Enums\Perfil::CompradoraSenior))
+            <a href="{{ route('compradora.cotacoes', $requisicao->id) }}"
+                class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+                Gerenciar Cotações
+            </a>
         @endif
-        @if ($requisicao->is_emergencial)
-            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">Emergencial</span>
+        @if ($requisicao->status->value === 'aguardando_aprovacao' && auth()->user()->temPerfil(\App\Enums\Perfil::Aprovador))
+            <a href="{{ route('aprovacoes.painel', $requisicao->id) }}"
+                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                Aprovar
+            </a>
         @endif
-        @if ($requisicao->atrasada)
-            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">Atrasada</span>
+        @if ($requisicao->status->permiteEdicao())
+            <a href="{{ route('requisicoes.editar', $requisicao->id) }}"
+                class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+                Editar
+            </a>
         @endif
-        @if ($requisicao->escalada_verba)
-            <span class="inline-flex px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Escalada (verba)</span>
+        @if (! $requisicao->status->ehTerminal())
+            <button wire:click="abrirModalCancelar"
+                class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors">
+                Cancelar
+            </button>
         @endif
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {{-- Dados gerais --}}
-        <div class="bg-white rounded-lg shadow p-4">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3">Dados Gerais</h2>
+        <x-report-card title="Dados Gerais">
             <dl class="space-y-2 text-sm">
                 <div class="flex justify-between">
-                    <dt class="text-gray-500">Unidade</dt>
-                    <dd class="text-gray-800">{{ $requisicao->unidade->nome ?? '—' }}</dd>
+                    <dt class="text-slate-400">Unidade</dt>
+                    <dd class="text-slate-200">{{ $requisicao->unidade->nome ?? '—' }}</dd>
                 </div>
                 <div class="flex justify-between">
-                    <dt class="text-gray-500">Centro de Custo</dt>
-                    <dd class="text-gray-800">{{ $requisicao->centroCusto->nome ?? '—' }}</dd>
+                    <dt class="text-slate-400">Centro de Custo</dt>
+                    <dd class="text-slate-200">{{ $requisicao->centroCusto->nome ?? '—' }}</dd>
                 </div>
                 @if ($requisicao->obra)
                     <div class="flex justify-between">
-                        <dt class="text-gray-500">Obra</dt>
-                        <dd class="text-gray-800">{{ $requisicao->obra->id }}</dd>
+                        <dt class="text-slate-400">Obra</dt>
+                        <dd class="text-slate-200">{{ $requisicao->obra->id }}</dd>
                     </div>
                     @if ($requisicao->consumo_verba_no_submit)
                         <div class="flex justify-between">
-                            <dt class="text-gray-500">Consumo verba (submit)</dt>
-                            <dd class="text-gray-800">R$ {{ number_format($requisicao->consumo_verba_no_submit, 2, ',', '.') }}</dd>
+                            <dt class="text-slate-400">Consumo verba (submit)</dt>
+                            <dd class="text-slate-200">R$ {{ number_format($requisicao->consumo_verba_no_submit, 2, ',', '.') }}</dd>
                         </div>
                     @endif
                 @endif
                 @if ($requisicao->faixaAlcada)
                     <div class="flex justify-between">
-                        <dt class="text-gray-500">Alçada</dt>
-                        <dd class="text-gray-800">{{ $requisicao->faixaAlcada->nome }}</dd>
+                        <dt class="text-slate-400">Alçada</dt>
+                        <dd class="text-slate-200">{{ $requisicao->faixaAlcada->nome }}</dd>
                     </div>
                 @endif
                 @if ($requisicao->justificativa)
                     <div>
-                        <dt class="text-gray-500 mb-1">Justificativa</dt>
-                        <dd class="text-gray-800 bg-gray-50 p-2 rounded text-xs">{{ $requisicao->justificativa }}</dd>
+                        <dt class="text-slate-400 mb-1">Justificativa</dt>
+                        <dd class="text-slate-200 bg-zinc-950/40 border border-zinc-800 p-2 rounded text-xs">{{ $requisicao->justificativa }}</dd>
                     </div>
                 @endif
             </dl>
-        </div>
+        </x-report-card>
 
         {{-- Itens --}}
-        <div class="bg-white rounded-lg shadow p-4">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3">Itens</h2>
+        <x-report-card title="Itens" padding="p-0">
             <table class="w-full text-sm">
                 <thead>
-                    <tr class="text-left text-xs text-gray-500">
-                        <th class="pb-2">Descrição</th>
-                        <th class="pb-2 text-right">Qtd</th>
-                        <th class="pb-2 text-right">Valor unit.</th>
-                        <th class="pb-2 text-right">Total</th>
+                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor unit.</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Total</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-zinc-800">
                     @foreach ($requisicao->itens as $item)
-                        <tr>
-                            <td class="py-1.5 text-gray-800">{{ $item->descricao }}</td>
-                            <td class="py-1.5 text-right text-gray-600">{{ $item->quantidade }} {{ $item->unidade_medida }}</td>
-                            <td class="py-1.5 text-right text-gray-600">
+                        <tr class="hover:bg-zinc-800/40 transition-colors">
+                            <td class="px-4 py-2 text-slate-300">{{ $item->descricao }}</td>
+                            <td class="px-4 py-2 text-right text-slate-400">{{ $item->quantidade }} {{ $item->unidade_medida }}</td>
+                            <td class="px-4 py-2 text-right text-slate-400">
                                 {{ $item->valor_unitario_estimado ? 'R$ '.number_format($item->valor_unitario_estimado, 2, ',', '.') : '—' }}
                             </td>
-                            <td class="py-1.5 text-right text-gray-800 font-medium">
+                            <td class="px-4 py-2 text-right text-slate-300 font-medium">
                                 @if ($item->valor_unitario_estimado)
                                     R$ {{ number_format($item->quantidade * $item->valor_unitario_estimado, 2, ',', '.') }}
                                 @else
@@ -122,59 +132,60 @@
                     @endforeach
                 </tbody>
                 <tfoot>
-                    <tr class="border-t border-gray-200">
-                        <td colspan="3" class="pt-2 text-right text-sm font-medium text-gray-700">Total estimado</td>
-                        <td class="pt-2 text-right text-sm font-bold text-gray-800">
+                    <tr class="border-t border-zinc-800">
+                        <td colspan="3" class="px-4 pt-2 pb-3 text-right text-sm font-medium text-slate-400">Total estimado</td>
+                        <td class="px-4 pt-2 pb-3 text-right text-sm font-bold text-slate-100">
                             R$ {{ number_format($requisicao->valorTotal(), 2, ',', '.') }}
                         </td>
                     </tr>
                 </tfoot>
             </table>
-        </div>
+        </x-report-card>
     </div>
 
     {{-- Histórico de status --}}
-    <div class="bg-white rounded-lg shadow p-4">
-        <h2 class="text-sm font-semibold text-gray-700 mb-3">Histórico</h2>
-        <ol class="relative border-l border-gray-200 ml-3 space-y-4">
+    <x-report-card title="Histórico">
+        <ol class="relative border-l border-zinc-800 ml-3 space-y-4">
             @foreach ($requisicao->logs->sortBy('created_at') as $log)
                 <li class="ml-4">
-                    <div class="absolute w-2 h-2 bg-gray-400 rounded-full -left-1 mt-1.5"></div>
-                    <p class="text-sm text-gray-800">
+                    <div class="absolute w-2 h-2 bg-zinc-600 rounded-full -left-1 mt-1.5"></div>
+                    <p class="text-sm text-slate-200">
                         <span class="font-medium">{{ ucwords(str_replace('_', ' ', $log->status_novo->value)) }}</span>
                         @if ($log->status_anterior)
-                            <span class="text-gray-400"> ← {{ ucwords(str_replace('_', ' ', $log->status_anterior->value)) }}</span>
+                            <span class="text-slate-500"> ← {{ ucwords(str_replace('_', ' ', $log->status_anterior->value)) }}</span>
                         @endif
                     </p>
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-slate-400">
                         {{ $log->created_at->format('d/m/Y H:i') }}
                         @if ($log->usuario) · {{ $log->usuario->name }} @endif
                         @if ($log->automatico) · <em>automático</em> @endif
                     </p>
                     @if ($log->observacao)
-                        <p class="text-xs text-gray-600 mt-0.5 italic">{{ $log->observacao }}</p>
+                        <p class="text-xs text-slate-400 mt-0.5 italic">{{ $log->observacao }}</p>
                     @endif
                 </li>
             @endforeach
         </ol>
-    </div>
+    </x-report-card>
 
     {{-- Modal cancelar --}}
     @if ($mostrarModalCancelar)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Cancelar Requisição</h2>
+        <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div class="bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                <h2 class="text-lg font-bold text-slate-100 mb-4">Cancelar Requisição</h2>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Motivo <span class="text-rose-400">*</span></label>
                     <textarea wire:model="motivoCancelamento" rows="3"
-                        class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('motivoCancelamento') border-red-500 @enderror"></textarea>
-                    @error('motivoCancelamento') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        class="input-dark w-full @error('motivoCancelamento') border-rose-500 @enderror"></textarea>
+                    @error('motivoCancelamento') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-3 mt-4">
-                    <button wire:click="$set('mostrarModalCancelar', false)" class="text-sm text-gray-600 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50">
+                    <button wire:click="$set('mostrarModalCancelar', false)"
+                        class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
                         Voltar
                     </button>
-                    <button wire:click="cancelarRequisicao" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium px-4 py-2 rounded-md">
+                    <button wire:click="cancelarRequisicao"
+                        class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors">
                         Confirmar
                     </button>
                 </div>

@@ -1,147 +1,159 @@
-<div class="p-6 max-w-4xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-2xl font-bold">Registrar Recebimento</h1>
-            <p class="text-gray-500 text-sm">PC {{ $pedido->numero }} — {{ $pedido->fornecedor->razao_social }}</p>
+<div class="report-canvas">
+    <x-page-header
+        title="Registrar Recebimento"
+        icon="package"
+        subtitle="PC {{ $pedido->numero }} — {{ $pedido->fornecedor->razao_social }}"
+    />
+
+    @if(session('sucesso'))
+        <div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            {{ session('sucesso') }}
         </div>
-        <a href="{{ route('almoxarife.recebimentos.index') }}" class="px-4 py-2 border rounded hover:bg-gray-50">Voltar</a>
-    </div>
+    @endif
 
     @error('recebimento')
-        <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{{ $message }}</div>
+        <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{{ $message }}</div>
     @enderror
 
     @error('quantidades')
-        <div class="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{{ $message }}</div>
+        <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{{ $message }}</div>
     @enderror
 
-    <div class="bg-white border rounded-lg p-4 mb-6">
+    {{-- Painel de informações do pedido --}}
+    <div class="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
         <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
-                <span class="text-gray-500">Unidade:</span>
-                <span class="ml-2 font-medium">{{ $pedido->unidade->nome }}</span>
+                <span class="text-slate-400">Unidade:</span>
+                <span class="ml-2 font-medium text-slate-200">{{ $pedido->unidade->nome }}</span>
             </div>
             <div>
-                <span class="text-gray-500">Emitido em:</span>
-                <span class="ml-2">{{ $pedido->emitido_em?->format('d/m/Y') }}</span>
+                <span class="text-slate-400">Emitido em:</span>
+                <span class="ml-2 text-slate-300">{{ $pedido->emitido_em?->format('d/m/Y') }}</span>
             </div>
             @if($pedido->prazo_entrega)
             <div>
-                <span class="text-gray-500">Prazo de entrega:</span>
-                <span class="ml-2">{{ $pedido->prazo_entrega->format('d/m/Y') }}</span>
+                <span class="text-slate-400">Prazo de entrega:</span>
+                <span class="ml-2 text-slate-300">{{ $pedido->prazo_entrega->format('d/m/Y') }}</span>
             </div>
             @endif
             @if($pedido->modalidade_entrega)
             <div>
-                <span class="text-gray-500">Modalidade:</span>
-                <span class="ml-2">{{ $pedido->modalidade_entrega->label() }}</span>
+                <span class="text-slate-400">Modalidade:</span>
+                <span class="ml-2 text-slate-300">{{ $pedido->modalidade_entrega->label() }}</span>
             </div>
             @endif
         </div>
     </div>
 
     <form wire:submit="registrar">
-        <div class="bg-white border rounded-lg overflow-hidden mb-6">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Qtd. Pedida</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Já Recebido</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Receber Agora</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @foreach($pedido->itens as $item)
-                        @php
-                            $recebido = (float) ($jaRecebidoPorItem[$item->id] ?? 0);
-                            $saldo = (float) $item->quantidade - $recebido;
-                        @endphp
-                        <tr>
-                            <td class="px-4 py-3 text-sm">
-                                {{ $item->descricao }}
-                                @if($item->destino)
-                                    <span class="text-xs text-gray-400 block">{{ $item->destino }}</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-sm text-right">{{ number_format($item->quantidade, 3, ',', '.') }} {{ $item->unidade_medida }}</td>
-                            <td class="px-4 py-3 text-sm text-right">{{ number_format($recebido, 3, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-sm text-right {{ $saldo <= 0 ? 'text-green-600 font-medium' : '' }}">
-                                {{ $saldo <= 0 ? 'Completo' : number_format($saldo, 3, ',', '.') }}
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                @if($saldo > 0)
-                                    <input
-                                        type="number"
-                                        wire:model="quantidades.{{ $item->id }}"
-                                        step="0.001"
-                                        min="0"
-                                        max="{{ $saldo }}"
-                                        class="w-28 text-right border-gray-300 rounded shadow-sm text-sm"
-                                        placeholder="0,000"
-                                    />
-                                    @if($controlaLote[$item->id] ?? false)
-                                        <div class="mt-2 space-y-1">
-                                            <div class="text-[10px] text-gray-400 uppercase tracking-wide text-right">Lote / validade</div>
-                                            <input
-                                                type="text"
-                                                wire:model="lotes.{{ $item->id }}.numero_lote"
-                                                class="w-28 border-gray-300 rounded shadow-sm text-sm"
-                                                placeholder="Nº do lote"
-                                            />
-                                            <input
-                                                type="date"
-                                                wire:model="lotes.{{ $item->id }}.validade"
-                                                class="w-28 border-gray-300 rounded shadow-sm text-sm"
-                                            />
-                                            @error('lotes.'.$item->id.'.numero_lote')
-                                                <span class="block text-xs text-red-600 text-right">{{ $message }}</span>
-                                            @enderror
-                                        </div>
-                                    @endif
-                                @else
-                                    <span class="text-xs text-gray-400">—</span>
-                                @endif
-                            </td>
+        {{-- Tabela de itens --}}
+        <x-report-card padding="p-0" class="mb-6">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd. Pedida</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Já Recebido</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Saldo</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Receber Agora</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        @foreach($pedido->itens as $item)
+                            @php
+                                $recebido = (float) ($jaRecebidoPorItem[$item->id] ?? 0);
+                                $saldo = (float) $item->quantidade - $recebido;
+                            @endphp
+                            <tr class="transition-colors hover:bg-zinc-800/40">
+                                <td class="px-4 py-3 text-slate-200">
+                                    {{ $item->descricao }}
+                                    @if($item->destino)
+                                        <span class="block text-xs text-slate-500">{{ $item->destino }}</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right text-slate-300">{{ number_format($item->quantidade, 3, ',', '.') }} {{ $item->unidade_medida }}</td>
+                                <td class="px-4 py-3 text-right text-slate-300">{{ number_format($recebido, 3, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right {{ $saldo <= 0 ? 'font-medium text-emerald-400' : 'text-slate-300' }}">
+                                    {{ $saldo <= 0 ? 'Completo' : number_format($saldo, 3, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    @if($saldo > 0)
+                                        <input
+                                            type="number"
+                                            wire:model="quantidades.{{ $item->id }}"
+                                            step="0.001"
+                                            min="0"
+                                            max="{{ $saldo }}"
+                                            class="input-dark w-28 text-right"
+                                            placeholder="0,000"
+                                        />
+                                        @if($controlaLote[$item->id] ?? false)
+                                            <div class="mt-2 space-y-1">
+                                                <div class="text-right text-[10px] uppercase tracking-wide text-slate-500">Lote / validade</div>
+                                                <input
+                                                    type="text"
+                                                    wire:model="lotes.{{ $item->id }}.numero_lote"
+                                                    class="input-dark w-28"
+                                                    placeholder="Nº do lote"
+                                                />
+                                                <input
+                                                    type="date"
+                                                    wire:model="lotes.{{ $item->id }}.validade"
+                                                    class="input-dark w-28"
+                                                />
+                                                @error('lotes.'.$item->id.'.numero_lote')
+                                                    <p class="mt-1 text-right text-xs text-rose-400">{{ $message }}</p>
+                                                @enderror
+                                            </div>
+                                        @endif
+                                    @else
+                                        <span class="text-xs text-slate-500">—</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-report-card>
+
+        {{-- Observações --}}
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-slate-300 mb-1">Observações</label>
+            <textarea wire:model="observacoes" rows="3" class="input-dark w-full" placeholder="Opcional"></textarea>
         </div>
 
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
-            <textarea wire:model="observacoes" rows="3" class="w-full border-gray-300 rounded shadow-sm text-sm" placeholder="Opcional"></textarea>
-        </div>
-
+        {{-- Ações --}}
         <div class="flex justify-end gap-3">
-            <a href="{{ route('almoxarife.recebimentos.index') }}" class="px-4 py-2 border rounded hover:bg-gray-50">Cancelar</a>
-            <button type="submit" wire:loading.attr="disabled" class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+            <a href="{{ route('almoxarife.recebimentos.index') }}" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Cancelar</a>
+            <button type="submit" wire:loading.attr="disabled" class="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
                 Confirmar Recebimento
             </button>
         </div>
     </form>
 
+    {{-- Histórico de recebimentos --}}
     @if($pedido->recebimentos->isNotEmpty())
-    <div class="mt-8">
-        <h2 class="text-lg font-semibold mb-3">Histórico de Recebimentos</h2>
-        <div class="space-y-3">
-            @foreach($pedido->recebimentos as $rec)
-            <div class="bg-gray-50 border rounded p-3 text-sm">
-                <div class="flex justify-between mb-1">
-                    <span class="font-medium">{{ $rec->recebido_em->format('d/m/Y H:i') }}</span>
-                    <span class="text-gray-500">{{ $rec->almoxarife?->name }}</span>
+        <div class="mt-8">
+            <x-report-card title="Histórico de Recebimentos" icon="clock">
+                <div class="space-y-3">
+                    @foreach($pedido->recebimentos as $rec)
+                        <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+                            <div class="mb-2 flex justify-between">
+                                <span class="font-medium text-slate-200">{{ $rec->recebido_em->format('d/m/Y H:i') }}</span>
+                                <span class="text-slate-400">{{ $rec->almoxarife?->name }}</span>
+                            </div>
+                            @foreach($rec->itens as $itemRec)
+                                <div class="text-slate-300">{{ $itemRec->itemPedidoCompra?->descricao }}: {{ number_format($itemRec->quantidade_recebida, 3, ',', '.') }}</div>
+                            @endforeach
+                            @if($rec->observacoes)
+                                <div class="mt-1 italic text-slate-500">{{ $rec->observacoes }}</div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
-                @foreach($rec->itens as $itemRec)
-                    <div class="text-gray-600">{{ $itemRec->itemPedidoCompra?->descricao }}: {{ number_format($itemRec->quantidade_recebida, 3, ',', '.') }}</div>
-                @endforeach
-                @if($rec->observacoes)
-                    <div class="text-gray-500 mt-1 italic">{{ $rec->observacoes }}</div>
-                @endif
-            </div>
-            @endforeach
+            </x-report-card>
         </div>
-    </div>
     @endif
 </div>

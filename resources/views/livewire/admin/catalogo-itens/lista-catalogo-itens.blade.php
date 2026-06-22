@@ -1,125 +1,135 @@
-<div>
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-bold text-gray-800">Catálogo de Itens</h1>
-        <button wire:click="abrirCriar" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md">
-            Novo Item
-        </button>
-    </div>
+<div class="report-canvas">
+    <x-page-header title="Catálogo de Itens" icon="book" subtitle="Gerencie os itens disponíveis para requisição e seus parâmetros de controle." />
 
-    {{-- Filtros --}}
-    <div class="flex gap-3 mb-4">
-        <input
-            type="text"
-            wire:model.live.debounce.300ms="busca"
-            placeholder="Buscar por descrição ou código..."
-            class="border border-gray-300 rounded-md px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-        <select wire:model.live="filtroAtivo" class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Todos (ativo)</option>
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
-        </select>
-    </div>
+    <x-filter-bar>
+        <x-filter-bar.field label="Buscar" class="min-w-[220px] flex-1">
+            <input
+                type="text"
+                wire:model.live.debounce.300ms="busca"
+                placeholder="Buscar por descrição ou código..."
+                class="input-dark w-full"
+            />
+        </x-filter-bar.field>
+        <x-filter-bar.field label="Status">
+            <select wire:model.live="filtroAtivo" class="input-dark">
+                <option value="">Todos (ativo)</option>
+                <option value="1">Ativo</option>
+                <option value="0">Inativo</option>
+            </select>
+        </x-filter-bar.field>
+        <div class="flex items-end">
+            <button wire:click="abrirCriar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                Novo Item
+            </button>
+        </div>
+    </x-filter-bar>
 
-    {{-- Tabela --}}
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ativo</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lote</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse ($itens as $item)
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 text-sm text-gray-600 font-mono">{{ $item->codigo ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-900">{{ $item->descricao }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $item->unidade_medida ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $item->categoria ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $item->ativo ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
-                                {{ $item->ativo ? 'Sim' : 'Não' }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-sm">
-                            <button
-                                wire:click="alternarControleLote({{ $item->id }})"
-                                wire:confirm="{{ $item->controla_lote ? 'Desligar o controle de lote deste item?' : 'Ligar o controle de lote deste item?' }}"
-                                type="button"
-                                class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $item->controla_lote ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}"
-                            >
-                                {{ $item->controla_lote ? 'Controla lote' : 'Sem controle' }}
-                            </button>
-                            @error("controla_lote_{$item->id}")
-                                <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                        </td>
-                        <td class="px-4 py-3 text-right text-sm space-x-2">
-                            <button wire:click="abrirModalMinimos({{ $item->id }})" class="text-indigo-600 hover:text-indigo-800">Mínimos</button>
-                            <button wire:click="abrirEditar({{ $item->id }})" class="text-blue-600 hover:text-blue-800">Editar</button>
-                            <button wire:click="excluir({{ $item->id }})" wire:confirm="Confirma exclusão?" class="text-red-600 hover:text-red-800">Excluir</button>
-                        </td>
+    @error('excluir')
+        <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+            {{ $message }}
+        </div>
+    @enderror
+
+    <x-report-card padding="p-0">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Categoria</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Ativo</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Lote</th>
+                        <th class="px-4 py-2.5"></th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">Nenhum item de catálogo encontrado.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-        <div class="px-4 py-3 border-t border-gray-200">
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                    @forelse ($itens as $item)
+                        <tr class="transition-colors hover:bg-zinc-800/40">
+                            <td class="px-4 py-3 font-mono text-slate-300">{{ $item->codigo ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-300">{{ $item->descricao }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $item->unidade_medida ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $item->categoria ?? '—' }}</td>
+                            <td class="px-4 py-3">
+                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium {{ $item->ativo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-slate-500/15 text-slate-300' }}">
+                                    {{ $item->ativo ? 'Sim' : 'Não' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <button
+                                    wire:click="alternarControleLote({{ $item->id }})"
+                                    wire:confirm="{{ $item->controla_lote ? 'Desligar o controle de lote deste item?' : 'Ligar o controle de lote deste item?' }}"
+                                    type="button"
+                                    class="inline-flex rounded px-2 py-0.5 text-xs font-medium {{ $item->controla_lote ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25' : 'bg-slate-500/15 text-slate-300 hover:bg-slate-500/25' }} transition-colors"
+                                >
+                                    {{ $item->controla_lote ? 'Controla lote' : 'Sem controle' }}
+                                </button>
+                                @error("controla_lote_{$item->id}")
+                                    <p class="mt-1 text-xs text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </td>
+                            <td class="px-4 py-3 text-right space-x-2">
+                                <button wire:click="abrirModalMinimos({{ $item->id }})" class="text-emerald-400 hover:text-emerald-300 transition-colors">Mínimos</button>
+                                <button wire:click="abrirEditar({{ $item->id }})" class="text-emerald-400 hover:text-emerald-300 transition-colors">Editar</button>
+                                <button wire:click="excluir({{ $item->id }})" wire:confirm="Confirma exclusão?" class="text-rose-400 hover:text-rose-300 transition-colors">Excluir</button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-4 py-6 text-center text-sm text-slate-500">Nenhum item de catálogo encontrado.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="border-t border-zinc-800 px-4 py-3">
             {{ $itens->links() }}
         </div>
-    </div>
+    </x-report-card>
 
     {{-- Modal Criar/Editar --}}
     @if ($mostrarModal)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">{{ $editandoId ? 'Editar Item' : 'Novo Item' }}</h2>
+        <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
+                <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Item' : 'Novo Item' }}</h2>
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                        <input type="text" wire:model="descricao" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('descricao') border-red-500 @enderror">
-                        @error('descricao') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Descrição</label>
+                        <input type="text" wire:model="descricao" class="input-dark w-full @error('descricao') border-rose-500 @enderror">
+                        @error('descricao') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Código</label>
-                        <input type="text" wire:model="codigo" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 @error('codigo') border-red-500 @enderror">
-                        @error('codigo') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Código</label>
+                        <input type="text" wire:model="codigo" class="input-dark w-full @error('codigo') border-rose-500 @enderror">
+                        @error('codigo') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Unidade de Medida</label>
-                        <input type="text" wire:model="unidadeMedida" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Unidade de Medida</label>
+                        <input type="text" wire:model="unidadeMedida" class="input-dark w-full">
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                        <input type="text" wire:model="categoria" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Categoria</label>
+                        <input type="text" wire:model="categoria" class="input-dark w-full">
                     </div>
 
                     <div>
-                        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input type="checkbox" wire:model="ativo" class="rounded">
+                        <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" wire:model="ativo" class="rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500/40">
                             Ativo
                         </label>
                     </div>
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6">
-                    <button wire:click="$set('mostrarModal', false)" class="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 border border-gray-300 rounded-md">
+                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="salvar" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md">
+                    <button wire:click="salvar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
                         Salvar
                     </button>
                 </div>
@@ -128,46 +138,46 @@
     @endif
 
     {{-- Modal: Mínimos por Unidade --}}
-    @if($mostrarModalMinimos)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 overflow-y-auto max-h-[90vh]">
+    @if ($mostrarModalMinimos)
+        <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-2xl p-6 overflow-y-auto max-h-[90vh]">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-bold text-gray-800">Estoques Mínimos por Unidade</h2>
-                    <button wire:click="fecharModalMinimos" class="text-gray-400 hover:text-gray-600 text-xl font-bold leading-none">&times;</button>
+                    <h2 class="text-lg font-bold text-slate-100">Estoques Mínimos por Unidade</h2>
+                    <button wire:click="fecharModalMinimos" class="text-slate-400 hover:text-slate-200 text-xl font-bold leading-none transition-colors">&times;</button>
                 </div>
-                <p class="text-sm text-gray-500 mb-4">Item: <strong>{{ $minimoItemDescricao }}</strong></p>
+                <p class="text-sm text-slate-400 mb-4">Item: <strong class="text-slate-200">{{ $minimoItemDescricao }}</strong></p>
 
-                @if(empty($minimosPorUnidade))
-                    <p class="text-sm text-gray-400">Nenhuma unidade cadastrada.</p>
+                @if (empty($minimosPorUnidade))
+                    <p class="text-sm text-slate-500">Nenhuma unidade cadastrada.</p>
                 @else
                     <div class="space-y-2">
-                        @foreach($minimosPorUnidade as $idx => $minimo)
-                            <div class="flex items-center gap-3 py-2 border-b border-gray-100">
-                                <span class="flex-1 text-sm text-gray-700">{{ $minimo['nome'] }}</span>
+                        @foreach ($minimosPorUnidade as $idx => $minimo)
+                            <div class="flex items-center gap-3 py-2 border-b border-zinc-800">
+                                <span class="flex-1 text-sm text-slate-300">{{ $minimo['nome'] }}</span>
                                 <input
                                     wire:model="minimosPorUnidade.{{ $idx }}.quantidade_minima"
                                     type="number"
                                     min="0"
                                     step="0.001"
                                     placeholder="Qtd mínima (0 = sem mínimo)"
-                                    class="w-40 border border-gray-300 rounded-md px-2 py-1 text-sm"
+                                    class="input-dark w-40"
                                 />
                                 <button
                                     wire:click="salvarMinimoUnidade({{ $minimo['unidade_id'] }})"
-                                    class="px-3 py-1 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                                    class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
                                 >
                                     Salvar
                                 </button>
                             </div>
                             @error("minimo_{$minimo['unidade_id']}")
-                                <p class="text-xs text-red-600 mt-0.5">{{ $message }}</p>
+                                <p class="text-xs text-rose-400 mt-0.5">{{ $message }}</p>
                             @enderror
                         @endforeach
                     </div>
                 @endif
 
                 <div class="flex justify-end mt-6">
-                    <button wire:click="fecharModalMinimos" class="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">
+                    <button wire:click="fecharModalMinimos" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
                         Fechar
                     </button>
                 </div>

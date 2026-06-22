@@ -1,152 +1,170 @@
-<div class="p-6">
-    <h1 class="text-2xl font-bold mb-6">Saldos de Estoque</h1>
+<div class="report-canvas">
+    <x-page-header title="Saldos de Estoque" icon="cube" subtitle="Saldo atual por depósito nas unidades onde você é almoxarife." />
 
-    {{-- Painel: Itens a repor --}}
-    @if($itensARepor->isNotEmpty())
-        <div class="mb-6 bg-yellow-50 border border-yellow-300 rounded-lg p-4">
-            <h2 class="text-base font-semibold text-yellow-800 mb-3">Itens a repor</h2>
-            <table class="min-w-full text-sm">
-                <thead>
-                    <tr class="text-left text-xs text-yellow-700 uppercase">
-                        <th class="pb-1 pr-4">Item</th>
-                        <th class="pb-1 pr-4">Un. Medida</th>
-                        <th class="pb-1 pr-4 text-right">Mínimo</th>
-                        <th class="pb-1 pr-4 text-right">Saldo Atual</th>
-                        <th class="pb-1 text-right">A repor</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($itensARepor as $repor)
-                        <tr class="border-t border-yellow-200">
-                            <td class="py-1 pr-4 text-gray-800">{{ $repor->item_descricao }}</td>
-                            <td class="py-1 pr-4 text-gray-500">{{ $repor->unidade_medida ?? '—' }}</td>
-                            <td class="py-1 pr-4 text-right">{{ number_format((float) $repor->quantidade_minima, 3, ',', '.') }}</td>
-                            <td class="py-1 pr-4 text-right {{ (float) $repor->saldo_atual <= 0 ? 'text-red-600 font-medium' : 'text-gray-700' }}">
-                                {{ number_format((float) $repor->saldo_atual, 3, ',', '.') }}
-                            </td>
-                            <td class="py-1 text-right font-semibold text-yellow-800">
-                                {{ number_format((float) $repor->quantidade_sugerida, 3, ',', '.') }}
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+    {{-- Flash --}}
+    @if(session('notify'))
+        <div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+            {{ session('notify') }}
         </div>
     @endif
 
+    {{-- Painel: Itens a repor --}}
+    @if($itensARepor->isNotEmpty())
+        <x-report-card padding="p-0" class="mb-6">
+            <div class="px-4 py-3 border-b border-zinc-800">
+                <h2 class="text-sm font-semibold text-amber-400">Itens a repor</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Un. Medida</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Mínimo</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Saldo Atual</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">A repor</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        @foreach($itensARepor as $repor)
+                            <tr class="transition-colors hover:bg-zinc-800/40">
+                                <td class="px-4 py-3 text-slate-300">{{ $repor->item_descricao }}</td>
+                                <td class="px-4 py-3 text-slate-500">{{ $repor->unidade_medida ?? '—' }}</td>
+                                <td class="px-4 py-3 text-right text-slate-300">{{ number_format((float) $repor->quantidade_minima, 3, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right {{ (float) $repor->saldo_atual <= 0 ? 'font-medium text-rose-400' : 'text-slate-300' }}">
+                                    {{ number_format((float) $repor->saldo_atual, 3, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3 text-right font-semibold text-amber-400">
+                                    {{ number_format((float) $repor->quantidade_sugerida, 3, ',', '.') }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-report-card>
+    @endif
+
     {{-- Filtros --}}
-    <div class="flex gap-4 mb-6">
-        <div class="flex-1">
+    <x-filter-bar>
+        <x-filter-bar.field label="Buscar" class="min-w-[220px] flex-1">
             <input
                 wire:model.live.debounce.400ms="busca"
                 type="text"
                 placeholder="Buscar item..."
-                class="w-full border-gray-300 rounded shadow-sm text-sm"
+                class="input-dark w-full"
             />
-        </div>
-        <div>
-            <select wire:model.live="deposito" class="border-gray-300 rounded shadow-sm text-sm">
+        </x-filter-bar.field>
+        <x-filter-bar.field label="Depósito">
+            <select wire:model.live="deposito" class="input-dark">
                 <option value="">Todos os depósitos</option>
                 @foreach($depositos as $dep)
                     <option value="{{ $dep }}">{{ $dep }}</option>
                 @endforeach
             </select>
-        </div>
-    </div>
+        </x-filter-bar.field>
+    </x-filter-bar>
 
     @if($saldos->isEmpty())
-        <p class="text-gray-500">Nenhum saldo encontrado para os filtros selecionados.</p>
+        <x-empty-state
+            icon="cube"
+            title="Nenhum saldo encontrado"
+            message="Nenhum saldo encontrado para os filtros selecionados."
+        />
     @else
-        <div class="overflow-x-auto">
-            <table class="min-w-full bg-white border rounded-lg shadow-sm">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depósito</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Quantidade</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Validade</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">CMP</th>
-                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor Total</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    @foreach($saldos as $saldo)
-                        @php
-                            $emAlerta = $saldo->item_catalogo_id && in_array($saldo->item_catalogo_id, $idsEmAlerta);
-                            $linhaClass = (float) $saldo->quantidade <= 0 ? 'bg-red-50' : ($emAlerta ? 'bg-yellow-50' : '');
-                        @endphp
-                        <tr class="hover:bg-gray-50 {{ $linhaClass }}">
-                            <td class="px-4 py-3 text-sm">
-                                {{ $saldo->descricao_item }}
-                                @if($saldo->unidade_medida)
-                                    <span class="text-xs text-gray-400 ml-1">{{ $saldo->unidade_medida }}</span>
-                                @endif
-                                @if($emAlerta)
-                                    <span class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                        Abaixo do mínimo
-                                    </span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-sm text-gray-600">{{ $saldo->deposito }}</td>
-                            <td class="px-4 py-3 text-sm text-gray-600">{{ $saldo->unidade->nome }}</td>
-                            <td class="px-4 py-3 text-sm text-right {{ (float) $saldo->quantidade <= 0 ? 'text-red-600 font-medium' : '' }}">
-                                {{ number_format($saldo->quantidade, 3, ',', '.') }}
-                            </td>
-                            <td class="px-4 py-3 text-sm">
-                                @include('partials.validade-lote', ['v' => $validades->get($saldo->id)])
-                            </td>
-                            <td class="px-4 py-3 text-sm text-right">R$ {{ number_format($saldo->custo_medio_ponderado, 4, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-sm text-right font-medium">R$ {{ number_format($saldo->valor_total, 2, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-center space-x-2 whitespace-nowrap">
-                                @if($saldo->item_catalogo_id)
-                                    <button
-                                        wire:click="abrirModalMinimo({{ $saldo->id }})"
-                                        class="text-xs text-indigo-600 hover:underline"
-                                    >
-                                        Definir mínimo
-                                    </button>
-                                @endif
-                                @if((float) $saldo->quantidade > 0)
-                                    <button
-                                        wire:click="abrirTransferencia({{ $saldo->id }})"
-                                        class="text-xs text-blue-600 hover:underline"
-                                    >
-                                        Transferir
-                                    </button>
-                                @endif
-                            </td>
+        <x-report-card padding="p-0">
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Depósito</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Quantidade</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Validade</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">CMP</th>
+                            <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor Total</th>
+                            <th class="px-4 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Ações</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        <div class="mt-4">{{ $saldos->links() }}</div>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        @foreach($saldos as $saldo)
+                            @php
+                                $emAlerta = $saldo->item_catalogo_id && in_array($saldo->item_catalogo_id, $idsEmAlerta);
+                                $linhaClass = (float) $saldo->quantidade <= 0 ? 'bg-rose-500/5' : ($emAlerta ? 'bg-amber-500/5' : '');
+                            @endphp
+                            <tr class="transition-colors hover:bg-zinc-800/40 {{ $linhaClass }}">
+                                <td class="px-4 py-3 text-slate-300">
+                                    {{ $saldo->descricao_item }}
+                                    @if($saldo->unidade_medida)
+                                        <span class="ml-1 text-xs text-slate-500">{{ $saldo->unidade_medida }}</span>
+                                    @endif
+                                    @if($emAlerta)
+                                        <span class="ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-400">
+                                            Abaixo do mínimo
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-slate-400">{{ $saldo->deposito }}</td>
+                                <td class="px-4 py-3 text-slate-400">{{ $saldo->unidade->nome }}</td>
+                                <td class="px-4 py-3 text-right {{ (float) $saldo->quantidade <= 0 ? 'font-medium text-rose-400' : 'text-slate-300' }}">
+                                    {{ number_format($saldo->quantidade, 3, ',', '.') }}
+                                </td>
+                                <td class="px-4 py-3 text-slate-300">
+                                    @include('partials.validade-lote', ['v' => $validades->get($saldo->id)])
+                                </td>
+                                <td class="px-4 py-3 text-right text-slate-400">R$ {{ number_format($saldo->custo_medio_ponderado, 4, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-right font-medium text-slate-300">R$ {{ number_format($saldo->valor_total, 2, ',', '.') }}</td>
+                                <td class="px-4 py-3 text-center space-x-2 whitespace-nowrap">
+                                    @if($saldo->item_catalogo_id)
+                                        <button
+                                            wire:click="abrirModalMinimo({{ $saldo->id }})"
+                                            class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors"
+                                        >
+                                            Definir mínimo
+                                        </button>
+                                    @endif
+                                    @if((float) $saldo->quantidade > 0)
+                                        <button
+                                            wire:click="abrirTransferencia({{ $saldo->id }})"
+                                            class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 transition-colors"
+                                        >
+                                            Transferir
+                                        </button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 px-4 pb-4 border-t border-zinc-800 pt-3">
+                {{ $saldos->links() }}
+            </div>
+        </x-report-card>
     @endif
 
     {{-- Modal: Definir Estoque Mínimo --}}
     @if($mostrarModalMinimo)
-        <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h2 class="text-lg font-semibold mb-1">Definir Estoque Mínimo</h2>
-                <p class="text-sm text-gray-500 mb-4">{{ $minimoDescricaoItem }}</p>
+        <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+                <h2 class="text-lg font-bold text-slate-100 mb-1">Definir Estoque Mínimo</h2>
+                <p class="text-sm text-slate-400 mb-4">{{ $minimoDescricaoItem }}</p>
 
                 @if($errors->has('minimoQuantidade'))
-                    <div class="mb-3 text-sm text-red-600">{{ $errors->first('minimoQuantidade') }}</div>
+                    <div class="mb-3 text-sm text-rose-400">{{ $errors->first('minimoQuantidade') }}</div>
                 @endif
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Quantidade mínima <span class="text-gray-400 font-normal">(0 = remover)</span>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">
+                        Quantidade mínima <span class="text-slate-500 font-normal">(0 = remover)</span>
                     </label>
                     <input
                         wire:model="minimoQuantidade"
                         type="number"
                         min="0"
                         step="0.001"
-                        class="w-full border-gray-300 rounded shadow-sm text-sm"
+                        class="input-dark w-full"
                         placeholder="Ex.: 10"
                         autofocus
                     />
@@ -155,13 +173,13 @@
                 <div class="flex justify-end gap-3">
                     <button
                         wire:click="fecharModalMinimo"
-                        class="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200"
+                        class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         wire:click="salvarMinimo"
-                        class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
                     >
                         Salvar
                     </button>
@@ -172,37 +190,37 @@
 
     {{-- Modal: Transferência entre unidades --}}
     @if($transferindoSaldoId !== null)
-        <div class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                <h2 class="text-lg font-semibold mb-1">Transferir entre unidades</h2>
-                <p class="text-sm text-gray-500 mb-4">{{ $transferDescricaoItem }}</p>
+        <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+                <h2 class="text-lg font-bold text-slate-100 mb-1">Transferir entre unidades</h2>
+                <p class="text-sm text-slate-400 mb-4">{{ $transferDescricaoItem }}</p>
 
                 <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Unidade de destino</label>
-                    <select wire:model="transferDestinoId" class="w-full border-gray-300 rounded shadow-sm text-sm">
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Unidade de destino</label>
+                    <select wire:model="transferDestinoId" class="input-dark w-full">
                         <option value="">Selecione...</option>
                         @foreach($unidadesDestino as $u)
                             <option value="{{ $u->id }}">{{ $u->nome }}</option>
                         @endforeach
                     </select>
-                    @error('transferDestinoId') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    @error('transferDestinoId') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade</label>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Quantidade</label>
                     <input wire:model="transferQuantidade" type="number" min="0.001" step="0.001"
-                        class="w-full border-gray-300 rounded shadow-sm text-sm" placeholder="Ex.: 10" />
-                    @error('transferQuantidade') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        class="input-dark w-full" placeholder="Ex.: 10" />
+                    @error('transferQuantidade') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Motivo <span class="text-gray-400 font-normal">(opcional)</span></label>
-                    <textarea wire:model="transferMotivo" rows="2" class="w-full border-gray-300 rounded shadow-sm text-sm" placeholder="Ex.: realocação entre filiais"></textarea>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Motivo <span class="text-slate-500 font-normal">(opcional)</span></label>
+                    <textarea wire:model="transferMotivo" rows="2" class="input-dark w-full" placeholder="Ex.: realocação entre filiais"></textarea>
                 </div>
 
                 <div class="flex justify-end gap-3">
-                    <button wire:click="cancelarTransferencia" class="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Cancelar</button>
-                    <button wire:click="confirmarTransferencia" class="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Transferir</button>
+                    <button wire:click="cancelarTransferencia" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">Cancelar</button>
+                    <button wire:click="confirmarTransferencia" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">Transferir</button>
                 </div>
             </div>
         </div>

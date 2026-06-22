@@ -1,85 +1,85 @@
-<div>
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-xl font-bold text-gray-800">Reconciliação de Saldos</h1>
-    </div>
-
-    <p class="text-sm text-gray-600 mb-4">
-        Saldos de estoque ainda não vinculados a um item do catálogo. Confirme a sugestão sugerida ou busque manualmente o item correto.
-    </p>
+<div class="report-canvas">
+    <x-page-header title="Reconciliação de Saldos" icon="refresh" subtitle="Saldos de estoque ainda não vinculados a um item do catálogo. Confirme a sugestão ou busque manualmente o item correto." />
 
     @error('vinculo')
-        <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">{{ $message }}</div>
+        <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{{ $message }}</div>
     @enderror
 
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unidade</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Depósito</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sugestões</th>
-                    <th class="px-4 py-3"></th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                @forelse ($saldos as $saldo)
-                    <tr class="hover:bg-gray-50 align-top">
-                        <td class="px-4 py-3 text-sm text-gray-900">{{ $saldo->descricao_item }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $saldo->unidade->nome ?? '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-gray-600">{{ $saldo->deposito }}</td>
-                        <td class="px-4 py-3 text-sm">
-                            @forelse ($sugestoes[$saldo->id] ?? [] as $sugestao)
-                                <div class="flex items-center gap-2 mb-1">
-                                    <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium
-                                        {{ $sugestao['confianca'] === 'alta' ? 'bg-green-100 text-green-800' : ($sugestao['confianca'] === 'media' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600') }}">
-                                        {{ ucfirst($sugestao['confianca']) }} ({{ number_format($sugestao['score'] * 100, 0) }}%)
-                                    </span>
-                                    <span class="text-gray-700">{{ $sugestao['item']->descricao }}</span>
-                                    <button wire:click="vincular({{ $saldo->id }}, {{ $sugestao['item']->id }})" class="text-blue-600 hover:text-blue-800 text-xs">Confirmar</button>
-                                </div>
-                            @empty
-                                <span class="text-xs text-gray-400">Nenhuma sugestão encontrada.</span>
-                            @endforelse
-                        </td>
-                        <td class="px-4 py-3 text-right text-sm">
-                            <button wire:click="abrirVinculoManual({{ $saldo->id }})" class="text-blue-600 hover:text-blue-800">Buscar manualmente</button>
-                        </td>
+    <x-report-card padding="p-0">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Depósito</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Sugestões</th>
+                        <th class="px-4 py-2.5"></th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">Nenhum saldo pendente de reconciliação.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-        <div class="px-4 py-3 border-t border-gray-200">
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                    @forelse ($saldos as $saldo)
+                        <tr class="align-top transition-colors hover:bg-zinc-800/40">
+                            <td class="px-4 py-3 text-slate-300">{{ $saldo->descricao_item }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $saldo->unidade->nome ?? '—' }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $saldo->deposito }}</td>
+                            <td class="px-4 py-3">
+                                @forelse ($sugestoes[$saldo->id] ?? [] as $sugestao)
+                                    <div class="mb-1 flex items-center gap-2">
+                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium
+                                            {{ $sugestao['confianca'] === 'alta' ? 'bg-emerald-500/15 text-emerald-400' : ($sugestao['confianca'] === 'media' ? 'bg-amber-500/15 text-amber-400' : 'bg-zinc-700/60 text-slate-400') }}">
+                                            {{ ucfirst($sugestao['confianca']) }} ({{ number_format($sugestao['score'] * 100, 0) }}%)
+                                        </span>
+                                        <span class="text-slate-300">{{ $sugestao['item']->descricao }}</span>
+                                        <button wire:click="vincular({{ $saldo->id }}, {{ $sugestao['item']->id }})" class="text-xs text-emerald-400 hover:text-emerald-300">Confirmar</button>
+                                    </div>
+                                @empty
+                                    <span class="text-xs text-slate-500">Nenhuma sugestão encontrada.</span>
+                                @endforelse
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <button wire:click="abrirVinculoManual({{ $saldo->id }})" class="text-xs text-emerald-400 hover:text-emerald-300">Buscar manualmente</button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">Nenhum saldo pendente de reconciliação.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="border-t border-zinc-800 px-4 pb-4 pt-3">
             {{ $saldos->links() }}
         </div>
-    </div>
+    </x-report-card>
 
     {{-- Modal de busca manual --}}
     @if ($saldoSelecionadoId)
-        <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
-                <h2 class="text-lg font-bold text-gray-800 mb-4">Buscar Item de Catálogo</h2>
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div class="w-full max-w-lg rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-slate-100 shadow-xl">
+                <h2 class="mb-4 text-lg font-bold text-slate-100">Buscar Item de Catálogo</h2>
 
-                <input type="text" wire:model.live.debounce.300ms="buscaManual" placeholder="Buscar por descrição ou código..."
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input
+                    type="text"
+                    wire:model.live.debounce.300ms="buscaManual"
+                    placeholder="Buscar por descrição ou código..."
+                    class="mb-4 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-600"
+                />
 
-                <div class="space-y-2 max-h-80 overflow-y-auto">
+                <div class="max-h-80 space-y-2 overflow-y-auto">
                     @forelse ($itensBuscaManual as $item)
-                        <div class="flex items-center justify-between border border-gray-200 rounded-md px-3 py-2">
-                            <span class="text-sm text-gray-700">{{ $item->codigo ? $item->codigo.' — ' : '' }}{{ $item->descricao }}</span>
-                            <button wire:click="vincular({{ $saldoSelecionadoId }}, {{ $item->id }})" class="text-blue-600 hover:text-blue-800 text-sm">Vincular</button>
+                        <div class="flex items-center justify-between rounded-lg border border-zinc-700 bg-zinc-800/60 px-3 py-2">
+                            <span class="text-sm text-slate-300">{{ $item->codigo ? $item->codigo.' — ' : '' }}{{ $item->descricao }}</span>
+                            <button wire:click="vincular({{ $saldoSelecionadoId }}, {{ $item->id }})" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500">Vincular</button>
                         </div>
                     @empty
-                        <p class="text-sm text-gray-400">Digite para buscar itens do catálogo.</p>
+                        <p class="text-sm text-slate-500">Digite para buscar itens do catálogo.</p>
                     @endforelse
                 </div>
 
-                <div class="flex justify-end mt-4">
-                    <button wire:click="fecharVinculoManual" class="text-sm text-gray-600 hover:text-gray-800 px-4 py-2 border border-gray-300 rounded-md">
+                <div class="mt-4 flex justify-end">
+                    <button wire:click="fecharVinculoManual" class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700">
                         Fechar
                     </button>
                 </div>
