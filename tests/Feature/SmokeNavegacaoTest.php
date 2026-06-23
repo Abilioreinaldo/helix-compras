@@ -44,6 +44,7 @@ it('abre todas as telas principais sem erro 500', function () {
         ['/aprovacoes', $diretor],
         ['/almoxarife/recebimentos', $almox],
         ['/almoxarife/estoque', $almox],
+        ['/almoxarife/mapa-estoque', $almox],
         ['/almoxarife/atendimento-material', $almox],
         ['/almoxarife/inventario', $almox],
         ['/solicitante/requisicoes-material', $solic],

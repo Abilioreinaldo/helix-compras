@@ -66,6 +66,7 @@ class MenuLateral extends Component
                 $grupos['Estoque'] = [
                     $this->item('Recebimentos', 'almoxarife.recebimentos.index', 'package'),
                     $this->item('Estoque', 'almoxarife.estoque.index', 'cube'),
+                    $this->item('Mapa de Estoque', 'almoxarife.mapa-estoque', 'layers'),
                     $this->item('Atendimento de Material', 'almoxarife.rim.index', 'hand'),
                     $this->item('Inventário', 'almoxarife.inventario.index', 'clipboard'),
                 ];

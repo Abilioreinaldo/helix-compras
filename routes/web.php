@@ -14,6 +14,7 @@ use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Livewire\Almoxarife\AtendimentoRequisicoesMaterial;
 use App\Livewire\Almoxarife\GestaoPedidosRecebimento;
 use App\Livewire\Almoxarife\Inventario;
+use App\Livewire\Almoxarife\MapaEstoque;
 use App\Livewire\Almoxarife\RegistroRecebimento;
 use App\Livewire\Almoxarife\SaldosEstoque;
 use App\Livewire\Aprovacoes\FilaAprovacoes;
@@ -100,6 +101,7 @@ Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
 
     // Fase 7 — Estoque (Almoxarife)
     Route::get('/almoxarife/estoque', SaldosEstoque::class)->name('almoxarife.estoque.index');
+    Route::get('/almoxarife/mapa-estoque', MapaEstoque::class)->name('almoxarife.mapa-estoque');
 
     // v1.1-C — RIM (Requisição Interna de Material)
     Route::get('/solicitante/requisicoes-material', RequisicoesMaterial::class)->name('solicitante.rim.index');
