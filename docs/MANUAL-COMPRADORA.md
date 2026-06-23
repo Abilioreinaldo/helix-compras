@@ -16,9 +16,11 @@
    - 3.5 [Pedido de Compra](#35-pedido-de-compra)
    - 3.6 [Recebimento](#36-recebimento)
 4. [Enviar Cotação por E-mail (sugestão automática)](#4-enviar-cotação-por-e-mail-sugestão-automática)
-5. [Dicas & atalhos para acelerar o trabalho](#5-dicas--atalhos-para-acelerar-o-trabalho)
-6. [FAQ — 15 perguntas comuns](#6-faq--15-perguntas-comuns)
-7. [Quem contatar se algo der errado](#7-quem-contatar-se-algo-der-errado)
+5. [Financeiro — Contas a Pagar](#5-financeiro--contas-a-pagar-perfil-financeiro)
+6. [Mapa de Estoque](#6-mapa-de-estoque-perfil-almoxarife)
+7. [Dicas & atalhos para acelerar o trabalho](#7-dicas--atalhos-para-acelerar-o-trabalho)
+8. [FAQ — 15 perguntas comuns](#8-faq--15-perguntas-comuns)
+9. [Quem contatar se algo der errado](#9-quem-contatar-se-algo-der-errado)
 
 ---
 
@@ -233,6 +235,32 @@ A cotação é onde a compradora busca preços com fornecedores e escolhe o melh
 
 > Para os 50 sacos de cimento (total estimado R$ 1.625), a compradora consulta 3 fornecedores. A **Construfácil Ltda** oferece R$ 32,50/saco com entrega em 3 dias — a melhor proposta. Ela marca como vencedora e conclui a cotação.
 
+#### Preço por item (cotação detalhada)
+
+Quando a requisição tem vários itens, você pode cotar **preço por item** para cada fornecedor — o **total** da cotação é a soma de `preço unitário × quantidade` de cada linha, calculado pelo sistema. Regras úteis:
+
+- Itens com preço **zerado ou em branco** são ignorados naquela cotação (não entram no total).
+- Para confirmar a cotação, ao menos um item precisa ter preço válido (> 0).
+- O fornecedor precisa estar **homologado e ativo** para aparecer na lista.
+
+#### Mapa de Cotação (comparativo)
+
+No botão **Mapa comparativo** (dentro da cotação) você vê uma **matriz Item × Fornecedor**:
+
+```
+┌──────────────────┬──────┬───────────┬───────────┬───────────┬─────────┐
+│ Item             │ Qtd  │ Fornec. A │ Fornec. B │ Fornec. C │ Melhor  │
+├──────────────────┼──────┼───────────┼───────────┼───────────┼─────────┤
+│ Cimento CP-II    │ 50   │ ⭐ 32,50  │   34,00   │   33,20   │ Fornec.A│
+│ Areia média m³   │ 10   │   90,00   │ ⭐ 85,00  │   88,00   │ Fornec.B│
+├──────────────────┴──────┼───────────┼───────────┼───────────┼─────────┤
+│ TOTAL                   │  1.625    │ 💚 1.560  │   1.610   │         │
+└─────────────────────────┴───────────┴───────────┴───────────┴─────────┘
+```
+
+- ⭐ marca o **menor preço de cada item**; 💚 marca o **menor total**.
+- Use o mapa para decidir e clicar em **Selecionar** na coluna do fornecedor vencedor (precisa ter valor confirmado).
+
 ---
 
 ### 3.4 Aprovação
@@ -445,7 +473,48 @@ A cada 5 minutos, o sistema verifica as respostas recebidas. Quando identifica o
 
 ---
 
-## 5. Dicas & atalhos para acelerar o trabalho
+## 5. Financeiro — Contas a Pagar (perfil Financeiro)
+
+> Acesso: perfil **Financeiro** (ou Admin). Menu **Financeiro › Pagamentos** (`/pagamentos`).
+
+#### O que é
+
+Quando um **Pedido de Compra é emitido**, o sistema cria automaticamente a **conta a pagar** correspondente: status **Pendente**, vencimento em **30 dias** após a emissão e valor igual ao total do pedido. O Financeiro acompanha, paga e concilia essas contas.
+
+#### Tela de Pagamentos
+
+- **Cards de totais:** a pagar, pago no mês, vencido e agendado.
+- **Filtros:** status, fornecedor, banco e vencimento.
+- **Lista:** NF, fornecedor, vencimento, valor, pago e status (Pendente / Agendado / Pago / Parcial / Vencido / Cancelado).
+
+#### Ações
+
+1. **Registrar pagamento:** informe valor pago, data (não pode ser futura), método (Boleto/Transferência/Cartão/Cheque/Dinheiro), banco e referência. Regras: o valor não pode passar do **total devido + 10%** (tolerância de juros/multa); **cheque exige o número**; pagamento integral marca **Pago**, parcial marca **Parcial**. Total devido = valor − desconto + juros + multa.
+2. **Agendar:** marque uma data futura (ou hoje) — vira **Agendado**. A aba **Agendamentos** lista os próximos 30 dias e **exporta um CSV** para o banco.
+3. **Cancelar:** exige motivo; mantém o histórico (não apaga). Não dá para cancelar um pagamento já pago.
+
+#### Reconciliação bancária
+
+Em **Financeiro › Reconciliação** você sobe o **extrato do banco em CSV** (`documento ; valor ; data ; descrição`). O sistema casa cada linha pela **referência bancária** do pagamento: casou → **conciliado**; não casou → **órfão**. O mesmo arquivo não é processado duas vezes.
+
+---
+
+## 6. Mapa de Estoque (perfil Almoxarife)
+
+> Acesso: perfil **Almoxarife** (ou Admin). Menu **Estoque › Mapa de Estoque** (`/almoxarife/mapa-estoque`).
+
+Visão visual da **posição de estoque** por item, lote, validade e unidade, com **status** colorido:
+
+- 🔴 **Crítico** — sem saldo (zero).
+- ⚠️ **Vencido** — há lote vivo com validade anterior a hoje.
+- 📉 **Baixo** — saldo abaixo do estoque mínimo configurado.
+- ✅ **OK** — tudo certo.
+
+Tem **cards de totais** (itens, abaixo do mínimo, vencidos, críticos) e **filtros** por item, unidade, número de lote e "apenas vencidos". Use para priorizar reposição e dar baixa em lotes vencendo (lembrando que vencido **alerta** mas não impede a saída — a saída segue a regra **FEFO**, vence primeiro sai primeiro).
+
+---
+
+## 7. Dicas & atalhos para acelerar o trabalho
 
 - **Itens a Repor** — acesse `/compradora/itens-a-repor` para ver automaticamente quais produtos do estoque estão abaixo do ponto de reposição. Ótimo para antecipar compras antes de receber requisições.
 
@@ -469,7 +538,7 @@ A cada 5 minutos, o sistema verifica as respostas recebidas. Quando identifica o
 
 ---
 
-## 6. FAQ — 15 perguntas comuns
+## 8. FAQ — 15 perguntas comuns
 
 | # | Pergunta | Resposta |
 |---|----------|----------|
@@ -491,7 +560,7 @@ A cada 5 minutos, o sistema verifica as respostas recebidas. Quando identifica o
 
 ---
 
-## 7. Quem contatar se algo der errado
+## 9. Quem contatar se algo der errado
 
 Se você encontrar um erro no sistema, uma tela que não carrega, um comportamento inesperado ou uma dúvida que não está neste manual:
 

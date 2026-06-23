@@ -172,6 +172,20 @@ php artisan migrate --force
 
 > Se a ordem for invertida num banco com duplicatas, o MySQL retorna erro 1062 (Duplicate entry) e o deploy trava. Consulte o RUNBOOK-GO-LIVE.md, seção 3b, para o detalhe completo.
 
+#### Índices únicos parciais driver-aware
+
+Três índices únicos são **parciais** (só valem para a linha "viva") e por isso têm dois caminhos no código de migration — SQLite usa `WHERE`, MySQL usa **coluna gerada `STORED`** + UNIQUE nela:
+
+- `saldos_estoque_catalogo_unique` (1 saldo por catálogo/unidade/depósito);
+- `lotes_estoque_saldo_lote_unique` (1 lote vivo por número/saldo);
+- `pagamentos_pedido_ativo_unique` (**1 pagamento ativo por pedido** — módulo Financeiro, ponto cego **A7** do PLANO.md).
+
+As três migrations rodam automaticamente em instalação nova. Validação em MySQL: após `migrate`, `SHOW INDEX FROM pagamentos` deve listar `pagamentos_pedido_ativo_unique`; tentar inserir 2 pagamentos ativos para o mesmo `pedido_compra_id` deve falhar (erro 1062).
+
+#### Módulo Financeiro (Contas a Pagar) — schema
+
+Tabelas novas: `bancos`, `pagamentos` (com `deleted_at` + o índice A7 acima), `reconciliacoes_bancarias` (`arquivo_hash` único, evita reprocessar extrato) e `itens_reconciliacao`. Coluna `is_financeiro` em `users` (perfil global Financeiro). Não requer `.env` adicional. O pagamento nasce ao emitir o Pedido de Compra (vencimento +30 dias).
+
 ---
 
 ## 3. Variáveis de Ambiente
