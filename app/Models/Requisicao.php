@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'solicitante_id',
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'status',
     'urgente',
     'is_emergencial',
+    'expressa',
     'justificativa',
     'atrasada',
     'faixa_alcada_id',
@@ -64,6 +66,7 @@ class Requisicao extends Model
             'status' => StatusRequisicao::class,
             'urgente' => 'boolean',
             'is_emergencial' => 'boolean',
+            'expressa' => 'boolean',
             'atrasada' => 'boolean',
             'escalada_verba' => 'boolean',
             'consumo_verba_no_submit' => 'decimal:2',
@@ -171,5 +174,50 @@ class Requisicao extends Model
         return (float) $this->itens->sum(
             fn (ItemRequisicao $item) => ($item->quantidade ?? 0) * ($item->valor_unitario_estimado ?? 0)
         );
+    }
+
+    /**
+     * Avalia se a requisição é elegível à via expressa: todos os itens são de
+     * catálogo com preço homologado válido na data e todos resolvem ao MESMO
+     * fornecedor (invariante de "uma cotação vencedora por requisição").
+     *
+     * Retorna o fornecedor escolhido e o mapa item_id => PrecoHomologado, ou
+     * null se inelegível (item avulso, sem homologação válida ou fornecedores
+     * diferentes — neste caso a requisição segue o fluxo normal de cotação).
+     *
+     * @return array{fornecedor_id: int, precos: array<int, PrecoHomologado>}|null
+     */
+    public function avaliarViaExpressa(?Carbon $data = null): ?array
+    {
+        $itens = $this->itens()->with('catalogoItem')->get();
+
+        if ($itens->isEmpty()) {
+            return null;
+        }
+
+        $precos = [];
+        $fornecedorId = null;
+
+        foreach ($itens as $item) {
+            if (! $item->item_catalogo_id) {
+                return null;
+            }
+
+            $homologado = $item->catalogoItem?->precoHomologadoValido($data);
+
+            if (! $homologado) {
+                return null;
+            }
+
+            if ($fornecedorId === null) {
+                $fornecedorId = $homologado->fornecedor_id;
+            } elseif ($fornecedorId !== $homologado->fornecedor_id) {
+                return null;
+            }
+
+            $precos[$item->id] = $homologado;
+        }
+
+        return ['fornecedor_id' => $fornecedorId, 'precos' => $precos];
     }
 }

@@ -75,9 +75,15 @@ class SubmeterRequisicaoAction
 
             $codigo = 'REQ-'.now()->year.'-'.str_pad((string) $requisicao->id, 6, '0', STR_PAD_LEFT);
 
+            // Via expressa: todos os itens catalogados com preço homologado válido
+            // do mesmo fornecedor → dispensa cotação ad-hoc (a aprovação por alçada
+            // permanece). A elegibilidade é reavaliada no momento de atender.
+            $expressa = $requisicao->avaliarViaExpressa() !== null;
+
             $requisicao->update([
                 'codigo' => $codigo,
                 'faixa_alcada_id' => $faixa->id,
+                'expressa' => $expressa,
                 'consumo_verba_no_submit' => $alerta['consumo_verba_no_submit'] ?? null,
                 'escalada_verba' => $alerta['escalada_verba'] ?? false,
                 'status' => StatusRequisicao::AguardandoTriagem,

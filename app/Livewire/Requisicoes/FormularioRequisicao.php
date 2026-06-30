@@ -119,11 +119,13 @@ class FormularioRequisicao extends Component
             $catalogoItem = CatalogoItem::where('ativo', true)->find($itemCatalogoId);
 
             if ($catalogoItem) {
+                $homologado = $catalogoItem->precoHomologadoValido();
+
                 return [[
                     'descricao' => $catalogoItem->descricao,
                     'quantidade' => (string) max(1.0, $quantidadeSugerida),
                     'unidade_medida' => $catalogoItem->unidade_medida ?? 'un',
-                    'valor_unitario_estimado' => '',
+                    'valor_unitario_estimado' => $homologado ? (string) $homologado->preco : '',
                     'item_catalogo_id' => $catalogoItem->id,
                     'avulso' => false,
                 ]];
@@ -173,6 +175,50 @@ class FormularioRequisicao extends Component
         $this->itens[$indice]['avulso'] = false;
         $this->itens[$indice]['descricao'] = $catalogoItem->descricao;
         $this->itens[$indice]['unidade_medida'] = $catalogoItem->unidade_medida ?? $this->itens[$indice]['unidade_medida'];
+
+        // Autofill do preço estimado a partir do preço homologado válido (se houver).
+        $homologado = $catalogoItem->precoHomologadoValido();
+        if ($homologado) {
+            $this->itens[$indice]['valor_unitario_estimado'] = (string) $homologado->preco;
+        }
+
+        $this->recalcularVerba();
+    }
+
+    /**
+     * Pré-visualização (na tela, antes de submeter) de que a requisição seguirá
+     * pela via expressa: todos os itens atuais são de catálogo com preço
+     * homologado válido do mesmo fornecedor. Espelha Requisicao::avaliarViaExpressa.
+     */
+    public function previewExpressa(): bool
+    {
+        if (empty($this->itens)) {
+            return false;
+        }
+
+        $fornecedorId = null;
+
+        foreach ($this->itens as $item) {
+            $catalogoId = $item['item_catalogo_id'] ?? null;
+
+            if (($item['avulso'] ?? true) || ! $catalogoId) {
+                return false;
+            }
+
+            $homologado = CatalogoItem::find($catalogoId)?->precoHomologadoValido();
+
+            if (! $homologado) {
+                return false;
+            }
+
+            if ($fornecedorId === null) {
+                $fornecedorId = $homologado->fornecedor_id;
+            } elseif ($fornecedorId !== $homologado->fornecedor_id) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function updatedItens(): void

@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 Schedule::command('requisicoes:marcar-atrasadas')->hourly();
 Schedule::command('aprovacoes:lembrar-pendentes')->dailyAt('08:00');
 Schedule::command('cotacoes:capturar-respostas')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('precos:expirar-homologacoes')->dailyAt('00:30');

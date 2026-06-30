@@ -7,9 +7,12 @@ use App\Actions\LigarControleLoteAction;
 use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
+use App\Models\Fornecedor;
+use App\Models\PrecoHomologado;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -50,6 +53,24 @@ class ListaCatalogoItens extends Component
      * @var array<int, array{unidade_id: int, nome: string, quantidade_minima: string}>
      */
     public array $minimosPorUnidade = [];
+
+    // ─── Modal: preços homologados ───────────────────────────────────────────
+
+    public bool $mostrarModalHomologacoes = false;
+
+    public ?int $homologacaoItemId = null;
+
+    public string $homologacaoItemDescricao = '';
+
+    public string $novoFornecedorId = '';
+
+    public string $novoPreco = '';
+
+    public string $novaValidadeInicio = '';
+
+    public string $novaValidadeFim = '';
+
+    public bool $novoPreferencial = false;
 
     public function mount(): void
     {
@@ -234,6 +255,121 @@ class ListaCatalogoItens extends Component
             : 'Estoque mínimo salvo com sucesso.';
 
         $this->dispatch('notify', mensagem: $mensagem);
+    }
+
+    // ─── Modal preços homologados ─────────────────────────────────────────────
+
+    public function abrirModalHomologacoes(int $itemId): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+
+        $item = CatalogoItem::findOrFail($itemId);
+        $this->homologacaoItemId = $item->id;
+        $this->homologacaoItemDescricao = $item->descricao;
+        $this->resetCampoHomologacao();
+        $this->resetValidation();
+        $this->mostrarModalHomologacoes = true;
+    }
+
+    public function fecharModalHomologacoes(): void
+    {
+        $this->mostrarModalHomologacoes = false;
+        $this->homologacaoItemId = null;
+        $this->homologacaoItemDescricao = '';
+        $this->resetCampoHomologacao();
+        $this->resetValidation();
+    }
+
+    private function resetCampoHomologacao(): void
+    {
+        $this->novoFornecedorId = '';
+        $this->novoPreco = '';
+        $this->novaValidadeInicio = now()->toDateString();
+        $this->novaValidadeFim = now()->addDays(90)->toDateString();
+        $this->novoPreferencial = false;
+    }
+
+    /**
+     * Homologações do item em edição, com fornecedor, mais recentes primeiro.
+     *
+     * @return Collection<int, PrecoHomologado>
+     */
+    public function homologacoesDoItem(): Collection
+    {
+        if (! $this->homologacaoItemId) {
+            return new Collection;
+        }
+
+        return PrecoHomologado::with('fornecedor')
+            ->where('item_catalogo_id', $this->homologacaoItemId)
+            ->orderByDesc('preferencial')
+            ->orderBy('validade_fim')
+            ->get();
+    }
+
+    /**
+     * Fornecedores elegíveis a homologação: qualificados (homologados) e ativos.
+     *
+     * @return Collection<int, Fornecedor>
+     */
+    public function fornecedoresDisponiveis(): Collection
+    {
+        return Fornecedor::where('homologado', true)
+            ->where('ativo', true)
+            ->orderBy('razao_social')
+            ->get();
+    }
+
+    public function adicionarHomologacao(): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+
+        if (! $this->homologacaoItemId) {
+            return;
+        }
+
+        $validado = $this->validate([
+            'novoFornecedorId' => ['required', Rule::exists('fornecedores', 'id')->where('homologado', true)->where('ativo', true)],
+            'novoPreco' => 'required|numeric|gt:0',
+            'novaValidadeInicio' => 'required|date',
+            'novaValidadeFim' => 'required|date|after_or_equal:novaValidadeInicio',
+            'novoPreferencial' => 'boolean',
+        ], [
+            'novoFornecedorId.required' => 'Selecione um fornecedor.',
+            'novoFornecedorId.exists' => 'Fornecedor inválido (precisa estar homologado e ativo).',
+            'novoPreco.gt' => 'O preço deve ser maior que zero.',
+            'novaValidadeFim.after_or_equal' => 'O fim da validade deve ser igual ou posterior ao início.',
+        ]);
+
+        // Apenas uma homologação preferencial por item — desmarca as demais.
+        if ($this->novoPreferencial) {
+            PrecoHomologado::where('item_catalogo_id', $this->homologacaoItemId)
+                ->update(['preferencial' => false]);
+        }
+
+        PrecoHomologado::create([
+            'item_catalogo_id' => $this->homologacaoItemId,
+            'fornecedor_id' => (int) $validado['novoFornecedorId'],
+            'preco' => $validado['novoPreco'],
+            'preferencial' => $this->novoPreferencial,
+            'validade_inicio' => $validado['novaValidadeInicio'],
+            'validade_fim' => $validado['novaValidadeFim'],
+            'ativo' => true,
+        ]);
+
+        $this->resetCampoHomologacao();
+        $this->dispatch('notify', mensagem: 'Preço homologado adicionado.');
+    }
+
+    public function removerHomologacao(int $id): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+
+        $homologacao = PrecoHomologado::where('item_catalogo_id', $this->homologacaoItemId)
+            ->findOrFail($id);
+        $homologacao->delete();
+
+        $this->dispatch('notify', mensagem: 'Preço homologado removido.');
     }
 
     public function render(): View

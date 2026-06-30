@@ -7,6 +7,12 @@
         </div>
     @endif
 
+    @if($erroExpressa)
+        <div class="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 mb-4">
+            {{ $erroExpressa }}
+        </div>
+    @endif
+
     <x-report-card padding="p-0">
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
@@ -23,11 +29,13 @@
                 </thead>
                 <tbody class="divide-y divide-zinc-800">
                     @forelse ($requisicoes as $req)
+                        @php($expressa = $this->podeAtenderExpressa($req))
                         <tr class="transition-colors hover:bg-zinc-800/40 {{ $req->atrasada ? 'bg-rose-500/5' : '' }}">
                             <td class="px-4 py-3 font-mono text-slate-300">
                                 {{ $req->codigo }}
                                 @if ($req->atrasada) <span class="ml-1 text-xs font-semibold text-rose-400">⚠ Atrasada</span> @endif
                                 @if ($req->is_emergencial) <span class="ml-1 inline-flex rounded px-1.5 py-0.5 text-xs bg-rose-500/15 text-rose-400">Emergencial</span> @endif
+                                @if ($expressa) <span class="ml-1 inline-flex rounded px-1.5 py-0.5 text-xs font-medium bg-sky-500/15 text-sky-400" title="Todos os itens têm preço homologado — dispensa cotação">⚡ Expressa</span> @endif
                             </td>
                             <td class="px-4 py-3 text-slate-300">{{ $req->solicitante->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-slate-400">{{ $req->unidade->nome ?? '—' }}</td>
@@ -54,6 +62,15 @@
                                 @if ($req->status->value === 'em_triagem')
                                     <button wire:click="enviarParaCotacao({{ $req->id }})" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 transition-colors">Cotação</button>
                                     <button wire:click="abrirDevolucao({{ $req->id }})" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition-colors">Devolver</button>
+                                @endif
+                                @if ($expressa)
+                                    <button
+                                        wire:click="atenderViaExpressa({{ $req->id }})"
+                                        wire:confirm="Atender pela via expressa? Será gerada a cotação a partir dos preços homologados e a requisição segue direto para aprovação."
+                                        class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 transition-colors"
+                                    >
+                                        ⚡ Via Expressa
+                                    </button>
                                 @endif
                                 @if ($this->todosItensTemSaldo($req))
                                     <button

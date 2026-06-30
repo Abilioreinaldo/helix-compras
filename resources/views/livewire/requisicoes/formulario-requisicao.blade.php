@@ -86,6 +86,11 @@
     {{-- Card: Itens da Requisição --}}
     <x-report-card title="Itens da Requisição">
         <div class="space-y-4">
+            @if ($this->previewExpressa())
+                <div class="rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-300">
+                    ⚡ <strong>Via expressa:</strong> todos os itens têm preço homologado — esta requisição dispensa a cotação e segue direto para aprovação após a triagem.
+                </div>
+            @endif
             {{-- Sec P2-02: busca server-side — filtra até 50 itens do catálogo sem carregar tudo --}}
             <div class="flex items-center justify-between gap-4">
                 <div class="flex-1 max-w-sm">

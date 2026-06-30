@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrigemCotacao;
 use App\Models\Concerns\Auditavel;
 use Database\Factories\CotacaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
     'requisicao_id',
+    'origem',
     'fornecedor_id',
     'valor',
     'prazo_entrega_dias',
@@ -46,6 +48,7 @@ class Cotacao extends Model
     protected function casts(): array
     {
         return [
+            'origem' => OrigemCotacao::class,
             'valor' => 'decimal:2',
             'vencedora' => 'boolean',
             'prazo_entrega_dias' => 'integer',

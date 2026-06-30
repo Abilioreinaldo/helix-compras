@@ -28,7 +28,11 @@ class ConcluirCotacaoAction
             // (valor null, criadas ao solicitar por e-mail) não contam até a compradora confirmar.
             $confirmadas = $cotacoes->whereNotNull('valor');
 
-            $minimoNecessario = $requisicao->is_emergencial ? 1 : ($requisicao->faixaAlcada?->minimo_cotacoes ?? 3);
+            // Via expressa e emergencial bastam 1 cotação (o preço homologado é a
+            // evidência de preço); demais faixas exigem o mínimo configurado.
+            $minimoNecessario = ($requisicao->expressa || $requisicao->is_emergencial)
+                ? 1
+                : ($requisicao->faixaAlcada?->minimo_cotacoes ?? 3);
 
             if ($confirmadas->count() < $minimoNecessario) {
                 throw ValidationException::withMessages([

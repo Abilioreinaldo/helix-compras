@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Compradora;
 
+use App\Actions\AtenderViaExpressaAction;
 use App\Actions\SaidaEstoqueAction;
 use App\Actions\TransicionarStatusRequisicaoAction;
 use App\Enums\Perfil;
@@ -24,6 +25,8 @@ class TriagemRequisicoes extends Component
     public ?int $devolvendo = null;
 
     public string $erroAtendimentoEstoque = '';
+
+    public string $erroExpressa = '';
 
     public function mount(): void
     {
@@ -171,6 +174,31 @@ class TriagemRequisicoes extends Component
         } catch (ValidationException $e) {
             $this->erroAtendimentoEstoque = collect($e->errors())->flatten()->first()
                 ?? 'Erro ao atender do estoque.';
+        }
+    }
+
+    /**
+     * Indica se a requisição é elegível à via expressa (todos os itens com preço
+     * homologado válido do mesmo fornecedor). Habilita o atendimento em 1 clique.
+     */
+    public function podeAtenderExpressa(Requisicao $requisicao): bool
+    {
+        return $requisicao->avaliarViaExpressa() !== null;
+    }
+
+    public function atenderViaExpressa(int $id): void
+    {
+        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+
+        $this->erroExpressa = '';
+        $requisicao = Requisicao::withoutGlobalScopes()->with('itens')->findOrFail($id);
+
+        try {
+            app(AtenderViaExpressaAction::class)->execute($requisicao, auth()->user());
+            $this->dispatch('notify', mensagem: "Requisição #{$requisicao->id} atendida via expressa — enviada para aprovação.");
+        } catch (ValidationException $e) {
+            $this->erroExpressa = collect($e->errors())->flatten()->first()
+                ?? 'Erro ao atender pela via expressa.';
         }
     }
 
