@@ -1,0 +1,11 @@
+{
+    "version": "0.0.1",
+    "configurations": [
+        {
+            "name": "compras",
+            "runtimeExecutable": "cmd",
+            "runtimeArgs": ["/c", "cd /d C:\\dev\\comendador-compras&& set PHP_CLI_SERVER_WORKERS=8&& php artisan serve --host=127.0.0.1 --port=8125"],
+            "port": 8125
+        }
+    ]
+}

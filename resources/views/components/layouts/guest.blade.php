@@ -3,7 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ config('app.name', 'Comendador Compras') }}</title>
+    <title>{{ config('app.name') === 'Laravel' ? 'HELIX Compras' : config('app.name', 'HELIX Compras') }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('brand/helix-symbol-gradient.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>

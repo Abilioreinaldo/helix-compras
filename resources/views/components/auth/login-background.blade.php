@@ -25,10 +25,10 @@
             <stop offset="100%" stop-color="rgba(59,130,246,0)" />
         </radialGradient>
 
-        {{-- Glow neon cyan (accent) --}}
+        {{-- Glow neon violeta (accent HELIX) --}}
         <radialGradient id="lb-glow-cyan" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="rgba(6,182,212,0.32)" />
-            <stop offset="100%" stop-color="rgba(6,182,212,0)" />
+            <stop offset="0%" stop-color="rgba(168,85,247,0.32)" />
+            <stop offset="100%" stop-color="rgba(168,85,247,0)" />
         </radialGradient>
 
         {{-- Padrão de grade neon sutil --}}
@@ -51,12 +51,12 @@
     {{-- Linhas neon diagonais --}}
     <g stroke-width="1.5" fill="none">
         <line x1="0" y1="160" x2="1200" y2="620" stroke="rgba(59,130,246,0.15)" />
-        <line x1="1200" y1="60" x2="0" y2="740" stroke="rgba(6,182,212,0.13)" />
+        <line x1="1200" y1="60" x2="0" y2="740" stroke="rgba(168,85,247,0.13)" />
     </g>
 
     {{-- Anéis neon (contornos) --}}
     <g fill="none">
-        <circle cx="980" cy="180" r="90" stroke="rgba(6,182,212,0.2)" stroke-width="1.5" />
+        <circle cx="980" cy="180" r="90" stroke="rgba(168,85,247,0.2)" stroke-width="1.5" />
         <circle cx="220" cy="640" r="64" stroke="rgba(59,130,246,0.2)" stroke-width="1.5" />
         <rect x="60" y="120" width="200" height="200" rx="16" stroke="rgba(59,130,246,0.12)" stroke-width="1" />
     </g>
