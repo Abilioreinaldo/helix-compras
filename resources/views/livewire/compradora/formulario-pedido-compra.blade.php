@@ -49,7 +49,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
                         <th class="px-4 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500 w-20">Qtd</th>
                         <th class="px-4 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500 w-16">Un</th>
@@ -58,9 +58,9 @@
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Destino</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @foreach($itens as $index => $item)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 text-slate-200">{{ $item['descricao'] }}</td>
                             <td class="px-4 py-3 text-center text-slate-300">{{ $item['quantidade'] }}</td>
                             <td class="px-4 py-3 text-center text-slate-500">{{ $item['unidade_medida'] }}</td>
@@ -93,29 +93,29 @@
     </x-report-card>
 
     <div class="flex flex-wrap gap-3 pt-2">
-        <button wire:click="salvar" class="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-slate-200 border border-zinc-700 hover:bg-zinc-700">
+        <button wire:click="salvar" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700">
             Salvar Rascunho
         </button>
-        <button wire:click="emitir" wire:confirm="Emitir o pedido? Esta ação é irreversível." class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500">
+        <button wire:click="emitir" wire:confirm="Emitir o pedido? Esta ação é irreversível." class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">
             Emitir Pedido
         </button>
-        <button wire:click="$set('mostrarModalCancelar', true)" class="rounded-lg px-4 py-2 text-sm font-medium text-rose-400 hover:text-rose-300 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700">
+        <button wire:click="$set('mostrarModalCancelar', true)" class="rounded-lg px-4 py-2 text-sm font-medium text-rose-400 hover:text-rose-300 border border-slate-700 bg-slate-800 hover:bg-slate-700">
             Cancelar PC
         </button>
-        <a href="{{ route('compradora.pedidos.index') }}" class="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-slate-200 border border-zinc-700 hover:bg-zinc-700">
+        <a href="{{ route('compradora.pedidos.index') }}" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700">
             Voltar
         </a>
     </div>
 
     @if($mostrarModalCancelar)
         <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-            <div class="rounded-lg border border-zinc-800 bg-zinc-900 p-6 w-full max-w-md shadow-xl">
+            <div class="rounded-lg border border-slate-800 bg-slate-900 p-6 w-full max-w-md shadow-xl">
                 <h3 class="text-lg font-semibold text-slate-100 mb-4">Cancelar Pedido de Compra</h3>
                 <label class="block text-sm font-medium text-slate-300 mb-1">Motivo do cancelamento</label>
                 <textarea wire:model="motivoCancelamento" rows="3" placeholder="Motivo do cancelamento..." class="input-dark w-full mb-4"></textarea>
                 @error('cancelamento') <p class="mt-1 text-sm text-rose-400 mb-2">{{ $message }}</p> @enderror
                 <div class="flex gap-2 justify-end">
-                    <button wire:click="$set('mostrarModalCancelar', false)" class="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-slate-200 border border-zinc-700 hover:bg-zinc-700">
+                    <button wire:click="$set('mostrarModalCancelar', false)" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 border border-slate-700 hover:bg-slate-700">
                         Fechar
                     </button>
                     <button wire:click="cancelar" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500">

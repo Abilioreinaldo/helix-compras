@@ -27,7 +27,7 @@
     @if ($podeAprovar && $etapaAtual)
         <div class="mb-6 flex gap-3">
             <button wire:click="$set('mostrarModalAprovar', true)"
-                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                 Aprovar
             </button>
             <button wire:click="$set('mostrarModalReprovar', true)"
@@ -68,7 +68,7 @@
 
         <x-report-card title="Cotações">
             @forelse ($requisicao->cotacoes->whereNull('deleted_at') as $cotacao)
-                <div class="flex items-center justify-between border-b border-zinc-800 py-1.5 text-sm last:border-0">
+                <div class="flex items-center justify-between border-b border-slate-800 py-1.5 text-sm last:border-0">
                     <span class="text-slate-300">{{ $cotacao->fornecedor?->nome_fantasia ?? '—' }}</span>
                     <span class="text-slate-200">
                         R$ {{ number_format($cotacao->valor, 2, ',', '.') }}
@@ -88,7 +88,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Ciclo / Ordem</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Nível</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
@@ -97,9 +97,9 @@
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Data</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @forelse ($historico as $etapa)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 text-slate-400">
                                 {{ $etapa->ciclo }} / {{ $etapa->ordem }}
                             </td>
@@ -142,7 +142,7 @@
     {{-- Voltar --}}
     <div class="mt-6">
         <a href="{{ route('aprovacoes.fila') }}"
-            class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+            class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
             &larr; Voltar à fila
         </a>
     </div>
@@ -150,7 +150,7 @@
     {{-- Modal Aprovar --}}
     @if ($mostrarModalAprovar)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div class="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+            <div class="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
                 <h3 class="mb-4 text-lg font-semibold text-slate-100">Confirmar aprovação</h3>
                 <div class="mb-4">
                     <label class="mb-1 block text-sm font-medium text-slate-300">Comentário (opcional)</label>
@@ -161,11 +161,11 @@
                 </div>
                 <div class="flex justify-end gap-3">
                     <button wire:click="$set('mostrarModalAprovar', false)"
-                        class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                        class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
                     <button wire:click="aprovar"
-                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Confirmar aprovação
                     </button>
                 </div>
@@ -176,7 +176,7 @@
     {{-- Modal Reprovar --}}
     @if ($mostrarModalReprovar)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div class="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+            <div class="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
                 <h3 class="mb-4 text-lg font-semibold text-slate-100">Reprovar requisição</h3>
                 <div class="mb-4">
                     <label class="mb-1 block text-sm font-medium text-slate-300">Justificativa <span class="text-rose-400">*</span></label>
@@ -187,7 +187,7 @@
                 </div>
                 <div class="flex justify-end gap-3">
                     <button wire:click="$set('mostrarModalReprovar', false)"
-                        class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                        class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
                     <button wire:click="reprovar"

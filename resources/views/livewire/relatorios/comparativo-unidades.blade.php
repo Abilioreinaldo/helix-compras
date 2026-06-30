@@ -60,7 +60,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Nº Requisições</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Nº Pedidos</th>
@@ -69,9 +69,9 @@
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">% do Total</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($resultados as $linha)
-                            <tr class="hover:bg-zinc-800/30">
+                            <tr class="hover:bg-slate-800/30">
                                 <td class="px-3 py-2.5 font-medium text-slate-200">{{ $linha->unidade_nome }}</td>
                                 <td class="px-3 py-2.5 text-right text-slate-300">{{ $linha->total_requisicoes }}</td>
                                 <td class="px-3 py-2.5 text-right text-slate-300">{{ $linha->total_pedidos }}</td>
@@ -94,7 +94,7 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr class="border-t border-zinc-700 bg-zinc-950/60">
+                        <tr class="border-t border-slate-700 bg-slate-950/60">
                             <td colspan="3" class="px-3 py-2.5 text-sm font-semibold text-slate-300">Total</td>
                             <td class="px-3 py-2.5 text-right text-sm font-bold text-emerald-400">R$ {{ number_format($totalGeral, 2, ',', '.') }}</td>
                             <td></td>

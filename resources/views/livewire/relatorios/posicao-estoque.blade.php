@@ -16,7 +16,7 @@
         </x-filter-bar.field>
         <x-filter-bar.field label="Filtro">
             <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                <input type="checkbox" wire:model.live="somenteAlerta" class="rounded border-zinc-600 bg-zinc-800 text-amber-500 focus:ring-amber-500/40">
+                <input type="checkbox" wire:model.live="somenteAlerta" class="rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500/40">
                 Somente em alerta
             </label>
         </x-filter-bar.field>
@@ -54,7 +54,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Depósito</th>
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
@@ -65,7 +65,7 @@
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor Total</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($posicao as $linha)
                             <tr class="{{ $linha->em_alerta ? 'bg-amber-500/5' : '' }}">
                                 <td class="px-3 py-2.5 text-slate-300">{{ $linha->unidade_nome }}</td>
@@ -93,7 +93,7 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr class="border-t border-zinc-700 bg-zinc-950/40">
+                        <tr class="border-t border-slate-700 bg-slate-950/40">
                             <td colspan="7" class="px-3 py-2.5 text-sm font-semibold text-slate-300">
                                 Total
                                 @if($totalEmAlerta > 0)

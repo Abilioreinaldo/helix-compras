@@ -24,11 +24,11 @@
             <div class="flex-1">
                 <label class="mb-1 block text-sm font-medium text-slate-300">Arquivo CSV (documento ; valor ; data ; descrição)</label>
                 <input type="file" wire:model="arquivo" accept=".csv,.txt"
-                    class="block w-full text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-slate-200 hover:file:bg-zinc-700">
+                    class="block w-full text-sm text-slate-400 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-slate-200 hover:file:bg-slate-700">
                 <div wire:loading wire:target="arquivo" class="mt-1 text-xs text-slate-400">Enviando...</div>
                 @error('arquivo')<p class="mt-1 text-sm text-rose-400">{{ $message }}</p>@enderror
             </div>
-            <button wire:click="processar" wire:loading.attr="disabled" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500">Processar</button>
+            <button wire:click="processar" wire:loading.attr="disabled" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">Processar</button>
         </div>
     </x-report-card>
 
@@ -43,7 +43,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Documento</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Data</th>
@@ -51,9 +51,9 @@
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach ($reconciliacao->itens as $item)
-                            <tr class="hover:bg-zinc-800/40">
+                            <tr class="hover:bg-slate-800/40">
                                 <td class="px-4 py-3 text-slate-300">{{ $item->numero_documento }}</td>
                                 <td class="px-4 py-3 text-right text-slate-300">R$ {{ number_format((float) $item->valor, 2, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-slate-400">{{ $item->data_transacao?->format('d/m/Y') ?? '—' }}</td>

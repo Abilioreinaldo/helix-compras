@@ -34,7 +34,7 @@
         </x-filter-bar.field>
         <x-filter-bar.field label="&nbsp;">
             <label class="flex items-center gap-2 py-2 text-sm text-slate-300">
-                <input type="checkbox" wire:model.live="apenasVencidos" class="h-4 w-4 rounded border-zinc-600 bg-zinc-800 text-rose-500 focus:ring-rose-500/40">
+                <input type="checkbox" wire:model.live="apenasVencidos" class="h-4 w-4 rounded border-slate-600 bg-slate-800 text-rose-500 focus:ring-rose-500/40">
                 Apenas vencidos
             </label>
         </x-filter-bar.field>
@@ -47,7 +47,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Lote</th>
@@ -57,7 +57,7 @@
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Ações</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach ($linhas as $linha)
                             @php
                                 [$rotulo, $emoji, $cor] = match ($linha->status) {
@@ -68,7 +68,7 @@
                                 };
                                 $venceu = $linha->status === 'vencido';
                             @endphp
-                            <tr class="transition-colors hover:bg-zinc-800/40">
+                            <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3">
                                     <span class="text-slate-200">{{ $linha->descricao_item }}</span>
                                     @if ($linha->unidade_medida)<span class="ml-1 text-xs text-slate-500">({{ $linha->unidade_medida }})</span>@endif
@@ -91,14 +91,14 @@
                                 </td>
                                 <td class="px-4 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $cor }}">{{ $emoji }} {{ $rotulo }}</span></td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('almoxarife.estoque.index') }}" class="text-xs font-medium text-emerald-400 hover:text-emerald-300">Estoque</a>
+                                    <a href="{{ route('almoxarife.estoque.index') }}" class="text-xs font-medium text-blue-400 hover:text-blue-300">Estoque</a>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="border-t border-zinc-800 px-4 py-3">{{ $linhas->links() }}</div>
+            <div class="border-t border-slate-800 px-4 py-3">{{ $linhas->links() }}</div>
         </x-report-card>
     @endif
 </div>

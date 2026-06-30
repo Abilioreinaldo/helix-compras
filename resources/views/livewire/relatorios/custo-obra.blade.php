@@ -29,7 +29,7 @@
         <div class="space-y-6">
             @foreach($curvas as $curva)
                 <x-report-card padding="p-0">
-                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-5 py-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-5 py-4">
                         <h2 class="text-base font-semibold text-white">{{ $curva['obra_nome'] }}</h2>
                         <div class="flex items-center gap-3 text-sm">
                             @if($curva['verba'] !== null)
@@ -48,7 +48,7 @@
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead>
-                                <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                                <tr class="border-b border-slate-800 bg-slate-950/40">
                                     <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Métrica</th>
                                     @foreach($mesesAbrev as $abrev)
                                         <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">{{ $abrev }}</th>
@@ -56,7 +56,7 @@
                                     <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Total</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-zinc-800">
+                            <tbody class="divide-y divide-slate-800">
                                 <tr>
                                     <td class="px-3 py-2.5 font-medium text-slate-300">Mensal</td>
                                     @foreach(range(1, 12) as $m)
@@ -68,7 +68,7 @@
                                         R$ {{ number_format($curva['total_ano'], 2, ',', '.') }}
                                     </td>
                                 </tr>
-                                <tr class="bg-zinc-950/40">
+                                <tr class="bg-slate-950/40">
                                     <td class="px-3 py-2.5 font-medium text-slate-300">Acumulado</td>
                                     @foreach(range(1, 12) as $m)
                                         <td class="px-3 py-2.5 text-right {{ $curva['acumulado'][$m] > 0 ? 'text-emerald-400' : 'text-slate-600' }}">

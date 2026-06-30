@@ -9,7 +9,7 @@
 
     <x-page-header title="Agendamentos" icon="clock" subtitle="Pagamentos com vencimento nos próximos 30 dias.">
         <x-slot:actions>
-            <button wire:click="exportar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500">Exportar para o banco (CSV)</button>
+            <button wire:click="exportar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">Exportar para o banco (CSV)</button>
         </x-slot:actions>
     </x-page-header>
 
@@ -20,17 +20,17 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Vencimento</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Fornecedor</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Status</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">A pagar</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach ($pagamentos as $pag)
                             @php $venceu = $pag->ehVencido(); @endphp
-                            <tr class="hover:bg-zinc-800/40">
+                            <tr class="hover:bg-slate-800/40">
                                 <td class="px-4 py-3 {{ $venceu ? 'font-medium text-rose-400' : 'text-slate-300' }}">
                                     {{ $pag->data_vencimento?->format('d/m/Y') }}
                                     <span class="block text-xs text-slate-500">{{ $pag->diasAteVencimento() >= 0 ? 'em '.$pag->diasAteVencimento().' dia(s)' : 'vencido' }}</span>

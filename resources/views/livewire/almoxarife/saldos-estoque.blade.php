@@ -11,13 +11,13 @@
     {{-- Painel: Itens a repor --}}
     @if($itensARepor->isNotEmpty())
         <x-report-card padding="p-0" class="mb-6">
-            <div class="px-4 py-3 border-b border-zinc-800">
+            <div class="px-4 py-3 border-b border-slate-800">
                 <h2 class="text-sm font-semibold text-amber-400">Itens a repor</h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Un. Medida</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Mínimo</th>
@@ -25,9 +25,9 @@
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">A repor</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($itensARepor as $repor)
-                            <tr class="transition-colors hover:bg-zinc-800/40">
+                            <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3 text-slate-300">{{ $repor->item_descricao }}</td>
                                 <td class="px-4 py-3 text-slate-500">{{ $repor->unidade_medida ?? '—' }}</td>
                                 <td class="px-4 py-3 text-right text-slate-300">{{ number_format((float) $repor->quantidade_minima, 3, ',', '.') }}</td>
@@ -76,7 +76,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Depósito</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
@@ -87,13 +87,13 @@
                             <th class="px-4 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Ações</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($saldos as $saldo)
                             @php
                                 $emAlerta = $saldo->item_catalogo_id && in_array($saldo->item_catalogo_id, $idsEmAlerta);
                                 $linhaClass = (float) $saldo->quantidade <= 0 ? 'bg-rose-500/5' : ($emAlerta ? 'bg-amber-500/5' : '');
                             @endphp
-                            <tr class="transition-colors hover:bg-zinc-800/40 {{ $linhaClass }}">
+                            <tr class="transition-colors hover:bg-slate-800/40 {{ $linhaClass }}">
                                 <td class="px-4 py-3 text-slate-300">
                                     {{ $saldo->descricao_item }}
                                     @if($saldo->unidade_medida)
@@ -119,7 +119,7 @@
                                     @if($saldo->item_catalogo_id)
                                         <button
                                             wire:click="abrirModalMinimo({{ $saldo->id }})"
-                                            class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors"
+                                            class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors"
                                         >
                                             Definir mínimo
                                         </button>
@@ -127,7 +127,7 @@
                                     @if((float) $saldo->quantidade > 0)
                                         <button
                                             wire:click="abrirTransferencia({{ $saldo->id }})"
-                                            class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 transition-colors"
+                                            class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 transition-colors"
                                         >
                                             Transferir
                                         </button>
@@ -138,7 +138,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4 px-4 pb-4 border-t border-zinc-800 pt-3">
+            <div class="mt-4 px-4 pb-4 border-t border-slate-800 pt-3">
                 {{ $saldos->links() }}
             </div>
         </x-report-card>
@@ -147,7 +147,7 @@
     {{-- Modal: Definir Estoque Mínimo --}}
     @if($mostrarModalMinimo)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
                 <h2 class="text-lg font-bold text-slate-100 mb-1">Definir Estoque Mínimo</h2>
                 <p class="text-sm text-slate-400 mb-4">{{ $minimoDescricaoItem }}</p>
 
@@ -173,13 +173,13 @@
                 <div class="flex justify-end gap-3">
                     <button
                         wire:click="fecharModalMinimo"
-                        class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors"
+                        class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         wire:click="salvarMinimo"
-                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
                     >
                         Salvar
                     </button>
@@ -191,7 +191,7 @@
     {{-- Modal: Transferência entre unidades --}}
     @if($transferindoSaldoId !== null)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
                 <h2 class="text-lg font-bold text-slate-100 mb-1">Transferir entre unidades</h2>
                 <p class="text-sm text-slate-400 mb-4">{{ $transferDescricaoItem }}</p>
 
@@ -219,8 +219,8 @@
                 </div>
 
                 <div class="flex justify-end gap-3">
-                    <button wire:click="cancelarTransferencia" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">Cancelar</button>
-                    <button wire:click="confirmarTransferencia" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">Transferir</button>
+                    <button wire:click="cancelarTransferencia" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">Cancelar</button>
+                    <button wire:click="confirmarTransferencia" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">Transferir</button>
                 </div>
             </div>
         </div>

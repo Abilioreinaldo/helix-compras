@@ -24,7 +24,7 @@
                                 <span class="text-slate-300">{{ $linha['label'] }}</span>
                                 <span class="font-semibold text-white">{{ $linha['total'] }}</span>
                             </div>
-                            <div class="h-2 overflow-hidden rounded-full bg-zinc-800">
+                            <div class="h-2 overflow-hidden rounded-full bg-slate-800">
                                 <div class="h-full rounded-full bg-emerald-500/70" style="width: {{ max(4, (int) round($linha['total'] / $pipelineMax * 100)) }}%"></div>
                             </div>
                         </div>
@@ -39,7 +39,7 @@
                     <x-empty-state icon="document" title="Sem atividade ainda" message="As requisições mais recentes vão aparecer nesta lista." />
                 </div>
             @else
-                <ul class="divide-y divide-zinc-800">
+                <ul class="divide-y divide-slate-800">
                     @foreach($recentes as $req)
                         @php
                             $cor = match($req->status->value) {

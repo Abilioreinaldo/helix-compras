@@ -38,16 +38,16 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Período</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor da Central</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Unidades</th>
                             <th class="px-3 py-2.5"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @forelse($rateios as $rateio)
-                            <tr class="hover:bg-zinc-800/30 transition-colors">
+                            <tr class="hover:bg-slate-800/30 transition-colors">
                                 <td class="px-3 py-2.5 font-medium text-slate-300">
                                     {{ str_pad($rateio->mes, 2, '0', STR_PAD_LEFT) }}/{{ $rateio->ano }}
                                 </td>
@@ -60,7 +60,7 @@
                                 <td class="px-3 py-2.5 text-right">
                                     <button
                                         wire:click="toggleExpandir({{ $rateio->id }})"
-                                        class="rounded px-2.5 py-1 text-xs font-medium transition-colors {{ $expandidoId === $rateio->id ? 'bg-zinc-700 text-slate-200 hover:bg-zinc-600' : 'bg-zinc-800 text-slate-400 hover:bg-zinc-700 hover:text-slate-200' }}"
+                                        class="rounded px-2.5 py-1 text-xs font-medium transition-colors {{ $expandidoId === $rateio->id ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200' }}"
                                     >
                                         {{ $expandidoId === $rateio->id ? 'Recolher' : 'Detalhar' }}
                                     </button>
@@ -69,11 +69,11 @@
 
                             @if($expandidoId === $rateio->id)
                                 <tr>
-                                    <td colspan="4" class="bg-zinc-900/60 px-4 py-4">
-                                        <div class="overflow-x-auto rounded-md border border-zinc-800">
+                                    <td colspan="4" class="bg-slate-900/60 px-4 py-4">
+                                        <div class="overflow-x-auto rounded-md border border-slate-800">
                                             <table class="min-w-full text-sm">
                                                 <thead>
-                                                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                                                    <tr class="border-b border-slate-800 bg-slate-950/40">
                                                         <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
                                                         <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">% Consumo</th>
                                                         <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor Rateado</th>
@@ -83,12 +83,12 @@
                                                         @endif
                                                     </tr>
                                                 </thead>
-                                                <tbody class="divide-y divide-zinc-800">
+                                                <tbody class="divide-y divide-slate-800">
                                                     @foreach($rateio->unidades as $linha)
                                                         @php
                                                             $revertido = $linha->movimentacoes->contains('tipo', \App\Enums\TipoMovimentacao::DescontoRateio);
                                                         @endphp
-                                                        <tr class="hover:bg-zinc-800/30 transition-colors">
+                                                        <tr class="hover:bg-slate-800/30 transition-colors">
                                                             <td class="px-3 py-2.5 text-slate-300">{{ $linha->unidade->nome ?? '—' }}</td>
                                                             <td class="px-3 py-2.5 text-right text-emerald-400">
                                                                 {{ number_format((float) $linha->percentual_consumo * 100, 2, ',', '.') }}%
@@ -98,7 +98,7 @@
                                                             </td>
                                                             <td class="px-3 py-2.5 text-center">
                                                                 @if($revertido)
-                                                                    <span class="inline-flex items-center rounded-full bg-zinc-700/60 px-2.5 py-0.5 text-xs font-medium text-zinc-300">Revertido</span>
+                                                                    <span class="inline-flex items-center rounded-full bg-slate-700/60 px-2.5 py-0.5 text-xs font-medium text-slate-300">Revertido</span>
                                                                 @else
                                                                     <span class="inline-flex items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Ativo</span>
                                                                 @endif
@@ -137,7 +137,7 @@
     {{-- Modal de reversão --}}
     @if($revertendoItemId !== null)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-            <div class="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-2xl">
+            <div class="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
                 <h2 class="mb-1 text-base font-semibold text-white">Reverter Rateio</h2>
                 <p class="mb-4 text-sm text-slate-400">Será gerado um crédito (Desconto de Rateio) no valor rateado desta unidade.</p>
 
@@ -155,7 +155,7 @@
                 <div class="mt-5 flex justify-end gap-3">
                     <button
                         wire:click="cancelarReversao"
-                        class="rounded-md border border-zinc-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-zinc-800 hover:text-white"
+                        class="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-slate-800 hover:text-white"
                     >
                         Cancelar
                     </button>

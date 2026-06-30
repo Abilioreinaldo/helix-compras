@@ -19,7 +19,7 @@
             </select>
         </x-filter-bar.field>
         <div class="flex items-end">
-            <button wire:click="abrirCriar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+            <button wire:click="abrirCriar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                 Novo Centro de Custo
             </button>
         </div>
@@ -29,7 +29,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Nome</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
@@ -38,9 +38,9 @@
                         <th class="px-4 py-2.5"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @forelse ($centros as $centro)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 font-mono text-slate-300">{{ $centro->codigo }}</td>
                             <td class="px-4 py-3 text-slate-300">{{ $centro->nome }}</td>
                             <td class="px-4 py-3 text-slate-400">{{ $centro->unidade?->nome ?? '—' }}</td>
@@ -51,7 +51,7 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
-                                <button wire:click="abrirEditar({{ $centro->id }})" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Editar</button>
+                                <button wire:click="abrirEditar({{ $centro->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
                                 <button wire:click="excluir({{ $centro->id }})" wire:confirm="Confirma exclusão?" class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500 transition-colors">Excluir</button>
                             </td>
                         </tr>
@@ -63,7 +63,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="px-4 py-3 border-t border-zinc-800">
+        <div class="px-4 py-3 border-t border-slate-800">
             {{ $centros->links() }}
         </div>
     </x-report-card>
@@ -71,7 +71,7 @@
     {{-- Modal Criar/Editar --}}
     @if ($mostrarModal)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
                 <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Centro de Custo' : 'Novo Centro de Custo' }}</h2>
 
                 <div class="space-y-4">
@@ -110,17 +110,17 @@
 
                     <div>
                         <label class="flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" wire:model="ativo" class="rounded border-zinc-700 bg-zinc-800">
+                            <input type="checkbox" wire:model="ativo" class="rounded border-slate-700 bg-slate-800">
                             Ativo
                         </label>
                     </div>
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6">
-                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="salvar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                    <button wire:click="salvar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Salvar
                     </button>
                 </div>

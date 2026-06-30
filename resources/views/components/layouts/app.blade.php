@@ -8,7 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-full bg-slate-100 font-sans text-slate-900 antialiased">
+<body class="h-full bg-slate-950 font-sans text-slate-100 antialiased">
 
 @php
     $usuario = auth()->user();
@@ -80,7 +80,7 @@
         </header>
 
         {{-- Área de conteúdo --}}
-        <main class="flex-1 overflow-y-auto bg-slate-100 p-6">
+        <main class="flex-1 overflow-y-auto bg-slate-950 p-6">
             {{ $slot }}
         </main>
 

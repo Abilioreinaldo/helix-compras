@@ -9,7 +9,7 @@
 
     @if(!$sessaoAtiva && !$mostrarFormAbrir)
         <div class="mb-6 flex justify-end">
-            <button wire:click="abrirFormAbrir" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+            <button wire:click="abrirFormAbrir" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                 Iniciar Inventário
             </button>
         </div>
@@ -31,10 +31,10 @@
                     />
                 </div>
                 <div class="flex gap-3">
-                    <button wire:click="abrirSessao" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                    <button wire:click="abrirSessao" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Abrir Sessão
                     </button>
-                    <button wire:click="fecharFormAbrir" class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="fecharFormAbrir" class="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
                 </div>
@@ -60,7 +60,7 @@
 
             @if($mostrarModalAplicar)
                 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                    <div class="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-slate-100 shadow-xl">
+                    <div class="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 text-slate-100 shadow-xl">
                         <h3 class="mb-4 text-lg font-bold text-slate-100">Aplicar Inventário</h3>
                         <div class="space-y-3">
                             <div>
@@ -73,10 +73,10 @@
                                 ></textarea>
                             </div>
                             <div class="flex justify-end gap-3 pt-1">
-                                <button wire:click="fecharModalAplicar" class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+                                <button wire:click="fecharModalAplicar" class="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">
                                     Cancelar
                                 </button>
-                                <button wire:click="aplicar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                                <button wire:click="aplicar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                                     Confirmar Aplicação
                                 </button>
                             </div>
@@ -89,16 +89,16 @@
                 <div class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead>
-                            <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                            <tr class="border-b border-slate-800 bg-slate-950/40">
                                 <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                                 <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd Sistema</th>
                                 <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd Contada</th>
                                 <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Divergência</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-zinc-800">
+                        <tbody class="divide-y divide-slate-800">
                             @foreach($sessaoAtiva->itens as $item)
-                                <tr class="transition-colors hover:bg-zinc-800/40">
+                                <tr class="transition-colors hover:bg-slate-800/40">
                                     <td class="px-4 py-3 text-slate-300">{{ $item->saldoEstoque?->descricao_item ?? '—' }}</td>
                                     <td class="px-4 py-3 text-right text-slate-300">{{ number_format($item->quantidade_sistema, 3, ',', '.') }}</td>
                                     <td class="px-4 py-3 text-right">
@@ -129,7 +129,7 @@
             </x-report-card>
 
             <div class="flex gap-3">
-                <button wire:click="abrirModalAplicar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                <button wire:click="abrirModalAplicar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                     Aplicar Inventário
                 </button>
                 <button
@@ -145,13 +145,13 @@
 
     @if($historico->isNotEmpty())
         <x-report-card padding="p-0">
-            <div class="px-4 py-3 border-b border-zinc-800">
+            <div class="px-4 py-3 border-b border-slate-800">
                 <h2 class="text-base font-semibold text-slate-100">Histórico Recente</h2>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">#</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Depósito</th>
@@ -159,9 +159,9 @@
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Data</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($historico as $s)
-                            <tr class="transition-colors hover:bg-zinc-800/40">
+                            <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3 text-slate-400">{{ $s->id }}</td>
                                 <td class="px-4 py-3 text-slate-300">{{ $s->unidade?->nome ?? '—' }}</td>
                                 <td class="px-4 py-3 text-slate-400">{{ $s->deposito ?? 'Unidade Inteira' }}</td>

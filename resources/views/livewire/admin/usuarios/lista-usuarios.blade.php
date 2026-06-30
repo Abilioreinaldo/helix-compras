@@ -23,7 +23,7 @@
             />
         </x-filter-bar.field>
         <div class="flex items-end">
-            <button wire:click="abrirCriar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+            <button wire:click="abrirCriar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                 Novo Usuário
             </button>
         </div>
@@ -33,7 +33,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Nome</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">E-mail</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Perfil</th>
@@ -41,9 +41,9 @@
                         <th class="px-4 py-2.5"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @forelse ($usuarios as $usuario)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 text-slate-300">{{ $usuario->name }}</td>
                             <td class="px-4 py-3 text-slate-400">{{ $usuario->email }}</td>
                             <td class="px-4 py-3">
@@ -65,9 +65,9 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
-                                <button wire:click="abrirVinculos({{ $usuario->id }})" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-zinc-700 transition-colors">Vínculos</button>
-                                <button wire:click="abrirEditar({{ $usuario->id }})" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Editar</button>
-                                <button wire:click="excluir({{ $usuario->id }})" wire:confirm="Confirma exclusão?" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-zinc-700 transition-colors">Excluir</button>
+                                <button wire:click="abrirVinculos({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-slate-700 transition-colors">Vínculos</button>
+                                <button wire:click="abrirEditar({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
+                                <button wire:click="excluir({{ $usuario->id }})" wire:confirm="Confirma exclusão?" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Excluir</button>
                             </td>
                         </tr>
                     @empty
@@ -78,7 +78,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="border-t border-zinc-800 px-4 py-3">
+        <div class="border-t border-slate-800 px-4 py-3">
             {{ $usuarios->links() }}
         </div>
     </x-report-card>
@@ -93,7 +93,7 @@
     {{-- Modal Criar/Editar --}}
     @if ($mostrarModal)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
                 <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Usuário' : 'Novo Usuário' }}</h2>
 
                 <div class="space-y-4">
@@ -119,11 +119,11 @@
 
                     <div class="flex gap-4">
                         <label class="flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" wire:model="isAdmin" class="rounded border-zinc-700 bg-zinc-800">
+                            <input type="checkbox" wire:model="isAdmin" class="rounded border-slate-700 bg-slate-800">
                             Administrador
                         </label>
                         <label class="flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" wire:model="isCompradora" class="rounded border-zinc-700 bg-zinc-800">
+                            <input type="checkbox" wire:model="isCompradora" class="rounded border-slate-700 bg-slate-800">
                             Compradora
                         </label>
                     </div>
@@ -134,10 +134,10 @@
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6">
-                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="salvar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                    <button wire:click="salvar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Salvar
                     </button>
                 </div>
@@ -148,18 +148,18 @@
     {{-- Modal Vínculos --}}
     @if ($mostrarModalVinculos && $usuarioVinculos)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6">
                 <h2 class="text-lg font-bold text-slate-100 mb-1">Vínculos — {{ $usuarioVinculos->name }}</h2>
                 <p class="text-sm text-slate-500 mb-4">Gerencie as unidades e perfis deste usuário.</p>
 
                 {{-- Lista de vínculos existentes --}}
                 @forelse ($usuarioVinculos->unidades as $unidade)
-                    <div class="flex items-center justify-between py-2 border-b border-zinc-800">
+                    <div class="flex items-center justify-between py-2 border-b border-slate-800">
                         <div>
                             <span class="text-sm font-medium text-slate-200">{{ $unidade->nome }}</span>
                             <span class="ml-2 text-xs text-slate-500">{{ $unidade->pivot->perfil }} / {{ $unidade->pivot->nivel_alcada ?? '—' }}</span>
                         </div>
-                        <button wire:click="removerVinculo({{ $unidade->id }})" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1 text-xs font-medium text-rose-400 hover:bg-zinc-700 transition-colors">Remover</button>
+                        <button wire:click="removerVinculo({{ $unidade->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Remover</button>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500 mb-4">Nenhum vínculo cadastrado.</p>
@@ -192,13 +192,13 @@
                         @endforeach
                     </select>
 
-                    <button wire:click="adicionarVinculo" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                    <button wire:click="adicionarVinculo" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Adicionar
                     </button>
                 </div>
 
                 <div class="flex justify-end mt-4">
-                    <button wire:click="$set('mostrarModalVinculos', false)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="$set('mostrarModalVinculos', false)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Fechar
                     </button>
                 </div>

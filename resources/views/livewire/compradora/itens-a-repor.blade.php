@@ -33,7 +33,7 @@
                     <div class="overflow-x-auto">
                         <table class="min-w-full text-sm">
                             <thead>
-                                <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                                <tr class="border-b border-slate-800 bg-slate-950/40">
                                     <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                                     <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Un. Medida</th>
                                     <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Mínimo</th>
@@ -42,9 +42,9 @@
                                     <th class="px-4 py-2.5 text-center text-xs font-medium uppercase tracking-wide text-slate-500">Ação</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-zinc-800">
+                            <tbody class="divide-y divide-slate-800">
                                 @foreach($itens as $item)
-                                    <tr class="transition-colors hover:bg-zinc-800/40">
+                                    <tr class="transition-colors hover:bg-slate-800/40">
                                         <td class="px-4 py-3 text-slate-200">{{ $item->item_descricao }}</td>
                                         <td class="px-4 py-3 text-slate-500">{{ $item->unidade_medida ?? '—' }}</td>
                                         <td class="px-4 py-3 text-right text-slate-300">{{ number_format((float) $item->quantidade_minima, 3, ',', '.') }}</td>
@@ -57,7 +57,7 @@
                                         <td class="px-4 py-3 text-center">
                                             <button
                                                 wire:click="solicitarReposicao({{ $item->unidade_id }}, {{ $item->item_catalogo_id }}, {{ $item->quantidade_sugerida }})"
-                                                class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500"
+                                                class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-500"
                                             >
                                                 Solicitar
                                             </button>

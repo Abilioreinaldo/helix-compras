@@ -17,7 +17,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Solicitante</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
@@ -27,10 +27,10 @@
                         <th class="px-4 py-2.5"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @forelse ($requisicoes as $req)
                         @php($expressa = $this->podeAtenderExpressa($req))
-                        <tr class="transition-colors hover:bg-zinc-800/40 {{ $req->atrasada ? 'bg-rose-500/5' : '' }}">
+                        <tr class="transition-colors hover:bg-slate-800/40 {{ $req->atrasada ? 'bg-rose-500/5' : '' }}">
                             <td class="px-4 py-3 font-mono text-slate-300">
                                 {{ $req->codigo }}
                                 @if ($req->atrasada) <span class="ml-1 text-xs font-semibold text-rose-400">⚠ Atrasada</span> @endif
@@ -55,12 +55,12 @@
                             </td>
                             <td class="px-4 py-3 text-slate-400">{{ $req->submetida_em?->format('d/m/Y H:i') ?? '—' }}</td>
                             <td class="px-4 py-3 text-right space-x-2">
-                                <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Ver</a>
+                                <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Ver</a>
                                 @if ($req->status->value === 'aguardando_triagem')
                                     <button wire:click="iniciarTriagem({{ $req->id }})" class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 transition-colors">Iniciar</button>
                                 @endif
                                 @if ($req->status->value === 'em_triagem')
-                                    <button wire:click="enviarParaCotacao({{ $req->id }})" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500 transition-colors">Cotação</button>
+                                    <button wire:click="enviarParaCotacao({{ $req->id }})" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 transition-colors">Cotação</button>
                                     <button wire:click="abrirDevolucao({{ $req->id }})" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition-colors">Devolver</button>
                                 @endif
                                 @if ($expressa)
@@ -91,7 +91,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-4 px-4 pb-4 border-t border-zinc-800 pt-3">
+        <div class="mt-4 px-4 pb-4 border-t border-slate-800 pt-3">
             {{ $requisicoes->links() }}
         </div>
     </x-report-card>
@@ -99,7 +99,7 @@
     {{-- Modal devolução --}}
     @if ($devolvendo)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
                 <h2 class="text-lg font-bold text-slate-100 mb-4">Devolver ao Solicitante</h2>
                 <div>
                     <label class="block text-sm font-medium text-slate-300 mb-1">Motivo <span class="text-rose-400">*</span></label>
@@ -109,7 +109,7 @@
                     @error('observacaoDevolucao') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-3 mt-4">
-                    <button wire:click="$set('devolvendo', null)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="$set('devolvendo', null)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
                     <button wire:click="confirmarDevolucao" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors">

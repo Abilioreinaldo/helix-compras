@@ -8,7 +8,7 @@
 
 @php
     $accents = [
-        'emerald' => 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
+        'emerald' => 'bg-emerald-500/10 text-emerald-400 ring-blue-500/20',
         'amber' => 'bg-amber-500/10 text-amber-400 ring-amber-500/20',
         'sky' => 'bg-sky-500/10 text-sky-400 ring-sky-500/20',
         'rose' => 'bg-rose-500/10 text-rose-400 ring-rose-500/20',
@@ -17,7 +17,7 @@
     $accentClass = $accents[$accent] ?? $accents['emerald'];
 @endphp
 
-<div {{ $attributes->merge(['class' => 'rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-zinc-700']) }}>
+<div {{ $attributes->merge(['class' => 'rounded-xl border border-slate-800 bg-slate-900 p-5 transition-colors hover:border-slate-700']) }}>
     <div class="flex items-start justify-between gap-3">
         <span class="text-sm font-medium text-slate-400">{{ $label }}</span>
         @if($icon)

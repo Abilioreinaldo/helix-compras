@@ -13,7 +13,7 @@
         <div class="mb-4 flex justify-end">
             <button
                 wire:click="abrirFormulario"
-                class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
             >
                 Nova Requisição
             </button>
@@ -65,13 +65,13 @@
                     <button
                         wire:click="salvar"
                         wire:loading.attr="disabled"
-                        class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+                        class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
                     >
                         Abrir Requisição
                     </button>
                     <button
                         wire:click="fecharFormulario"
-                        class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors"
+                        class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors"
                     >
                         Cancelar
                     </button>
@@ -92,7 +92,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">#</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Quantidade</th>
@@ -101,9 +101,9 @@
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Data</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach ($requisicoes as $req)
-                            <tr class="transition-colors hover:bg-zinc-800/40" wire:key="req-{{ $req->id }}">
+                            <tr class="transition-colors hover:bg-slate-800/40" wire:key="req-{{ $req->id }}">
                                 <td class="px-4 py-3 text-slate-400">{{ $req->id }}</td>
                                 <td class="px-4 py-3 text-slate-200">{{ $req->saldoEstoque?->descricao_item ?? '—' }}</td>
                                 <td class="px-4 py-3 text-right text-slate-300">{{ number_format($req->quantidade_solicitada, 3, ',', '.') }}</td>
@@ -131,7 +131,7 @@
                     </tbody>
                 </table>
             </div>
-            <div class="mt-4 border-t border-zinc-800 px-4 pb-4 pt-3">
+            <div class="mt-4 border-t border-slate-800 px-4 pb-4 pt-3">
                 {{ $requisicoes->links() }}
             </div>
         </x-report-card>

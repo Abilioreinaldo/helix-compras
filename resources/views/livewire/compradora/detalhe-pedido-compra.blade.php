@@ -17,7 +17,7 @@
                 {{ ucfirst($pedido->status->value) }}
             </span>
             <a href="{{ route('compradora.pedidos.pdf', $pedido->id) }}"
-               class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+               class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">
                 Baixar PDF
             </a>
             @if($pedido->status->value === 'emitido')
@@ -27,7 +27,7 @@
                 </button>
             @endif
             <a href="{{ route('compradora.pedidos.index') }}"
-               class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+               class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">
                 Voltar
             </a>
         </x-slot:actions>
@@ -74,7 +74,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Requisição</th>
                         <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
@@ -84,9 +84,9 @@
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Destino</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @foreach($pedido->itens as $item)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 text-slate-300">{{ $item->descricao }}</td>
                             <td class="px-4 py-3 font-mono text-xs text-slate-300">{{ $item->requisicao->codigo }}</td>
                             <td class="px-4 py-3 text-right text-slate-300">{{ $item->quantidade }}</td>
@@ -96,7 +96,7 @@
                             <td class="px-4 py-3 text-slate-400">{{ $item->destino ?? '—' }}</td>
                         </tr>
                     @endforeach
-                    <tr class="bg-zinc-950/40">
+                    <tr class="bg-slate-950/40">
                         <td colspan="5" class="px-4 py-3 text-right text-sm font-semibold text-slate-100">Total</td>
                         <td class="px-4 py-3 text-right font-mono font-semibold text-slate-100">R$ {{ number_format($pedido->itens->sum(fn($i) => (float)$i->valor_total), 2, ',', '.') }}</td>
                         <td class="px-4 py-3"></td>
@@ -108,19 +108,19 @@
 
     @if($mostrarModalCancelar)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div class="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-xl">
+            <div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-900 p-6 shadow-xl">
                 <h3 class="mb-4 text-base font-semibold text-slate-100">Cancelar Pedido de Compra</h3>
                 <p class="mb-4 text-sm text-slate-400">Esta ação irá cancelar o pedido {{ $pedido->numero }} e retornar as requisições vinculadas para "Aprovada".</p>
                 <textarea wire:model="motivoCancelamento"
                           rows="3"
                           placeholder="Motivo obrigatório para cancelar pedido emitido..."
-                          class="mb-4 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-zinc-600"></textarea>
+                          class="mb-4 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-600"></textarea>
                 @error('cancelamento')
                     <p class="mb-2 text-sm text-rose-400">{{ $message }}</p>
                 @enderror
                 <div class="flex justify-end gap-2">
                     <button wire:click="$set('mostrarModalCancelar', false)"
-                            class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+                            class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">
                         Fechar
                     </button>
                     <button wire:click="cancelar"

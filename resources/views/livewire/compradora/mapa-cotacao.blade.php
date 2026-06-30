@@ -34,7 +34,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
                             @foreach ($cotacoes as $c)
@@ -48,10 +48,10 @@
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Melhor</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach ($itens as $item)
                             @php $melhorItem = $melhorPorItem[$item->id] ?? null; @endphp
-                            <tr class="transition-colors hover:bg-zinc-800/40">
+                            <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3 text-slate-300">{{ $item->descricao }}</td>
                                 <td class="px-3 py-3 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
                                 @foreach ($cotacoes as $c)
@@ -71,7 +71,7 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr class="border-t border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-t border-slate-800 bg-slate-950/40">
                             <td class="px-4 py-3 font-semibold text-slate-200">Total</td>
                             <td></td>
                             @foreach ($cotacoes as $c)
@@ -94,7 +94,7 @@
                                             <span class="text-xs font-medium text-emerald-400">✓ vencedora</span>
                                         @elseif ($c->valor !== null)
                                             <button wire:click="marcarVencedora({{ $c->id }})"
-                                                class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500">
+                                                class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500">
                                                 Selecionar
                                             </button>
                                         @endif

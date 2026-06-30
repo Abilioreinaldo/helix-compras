@@ -46,7 +46,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                                 {{ $porCategoria ? 'Categoria' : 'Fornecedor' }}
                             </th>
@@ -60,7 +60,7 @@
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">% do Total</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($resultados as $linha)
                             <tr>
                                 <td class="px-3 py-2.5 font-medium text-slate-300">{{ $linha->rotulo }}</td>
@@ -82,7 +82,7 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr class="border-t border-zinc-700 bg-zinc-950/40">
+                        <tr class="border-t border-slate-700 bg-slate-950/40">
                             <td colspan="{{ $porCategoria ? 2 : 2 }}" class="px-3 py-2.5 font-semibold text-slate-300">Total</td>
                             <td class="px-3 py-2.5 text-right font-semibold text-slate-300">{{ $resultados->sum('total_pedidos') }}</td>
                             <td class="px-3 py-2.5 text-right font-semibold text-slate-100">R$ {{ number_format($totalGeral, 2, ',', '.') }}</td>

@@ -21,7 +21,7 @@
                         </p>
                     </div>
                     <div class="flex gap-2">
-                        <button wire:click="abrirEditar({{ $faixa->id }})" class="rounded-lg bg-zinc-800 border border-zinc-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Editar</button>
+                        <button wire:click="abrirEditar({{ $faixa->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
                         <button wire:click="excluir({{ $faixa->id }})" wire:confirm="Confirma exclusão desta faixa e todas as suas etapas?" class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-rose-500 transition-colors">Excluir</button>
                     </div>
                 </div>
@@ -50,7 +50,7 @@
 
     {{-- Botão Nova Alçada --}}
     <div class="mt-6 flex justify-end">
-        <button wire:click="abrirCriar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+        <button wire:click="abrirCriar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
             Nova Alçada
         </button>
     </div>
@@ -58,7 +58,7 @@
     {{-- Modal Criar/Editar --}}
     @if ($mostrarModal)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
                 <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Alçada' : 'Nova Alçada' }}</h2>
 
                 <div class="space-y-4">
@@ -83,7 +83,7 @@
 
                     <div>
                         <label class="flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" wire:model="isEmergencial" class="rounded border-zinc-700">
+                            <input type="checkbox" wire:model="isEmergencial" class="rounded border-slate-700">
                             Faixa emergencial
                         </label>
                     </div>
@@ -92,7 +92,7 @@
                     <div>
                         <div class="flex items-center justify-between mb-2">
                             <label class="text-sm font-medium text-slate-300">Etapas de aprovação</label>
-                            <button wire:click="adicionarEtapa" type="button" class="text-xs text-emerald-400 hover:text-emerald-300">+ Adicionar etapa</button>
+                            <button wire:click="adicionarEtapa" type="button" class="text-xs text-blue-400 hover:text-blue-300">+ Adicionar etapa</button>
                         </div>
 
                         @forelse ($etapas as $indice => $etapa)
@@ -112,10 +112,10 @@
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6">
-                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="salvar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                    <button wire:click="salvar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Salvar
                     </button>
                 </div>

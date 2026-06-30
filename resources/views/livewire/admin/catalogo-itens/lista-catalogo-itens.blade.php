@@ -18,7 +18,7 @@
             </select>
         </x-filter-bar.field>
         <div class="flex items-end">
-            <button wire:click="abrirCriar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+            <button wire:click="abrirCriar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                 Novo Item
             </button>
         </div>
@@ -34,7 +34,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
@@ -44,9 +44,9 @@
                         <th class="px-4 py-2.5"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @forelse ($itens as $item)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 font-mono text-slate-300">{{ $item->codigo ?? '—' }}</td>
                             <td class="px-4 py-3 text-slate-300">{{ $item->descricao }}</td>
                             <td class="px-4 py-3 text-slate-400">{{ $item->unidade_medida ?? '—' }}</td>
@@ -71,8 +71,8 @@
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
                                 <button wire:click="abrirModalHomologacoes({{ $item->id }})" class="text-sky-400 hover:text-sky-300 transition-colors">Preços</button>
-                                <button wire:click="abrirModalMinimos({{ $item->id }})" class="text-emerald-400 hover:text-emerald-300 transition-colors">Mínimos</button>
-                                <button wire:click="abrirEditar({{ $item->id }})" class="text-emerald-400 hover:text-emerald-300 transition-colors">Editar</button>
+                                <button wire:click="abrirModalMinimos({{ $item->id }})" class="text-blue-400 hover:text-blue-300 transition-colors">Mínimos</button>
+                                <button wire:click="abrirEditar({{ $item->id }})" class="text-blue-400 hover:text-blue-300 transition-colors">Editar</button>
                                 <button wire:click="excluir({{ $item->id }})" wire:confirm="Confirma exclusão?" class="text-rose-400 hover:text-rose-300 transition-colors">Excluir</button>
                             </td>
                         </tr>
@@ -84,7 +84,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="border-t border-zinc-800 px-4 py-3">
+        <div class="border-t border-slate-800 px-4 py-3">
             {{ $itens->links() }}
         </div>
     </x-report-card>
@@ -92,7 +92,7 @@
     {{-- Modal Criar/Editar --}}
     @if ($mostrarModal)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-lg p-6 overflow-y-auto max-h-[90vh]">
                 <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Item' : 'Novo Item' }}</h2>
 
                 <div class="space-y-4">
@@ -120,17 +120,17 @@
 
                     <div>
                         <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                            <input type="checkbox" wire:model="ativo" class="rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500/40">
+                            <input type="checkbox" wire:model="ativo" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/40">
                             Ativo
                         </label>
                     </div>
                 </div>
 
                 <div class="flex justify-end gap-3 mt-6">
-                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="$set('mostrarModal', false)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="salvar" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+                    <button wire:click="salvar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Salvar
                     </button>
                 </div>
@@ -141,7 +141,7 @@
     {{-- Modal: Mínimos por Unidade --}}
     @if ($mostrarModalMinimos)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-2xl p-6 overflow-y-auto max-h-[90vh]">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-2xl p-6 overflow-y-auto max-h-[90vh]">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-lg font-bold text-slate-100">Estoques Mínimos por Unidade</h2>
                     <button wire:click="fecharModalMinimos" class="text-slate-400 hover:text-slate-200 text-xl font-bold leading-none transition-colors">&times;</button>
@@ -153,7 +153,7 @@
                 @else
                     <div class="space-y-2">
                         @foreach ($minimosPorUnidade as $idx => $minimo)
-                            <div class="flex items-center gap-3 py-2 border-b border-zinc-800">
+                            <div class="flex items-center gap-3 py-2 border-b border-slate-800">
                                 <span class="flex-1 text-sm text-slate-300">{{ $minimo['nome'] }}</span>
                                 <input
                                     wire:model="minimosPorUnidade.{{ $idx }}.quantidade_minima"
@@ -165,7 +165,7 @@
                                 />
                                 <button
                                     wire:click="salvarMinimoUnidade({{ $minimo['unidade_id'] }})"
-                                    class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors"
+                                    class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
                                 >
                                     Salvar
                                 </button>
@@ -178,7 +178,7 @@
                 @endif
 
                 <div class="flex justify-end mt-6">
-                    <button wire:click="fecharModalMinimos" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="fecharModalMinimos" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Fechar
                     </button>
                 </div>
@@ -189,7 +189,7 @@
     {{-- Modal: Preços Homologados --}}
     @if ($mostrarModalHomologacoes)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
-            <div class="bg-zinc-900 border border-zinc-800 text-slate-100 rounded-xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh]">
+            <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-3xl p-6 overflow-y-auto max-h-[90vh]">
                 <div class="flex items-center justify-between mb-1">
                     <h2 class="text-lg font-bold text-slate-100">Preços Homologados</h2>
                     <button wire:click="fecharModalHomologacoes" class="text-slate-400 hover:text-slate-200 text-xl font-bold leading-none transition-colors">&times;</button>
@@ -201,10 +201,10 @@
                 @if ($homologacoes->isEmpty())
                     <p class="text-sm text-slate-500 mb-4">Nenhum preço homologado cadastrado para este item.</p>
                 @else
-                    <div class="mb-5 overflow-x-auto rounded-lg border border-zinc-800">
+                    <div class="mb-5 overflow-x-auto rounded-lg border border-slate-800">
                         <table class="min-w-full text-sm">
                             <thead>
-                                <tr class="border-b border-zinc-800 bg-zinc-950/40 text-left text-xs uppercase tracking-wide text-slate-500">
+                                <tr class="border-b border-slate-800 bg-slate-950/40 text-left text-xs uppercase tracking-wide text-slate-500">
                                     <th class="px-3 py-2">Fornecedor</th>
                                     <th class="px-3 py-2">Preço</th>
                                     <th class="px-3 py-2">Validade</th>
@@ -212,7 +212,7 @@
                                     <th class="px-3 py-2"></th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-zinc-800">
+                            <tbody class="divide-y divide-slate-800">
                                 @foreach ($homologacoes as $h)
                                     @php($vencida = $h->validade_fim->isPast())
                                     <tr>
@@ -242,7 +242,7 @@
                 @endif
 
                 {{-- Formulário de novo preço homologado --}}
-                <div class="rounded-lg border border-zinc-800 bg-zinc-950/40 p-4">
+                <div class="rounded-lg border border-slate-800 bg-slate-950/40 p-4">
                     <h3 class="text-sm font-semibold text-slate-200 mb-3">Adicionar preço homologado</h3>
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div class="sm:col-span-2">
@@ -262,7 +262,7 @@
                         </div>
                         <div class="flex items-end">
                             <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                <input type="checkbox" wire:model="novoPreferencial" class="rounded border-zinc-600 bg-zinc-800 text-sky-500 focus:ring-sky-500/40">
+                                <input type="checkbox" wire:model="novoPreferencial" class="rounded border-slate-600 bg-slate-800 text-sky-500 focus:ring-sky-500/40">
                                 Preferencial (desempate)
                             </label>
                         </div>
@@ -285,7 +285,7 @@
                 </div>
 
                 <div class="flex justify-end mt-6">
-                    <button wire:click="fecharModalHomologacoes" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm text-slate-200 hover:bg-zinc-700 transition-colors">
+                    <button wire:click="fecharModalHomologacoes" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Fechar
                     </button>
                 </div>

@@ -44,7 +44,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Faixa de Alçada</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Nº Requisições</th>
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Tempo Médio</th>
@@ -52,7 +52,7 @@
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Mais Lento</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($resultados as $linha)
                             <tr>
                                 <td class="px-3 py-2.5 font-medium text-slate-300">{{ $linha->faixa_nome }}</td>
@@ -64,7 +64,7 @@
                         @endforeach
                     </tbody>
                     <tfoot>
-                        <tr class="border-t border-zinc-700 bg-zinc-950/40">
+                        <tr class="border-t border-slate-700 bg-slate-950/40">
                             <td class="px-3 py-2.5 font-semibold text-slate-200">Total</td>
                             <td class="px-3 py-2.5 text-right font-bold text-slate-100">{{ $totalRequisicoes }}</td>
                             <td colspan="3"></td>

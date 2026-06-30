@@ -23,7 +23,7 @@
             </label>
         </x-filter-bar.field>
         <x-filter-bar.field label="&nbsp;">
-            <a href="{{ route('requisicoes.criar') }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500">
+            <a href="{{ route('requisicoes.criar') }}" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500">
                 Nova Requisição
             </a>
         </x-filter-bar.field>
@@ -40,7 +40,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Itens</th>
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
@@ -50,9 +50,9 @@
                             <th class="px-4 py-2.5"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach ($requisicoes as $req)
-                            <tr class="transition-colors hover:bg-zinc-800/40">
+                            <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3 font-mono text-slate-300">
                                     {{ $req->codigo ?? '(rascunho)' }}
                                     @if ($req->atrasada)
@@ -86,14 +86,14 @@
                                 </td>
                                 <td class="px-4 py-3 text-slate-400">{{ $req->created_at->format('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-3 text-right">
-                                    <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="text-emerald-400 hover:text-emerald-300 text-sm">Ver</a>
+                                    <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="text-blue-400 hover:text-blue-300 text-sm">Ver</a>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-            <div class="px-4 py-3 border-t border-zinc-800">
+            <div class="px-4 py-3 border-t border-slate-800">
                 {{ $requisicoes->links() }}
             </div>
         </x-report-card>

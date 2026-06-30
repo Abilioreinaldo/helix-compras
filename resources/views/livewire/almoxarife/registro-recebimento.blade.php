@@ -20,7 +20,7 @@
     @enderror
 
     {{-- Painel de informações do pedido --}}
-    <div class="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+    <div class="mb-6 rounded-xl border border-slate-800 bg-slate-900 p-5">
         <div class="grid grid-cols-2 gap-4 text-sm">
             <div>
                 <span class="text-slate-400">Unidade:</span>
@@ -51,7 +51,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                        <tr class="border-b border-slate-800 bg-slate-950/40">
                             <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Item</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd. Pedida</th>
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Já Recebido</th>
@@ -59,13 +59,13 @@
                             <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Receber Agora</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-zinc-800">
+                    <tbody class="divide-y divide-slate-800">
                         @foreach($pedido->itens as $item)
                             @php
                                 $recebido = (float) ($jaRecebidoPorItem[$item->id] ?? 0);
                                 $saldo = (float) $item->quantidade - $recebido;
                             @endphp
-                            <tr class="transition-colors hover:bg-zinc-800/40">
+                            <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3 text-slate-200">
                                     {{ $item->descricao }}
                                     @if($item->destino)
@@ -126,8 +126,8 @@
 
         {{-- Ações --}}
         <div class="flex justify-end gap-3">
-            <a href="{{ route('almoxarife.recebimentos.index') }}" class="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-zinc-700 transition-colors">Cancelar</a>
-            <button type="submit" wire:loading.attr="disabled" class="rounded-lg bg-emerald-600 px-6 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
+            <a href="{{ route('almoxarife.recebimentos.index') }}" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors">Cancelar</a>
+            <button type="submit" wire:loading.attr="disabled" class="rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                 Confirmar Recebimento
             </button>
         </div>
@@ -139,7 +139,7 @@
             <x-report-card title="Histórico de Recebimentos" icon="clock">
                 <div class="space-y-3">
                     @foreach($pedido->recebimentos as $rec)
-                        <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+                        <div class="rounded-xl border border-slate-800 bg-slate-900 p-4 text-sm">
                             <div class="mb-2 flex justify-between">
                                 <span class="font-medium text-slate-200">{{ $rec->recebido_em->format('d/m/Y H:i') }}</span>
                                 <span class="text-slate-400">{{ $rec->almoxarife?->name }}</span>

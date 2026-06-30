@@ -37,7 +37,7 @@
         <div class="overflow-x-auto">
             <table class="min-w-full text-sm">
                 <thead>
-                    <tr class="border-b border-zinc-800 bg-zinc-950/40">
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Código</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Solicitante</th>
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Unidade</th>
@@ -45,9 +45,9 @@
                         <th class="px-4 py-2.5"></th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-zinc-800">
+                <tbody class="divide-y divide-slate-800">
                     @forelse ($requisicoes as $req)
-                        <tr class="transition-colors hover:bg-zinc-800/40">
+                        <tr class="transition-colors hover:bg-slate-800/40">
                             <td class="px-4 py-3 font-mono text-slate-300">
                                 {{ $req->codigo ?? '—' }}
                                 @if ($req->is_emergencial)
@@ -63,7 +63,7 @@
                                 {{ $req->aprovacao_iniciada_em?->format('d/m/Y H:i') ?? '—' }}
                             </td>
                             <td class="px-4 py-3 text-right">
-                                <a href="{{ route('aprovacoes.painel', $req->id) }}" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">Revisar</a>
+                                <a href="{{ route('aprovacoes.painel', $req->id) }}" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 transition-colors">Revisar</a>
                             </td>
                         </tr>
                     @empty
@@ -74,7 +74,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="mt-4 px-4 pb-4 border-t border-zinc-800 pt-3">
+        <div class="mt-4 px-4 pb-4 border-t border-slate-800 pt-3">
             {{ $requisicoes->links() }}
         </div>
     </x-report-card>
