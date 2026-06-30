@@ -65,7 +65,8 @@ class CriarRascunhoPedidoAction
                     ->whereNull('deleted_at')
                     ->first();
 
-                $itens = $requisicao->itens()->get();
+                // Itens rejeitados na decisão por linha da aprovação ficam fora do pedido.
+                $itens = $requisicao->itens()->whereNull('rejeitado_em')->get();
 
                 foreach ($itens as $item) {
                     $pedido->itens()->create([

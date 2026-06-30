@@ -22,6 +22,12 @@ class PainelAprovacao extends Component
 
     public bool $mostrarModalReprovar = false;
 
+    /** @var array<int, bool> item_id => rejeitar? */
+    public array $rejeitar = [];
+
+    /** @var array<int, string> item_id => motivo */
+    public array $motivoRejeicao = [];
+
     public function mount(int $id): void
     {
         abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
@@ -41,12 +47,19 @@ class PainelAprovacao extends Component
 
         $requisicao = $this->carregarRequisicao();
 
+        $itensRejeitados = [];
+        foreach ($this->rejeitar as $itemId => $marcado) {
+            if ($marcado) {
+                $itensRejeitados[(int) $itemId] = (string) ($this->motivoRejeicao[$itemId] ?? '');
+            }
+        }
+
         try {
-            app(AprovarEtapaAction::class)->execute($requisicao, auth()->user(), $this->justificativa);
+            app(AprovarEtapaAction::class)->execute($requisicao, auth()->user(), $this->justificativa, $itensRejeitados);
         } catch (ValidationException $e) {
+            // Mantém o modal aberto para o aprovador corrigir (ex.: motivo do item).
             $mensagem = collect($e->errors())->flatten()->first() ?? $e->getMessage();
             $this->addError('acao', $mensagem);
-            $this->mostrarModalAprovar = false;
 
             return;
         }
@@ -90,6 +103,7 @@ class PainelAprovacao extends Component
                 'faixaAlcada.etapas',
                 'aprovacoes.aprovador',
                 'cotacoes.fornecedor',
+                'itens',
             ])
             ->findOrFail($this->id);
 

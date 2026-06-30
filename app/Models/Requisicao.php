@@ -131,6 +131,14 @@ class Requisicao extends Model
     }
 
     /**
+     * Itens ativos (não rejeitados na decisão por linha da aprovação).
+     */
+    public function itensAtivos(): HasMany
+    {
+        return $this->hasMany(ItemRequisicao::class)->whereNull('rejeitado_em');
+    }
+
+    /**
      * Logs de transição de status desta requisição.
      */
     public function logs(): HasMany
@@ -172,6 +180,17 @@ class Requisicao extends Model
     public function valorTotal(): float
     {
         return (float) $this->itens->sum(
+            fn (ItemRequisicao $item) => ($item->quantidade ?? 0) * ($item->valor_unitario_estimado ?? 0)
+        );
+    }
+
+    /**
+     * Valor estimado apenas dos itens aprovados (exclui rejeitados na decisão
+     * por linha). Para exibição — a alçada permanece roteada pelo valor total.
+     */
+    public function valorAprovado(): float
+    {
+        return (float) $this->itens->whereNull('rejeitado_em')->sum(
             fn (ItemRequisicao $item) => ($item->quantidade ?? 0) * ($item->valor_unitario_estimado ?? 0)
         );
     }

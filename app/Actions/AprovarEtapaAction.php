@@ -9,6 +9,7 @@ use App\Mail\RequisicaoAguardandoAprovacao;
 use App\Mail\RequisicaoAprovada;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
+use App\Models\RequisicaoLog;
 use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,13 +23,16 @@ class AprovarEtapaAction
     ) {}
 
     /**
+     * @param  array<int, string>  $itensRejeitados  Mapa item_id => motivo dos itens
+     *                                               rejeitados na decisão por linha.
+     *
      * @throws ValidationException
      */
-    public function execute(Requisicao $requisicao, User $aprovador, string $justificativa): void
+    public function execute(Requisicao $requisicao, User $aprovador, string $justificativa, array $itensRejeitados = []): void
     {
         $notificar = [];
 
-        DB::transaction(function () use ($requisicao, $aprovador, $justificativa, &$notificar) {
+        DB::transaction(function () use ($requisicao, $aprovador, $justificativa, $itensRejeitados, &$notificar) {
             $requisicao->refresh();
 
             if ($requisicao->status !== StatusRequisicao::AguardandoAprovacao) {
@@ -57,6 +61,8 @@ class AprovarEtapaAction
             }
 
             $this->validarPermissao($aprovador, $requisicao, $etapaAtual);
+
+            $this->aplicarRejeicoesPorLinha($requisicao, $aprovador, $itensRejeitados);
 
             $etapaAtual->update([
                 'status' => StatusAprovacao::Aprovada->value,
@@ -93,6 +99,65 @@ class AprovarEtapaAction
             }
         } elseif (($notificar['tipo'] ?? null) === 'aprovada' && $notificar['solicitante']) {
             Mail::to($notificar['solicitante']->email)->send(new RequisicaoAprovada($requisicao));
+        }
+    }
+
+    /**
+     * Decisão por linha: marca os itens indicados como rejeitados (com motivo) e
+     * os exclui da compra. A cadeia de alçada NÃO é encurtada — rejeitar itens
+     * reduz custo, nunca remove etapas (impede burlar a alçada por fracionamento).
+     *
+     * @param  array<int, string>  $itensRejeitados
+     *
+     * @throws ValidationException
+     */
+    private function aplicarRejeicoesPorLinha(Requisicao $requisicao, User $aprovador, array $itensRejeitados): void
+    {
+        if (empty($itensRejeitados)) {
+            return;
+        }
+
+        $ativos = $requisicao->itens()->whereNull('rejeitado_em')->lockForUpdate()->get()->keyBy('id');
+        $ids = array_map('intval', array_keys($itensRejeitados));
+
+        foreach ($ids as $id) {
+            if (! $ativos->has($id)) {
+                throw ValidationException::withMessages([
+                    'itens' => 'Item inválido ou já rejeitado.',
+                ]);
+            }
+            if (trim((string) ($itensRejeitados[$id] ?? '')) === '') {
+                throw ValidationException::withMessages([
+                    'itens' => 'Informe o motivo da rejeição de cada item.',
+                ]);
+            }
+        }
+
+        // Não pode rejeitar TODOS os itens — isso seria reprovar a requisição.
+        if (count($ids) >= $ativos->count()) {
+            throw ValidationException::withMessages([
+                'itens' => 'Não é possível rejeitar todos os itens. Para isso, reprove a requisição.',
+            ]);
+        }
+
+        foreach ($ids as $id) {
+            $item = $ativos->get($id);
+            $motivo = trim((string) $itensRejeitados[$id]);
+
+            $item->update([
+                'rejeitado_em' => now(),
+                'rejeitado_por' => $aprovador->id,
+                'motivo_rejeicao' => $motivo,
+            ]);
+
+            RequisicaoLog::create([
+                'requisicao_id' => $requisicao->id,
+                'status_anterior' => $requisicao->status->value,
+                'status_novo' => $requisicao->status->value,
+                'user_id' => $aprovador->id,
+                'observacao' => "Item rejeitado na aprovação: \"{$item->descricao}\" — {$motivo}",
+                'automatico' => false,
+            ]);
         }
     }
 

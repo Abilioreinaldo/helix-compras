@@ -83,6 +83,38 @@
         </x-report-card>
     </div>
 
+    {{-- Itens da Requisição --}}
+    <x-report-card title="Itens da Requisição" padding="p-0" class="mb-6">
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-800 bg-slate-950/40">
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
+                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Vlr. unit.</th>
+                        <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Situação</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800">
+                    @foreach ($requisicao->itens as $item)
+                        <tr class="{{ $item->estaRejeitado() ? 'opacity-60' : '' }}">
+                            <td class="px-4 py-2.5 text-slate-300 {{ $item->estaRejeitado() ? 'line-through' : '' }}">{{ $item->descricao }}</td>
+                            <td class="px-4 py-2.5 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
+                            <td class="px-4 py-2.5 text-right text-slate-400">{{ $item->valor_unitario_estimado !== null ? 'R$ '.number_format((float) $item->valor_unitario_estimado, 2, ',', '.') : '—' }}</td>
+                            <td class="px-4 py-2.5">
+                                @if ($item->estaRejeitado())
+                                    <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-rose-500/15 text-rose-400" title="{{ $item->motivo_rejeicao }}">Rejeitado</span>
+                                @else
+                                    <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-400">Aprovado</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </x-report-card>
+
     {{-- Histórico de Aprovações --}}
     <x-report-card title="Histórico de Aprovações" padding="p-0">
         <div class="overflow-x-auto">
@@ -150,15 +182,43 @@
     {{-- Modal Aprovar --}}
     @if ($mostrarModalAprovar)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div class="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
+            <div class="w-full max-w-2xl rounded-xl border border-slate-800 bg-slate-900 p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                 <h3 class="mb-4 text-lg font-semibold text-slate-100">Confirmar aprovação</h3>
+
+                @error('acao') <div class="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{{ $message }}</div> @enderror
+
                 <div class="mb-4">
                     <label class="mb-1 block text-sm font-medium text-slate-300">Comentário (opcional)</label>
-                    <textarea wire:model="justificativa" rows="3"
+                    <textarea wire:model="justificativa" rows="2"
                         class="input-dark w-full"
                         placeholder="Observações sobre a aprovação..."></textarea>
                     @error('justificativa') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
+
+                {{-- Decisão por linha: rejeitar itens específicos sem reprovar a requisição inteira.
+                     A alçada continua roteada pelo valor total — rejeitar não encurta a aprovação. --}}
+                <div class="mb-4">
+                    <p class="mb-2 text-sm font-medium text-slate-300">Itens (marque para rejeitar)</p>
+                    <div class="space-y-2 rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                        @foreach ($requisicao->itens->whereNull('rejeitado_em') as $item)
+                            <div class="rounded-md px-1 py-1">
+                                <label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+                                    <input type="checkbox" wire:model.live="rejeitar.{{ $item->id }}"
+                                        class="rounded border-slate-600 bg-slate-800 text-rose-500 focus:ring-rose-500/40">
+                                    <span class="flex-1">{{ $item->descricao }}</span>
+                                    <span class="text-xs text-slate-500">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</span>
+                                </label>
+                                @if ($rejeitar[$item->id] ?? false)
+                                    <input type="text" wire:model="motivoRejeicao.{{ $item->id }}"
+                                        class="input-dark mt-1.5 ml-6 w-[calc(100%-1.5rem)]"
+                                        placeholder="Motivo da rejeição deste item *">
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                    <p class="mt-1.5 text-xs text-slate-500">Itens não marcados serão aprovados. Não é possível rejeitar todos — para isso, reprove a requisição.</p>
+                </div>
+
                 <div class="flex justify-end gap-3">
                     <button wire:click="$set('mostrarModalAprovar', false)"
                         class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
