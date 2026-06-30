@@ -3,7 +3,7 @@
 
 Olá, {{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_social ?? 'fornecedor' }}.
 
-A **{{ config('app.name') }}** gostaria de receber sua cotação para a {{ $cotacao->requisicao?->codigo ? 'requisição '.$cotacao->requisicao->codigo : 'requisição em aberto' }}.
+A **HELIX Compras** gostaria de receber sua cotação para a {{ $cotacao->requisicao?->codigo ? 'requisição '.$cotacao->requisicao->codigo : 'requisição em aberto' }}.
 
 **Como responder:**
 Basta **responder este e-mail** (mantendo o assunto) informando:
@@ -17,5 +17,5 @@ Exemplo de resposta:
 > Olá! Temos o preço de **R$ 145,00** com entrega em **12 dias úteis**. Item disponível em estoque.
 
 Obrigado,
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

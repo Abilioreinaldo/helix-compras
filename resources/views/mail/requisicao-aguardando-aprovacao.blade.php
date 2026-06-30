@@ -15,5 +15,5 @@ Revisar requisição
 
 Acesse o sistema para aprovar ou reprovar esta requisição.
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

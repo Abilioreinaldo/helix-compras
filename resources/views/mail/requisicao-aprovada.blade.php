@@ -8,5 +8,5 @@ Sua requisição **{{ $requisicao->codigo }}** foi **aprovada** e seguirá para 
 **Unidade:** {{ $requisicao->unidade?->nome ?? '—' }}
 **Aprovada em:** {{ $requisicao->aprovada_em?->format('d/m/Y H:i') ?? '—' }}
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

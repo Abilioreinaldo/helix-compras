@@ -14,5 +14,5 @@ O fornecedor **{{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?-
 
 Estes valores são **sugestões** extraídas do e-mail. Abra a cotação para conferir e **confirmar** o valor oficial.
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

@@ -9,5 +9,5 @@ A requisição **{{ $requisicao->codigo }}** foi **reprovada** e retornou à fas
 
 A compradora deverá revisar as cotações e reencaminhar para aprovação.
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

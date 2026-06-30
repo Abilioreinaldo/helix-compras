@@ -11,5 +11,5 @@ Sua requisição foi incluída no **Pedido de Compra {{ $pedido->numero }}**, em
 **Prazo de Entrega:** {{ $pedido->prazo_entrega->format('d/m/Y') }}
 @endif
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

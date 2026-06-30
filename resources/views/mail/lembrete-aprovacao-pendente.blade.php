@@ -16,5 +16,5 @@ Revisar requisição
 
 Por favor, revise esta pendência o quanto antes.
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>

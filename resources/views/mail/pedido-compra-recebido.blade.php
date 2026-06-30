@@ -8,5 +8,5 @@ Sua requisição vinculada ao **Pedido de Compra {{ $pedido->numero }}** foi rec
 **Fornecedor:** {{ $pedido->fornecedor?->razao_social ?? '—' }}
 **Unidade:** {{ $pedido->unidade?->nome ?? '—' }}
 
-{{ config('app.name') }}
+HELIX Compras
 </x-mail::message>
