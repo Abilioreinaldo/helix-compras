@@ -6,6 +6,7 @@ use App\Enums\NivelAlcada;
 use App\Enums\Perfil;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Models\Platform\Identity\Role;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -33,7 +34,7 @@ class ListaUsuarios extends Component
 
     public bool $isCompradora = false;
 
-    public string $status = 'ativo';
+    public string $status = 'active';
 
     // Modal de vínculos
     public bool $mostrarModalVinculos = false;
@@ -54,7 +55,7 @@ class ListaUsuarios extends Component
         $this->email = '';
         $this->isAdmin = false;
         $this->isCompradora = false;
-        $this->status = 'ativo';
+        $this->status = 'active';
         $this->mostrarModal = true;
     }
 
@@ -84,7 +85,7 @@ class ListaUsuarios extends Component
             'email' => ['required', 'email', $emailUnico],
             'isAdmin' => 'boolean',
             'isCompradora' => 'boolean',
-            'status' => 'required|in:ativo,inativo',
+            'status' => 'required|in:active,inactive',
         ], [
             'name.required' => 'O nome é obrigatório.',
             'email.required' => 'O e-mail é obrigatório.',
@@ -92,18 +93,19 @@ class ListaUsuarios extends Component
         ]);
 
         if ($this->editandoId) {
-            User::withoutGlobalScopes()->findOrFail($this->editandoId)->update([
+            $usuario = User::withoutGlobalScopes()->findOrFail($this->editandoId);
+            $usuario->update([
                 'name' => $this->name,
                 'email' => $this->email,
                 'is_admin' => $this->isAdmin,
                 'status' => $this->status,
             ]);
-            // TODO(P3): atribuir/retirar o papel 'compras' via roles() conforme $this->isCompradora.
+            $this->aplicarPapelCompras($usuario);
             $this->mostrarModal = false;
             $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
         } else {
             $this->senhaProvisoria = Str::random(10);
-            User::create([
+            $usuario = User::create([
                 'name' => $this->name,
                 'email' => $this->email,
                 'password' => bcrypt($this->senhaProvisoria),
@@ -112,8 +114,23 @@ class ListaUsuarios extends Component
                 'status' => $this->status,
                 'precisa_trocar_senha' => true,
             ]);
-            // TODO(P3): atribuir o papel 'compras' via roles() conforme $this->isCompradora.
+            $this->aplicarPapelCompras($usuario);
             $this->mostrarModal = false;
+        }
+    }
+
+    /** Atribui ou remove o papel RBAC 'compras' conforme o checkbox do formulário. */
+    private function aplicarPapelCompras(User $usuario): void
+    {
+        $role = Role::firstOrCreate(
+            ['tenant_id' => $usuario->tenant_id, 'slug' => 'compras'],
+            ['name' => 'Compras'],
+        );
+
+        if ($this->isCompradora) {
+            $usuario->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $usuario->tenant_id]]);
+        } else {
+            $usuario->roles()->detach($role->id);
         }
     }
 

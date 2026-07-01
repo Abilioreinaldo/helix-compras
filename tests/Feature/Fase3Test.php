@@ -25,7 +25,7 @@ uses(RefreshDatabase::class);
 
 function criarCompradora(): User
 {
-    return User::factory()->create(['is_compradora' => true]);
+    return User::factory()->compradora()->create();
 }
 
 function criarRequisicaoEmCotacao(?FaixaAlcada $faixa = null): Requisicao

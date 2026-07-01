@@ -229,7 +229,7 @@ it('compradora_ve_todas_as_requisicoes', function () {
     $this->actingAs($userB);
     app(SubmeterRequisicaoAction::class)->execute($reqB);
 
-    $compradora = User::factory()->create(['is_compradora' => true]);
+    $compradora = User::factory()->compradora()->create();
     $this->actingAs($compradora);
 
     $visiveis = Requisicao::withoutGlobalScopes()->count();

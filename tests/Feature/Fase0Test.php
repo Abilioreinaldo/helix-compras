@@ -1,11 +1,11 @@
 <?php
 
 use App\Enums\Perfil;
-use App\Livewire\Auth\Login;
-use App\Livewire\Auth\TrocarSenha;
 use App\Models\Obra;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Livewire\Auth\Login;
+use Helix\Foundation\Livewire\Auth\TrocarSenha;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 

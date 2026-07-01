@@ -3,6 +3,9 @@
 namespace Database\Factories;
 
 use App\Models\User;
+use Helix\Foundation\Models\Platform\Identity\Role;
+use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -28,12 +31,29 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'tenant_id' => $this->resolveTenantId(),
             'is_admin' => false,
-            'is_compradora' => false,
-            'is_financeiro' => false,
-            'status' => 'ativo',
+            'status' => 'active',
             'precisa_trocar_senha' => false,
         ];
+    }
+
+    /**
+     * Resolve o tenant do usuário: reusa o tenant existente (em dev = o tenant da
+     * suíte; em teste = o primeiro criado) ou cria um. Garante o entitlement
+     * `compras` (o app enforça `feature:compras` — sem isto as rotas dariam 403).
+     */
+    private function resolveTenantId(): string
+    {
+        $tenant = Tenant::query()->orderBy('created_at')->first()
+            ?? Tenant::create(['slug' => 'comendador', 'name' => 'Comendador', 'status' => 'active']);
+
+        TenantFeature::firstOrCreate(
+            ['tenant_id' => $tenant->id, 'feature' => 'compras'],
+            ['enabled' => true],
+        );
+
+        return $tenant->id;
     }
 
     /**
@@ -55,19 +75,19 @@ class UserFactory extends Factory
     }
 
     /**
-     * Usuário compradora sênior.
+     * Compradora sênior — papel RBAC `compras` (o ComprasUser::temPerfil usa hasRole).
      */
     public function compradora(): static
     {
-        return $this->state(['is_compradora' => true]);
+        return $this->afterCreating(fn (User $user) => $this->atribuirPapel($user, 'compras', 'Compras'));
     }
 
     /**
-     * Usuário do financeiro (gestão de pagamentos).
+     * Financeiro — papel RBAC `financeiro`.
      */
     public function financeiro(): static
     {
-        return $this->state(['is_financeiro' => true]);
+        return $this->afterCreating(fn (User $user) => $this->atribuirPapel($user, 'financeiro', 'Financeiro'));
     }
 
     /**
@@ -76,5 +96,16 @@ class UserFactory extends Factory
     public function precisaTrocarSenha(): static
     {
         return $this->state(['precisa_trocar_senha' => true]);
+    }
+
+    /** Cria (se preciso) o papel no tenant do usuário e o atribui. */
+    private function atribuirPapel(User $user, string $slug, string $name): void
+    {
+        $role = Role::firstOrCreate(
+            ['tenant_id' => $user->tenant_id, 'slug' => $slug],
+            ['name' => $name],
+        );
+
+        $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $user->tenant_id]]);
     }
 }

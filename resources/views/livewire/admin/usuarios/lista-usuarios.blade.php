@@ -51,16 +51,16 @@
                                     @if ($usuario->is_admin)
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-violet-500/15 text-violet-400">Admin</span>
                                     @endif
-                                    @if ($usuario->is_compradora)
+                                    @if ($usuario->hasRole('compras'))
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-sky-500/15 text-sky-400">Compradora</span>
                                     @endif
-                                    @if (! $usuario->is_admin && ! $usuario->is_compradora)
+                                    @if (! $usuario->is_admin && ! $usuario->hasRole('compras'))
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-500/15 text-slate-300">Padrão</span>
                                     @endif
                                 </div>
                             </td>
                             <td class="px-4 py-3">
-                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium {{ $usuario->status === 'ativo' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400' }}">
+                                <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium {{ $usuario->status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400' }}">
                                     {{ ucfirst($usuario->status) }}
                                 </span>
                             </td>
@@ -112,8 +112,8 @@
                     <div>
                         <label class="block text-sm font-medium text-slate-300 mb-1">Status</label>
                         <select wire:model="status" class="input-dark w-full">
-                            <option value="ativo">Ativo</option>
-                            <option value="inativo">Inativo</option>
+                            <option value="active">Ativo</option>
+                            <option value="inactive">Inativo</option>
                         </select>
                     </div>
 

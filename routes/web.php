@@ -46,7 +46,8 @@ use App\Livewire\Solicitante\RequisicoesMaterial;
 use Illuminate\Support\Facades\Route;
 
 // Login/logout/senha-trocar/2FA vêm da fundação (helix/foundation).
-Route::middleware(['auth', 'ativo', 'troca.senha', '2fa.enforce'])->group(function () {
+// `feature:compras` barra tenants sem o entitlement (controle comercial no console).
+Route::middleware(['auth', 'ativo', 'troca.senha', '2fa.enforce', 'feature:compras'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     // Fase 2 — Requisições (qualquer usuário autenticado)

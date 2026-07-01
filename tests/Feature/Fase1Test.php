@@ -233,7 +233,7 @@ test('admin edita unidade do tipo obra e atualiza obra vinculada', function () {
 // ─── Visibilidade (regressão de scope) ────────────────────────────────────────
 
 test('solicitante nao ve centro de custo de outra unidade', function () {
-    $solicitante = User::factory()->create(['is_admin' => false, 'is_compradora' => false]);
+    $solicitante = User::factory()->create(['is_admin' => false]);
     $minhaUnidade = Unidade::factory()->create();
     $outraUnidade = Unidade::factory()->create();
 

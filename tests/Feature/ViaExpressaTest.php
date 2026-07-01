@@ -199,7 +199,7 @@ it('atender gera cotação homologada vencedora e inicia a aprovação', functio
     ]);
     veItem($req, $cat, 3, 100.00);
 
-    $compradora = User::factory()->create(['is_compradora' => true]);
+    $compradora = User::factory()->compradora()->create();
     $this->actingAs($compradora);
 
     app(AtenderViaExpressaAction::class)->execute($req, $compradora);
@@ -241,7 +241,7 @@ it('não burla a alçada: expressa de alto valor ainda exige Diretor + CEO', fun
     ]);
     veItem($req, $cat, 1, 25000.00);
 
-    $compradora = User::factory()->create(['is_compradora' => true]);
+    $compradora = User::factory()->compradora()->create();
     $this->actingAs($compradora);
 
     app(AtenderViaExpressaAction::class)->execute($req, $compradora);
@@ -399,7 +399,7 @@ it('rejeita atendimento expressa de requisição inelegível', function () {
     veItem($req, $cat, 1, 100.00);
     veItem($req, null, 1, 50.00); // avulso → inelegível
 
-    $compradora = User::factory()->create(['is_compradora' => true]);
+    $compradora = User::factory()->compradora()->create();
     $this->actingAs($compradora);
 
     expect(fn () => app(AtenderViaExpressaAction::class)->execute($req, $compradora))
