@@ -1,0 +1,38 @@
+const L = require("./lib");
+
+module.exports = () => [
+  L.H1("20. Glossário"),
+  L.P("Termos usados no sistema e neste manual, em ordem alfabética."),
+  L.table(
+    ["Termo", "Definição"],
+    [
+      ["Alçada", "Nível de autoridade exigido para aprovar uma compra, definido pelo valor."],
+      ["Atender do estoque", "Concluir uma requisição baixando itens do saldo existente, sem comprar."],
+      ["Avulso (item)", "Item digitado livremente na requisição, sem vínculo ao catálogo; não controla estoque nem via expressa."],
+      ["Catálogo", "Conjunto de itens padronizados disponíveis para requisição."],
+      ["Centro de Custo", "Classificação contábil do gasto, vinculada a uma unidade."],
+      ["Ciclo de aprovação", "Rodada de aprovação; uma reprovação avança o ciclo e reabre o fluxo."],
+      ["Compradora Sênior", "Perfil único e centralizado que tria, cota e emite todos os pedidos."],
+      ["Cotação", "Proposta de preço de um fornecedor para os itens de uma requisição."],
+      ["Decisão por linha", "Rejeitar itens específicos ao aprovar, sem reprovar a requisição inteira."],
+      ["FEFO", "First Expired, First Out — o lote que vence primeiro sai primeiro."],
+      ["Faixa de Alçada", "Regra que, pelo valor, define cotações mínimas e etapas de aprovação."],
+      ["Fornecedor homologado", "Fornecedor qualificado, apto a ser cotado e a ter preços homologados."],
+      ["Inventário", "Contagem física confrontada com o saldo do sistema, com ajuste."],
+      ["Lote", "Agrupamento de um item com a mesma origem e validade, para rastreio."],
+      ["Mapa de Cotação", "Comparativo de preços por item entre fornecedores."],
+      ["Pedido de Compra (PC)", "Documento formal emitido ao fornecedor (numeração PC-AAAA-NNNN)."],
+      ["Preço Homologado", "Preço de um item junto a um fornecedor, com validade, que habilita a via expressa."],
+      ["Recebimento", "Conferência da entrega contra o pedido; gera entrada no estoque."],
+      ["Requisição", "Pedido de compra interno aberto por um solicitante."],
+      ["Requisição de Material", "Pedido que baixa diretamente do estoque, sem compra."],
+      ["Ressalva", "Pendência registrada num recebimento parcial (saldo não entregue)."],
+      ["Saldo de Estoque", "Quantidade disponível de um item em uma unidade."],
+      ["Triagem", "Análise inicial da Compradora sobre cada requisição recebida."],
+      ["Unidade", "Local da rede (posto, obra, cervejaria, central, imobiliária)."],
+      ["Verba (de obra)", "Orçamento da obra, consumido pelas requisições a ela vinculadas."],
+      ["Via Expressa", "Atendimento acelerado de requisições homologadas, dispensando cotação ad-hoc."],
+    ],
+    [2700, 6660],
+  ),
+];
