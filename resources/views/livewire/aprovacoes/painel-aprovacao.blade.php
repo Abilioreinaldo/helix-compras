@@ -2,7 +2,7 @@
     <x-page-header
         title="{{ $requisicao->codigo ?? '—' }}"
         icon="check-badge"
-        subtitle="Solicitada por {{ $requisicao->solicitante?->name ?? '—' }} &mdash; {{ $requisicao->unidade?->nome ?? '—' }}"
+        subtitle="Solicitada por {{ $requisicao->solicitante?->name ?? '—' }} — {{ $requisicao->unidade?->nome ?? '—' }}"
     />
 
     {{-- Alerta de erro de ação --}}
