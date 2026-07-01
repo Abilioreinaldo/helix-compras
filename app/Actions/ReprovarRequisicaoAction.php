@@ -77,7 +77,7 @@ class ReprovarRequisicaoAction
             $this->transicionar->execute($requisicao, StatusRequisicao::Reprovada, $justificativa);
             $this->transicionar->execute($requisicao, StatusRequisicao::EmCotacao, 'Retornada à cotação após reprovação.');
 
-            $compradoras = User::where('is_compradora', true)->get()->all();
+            $compradoras = User::whereHas('roles', fn ($q) => $q->where('slug', 'compras'))->get()->all();
         });
 
         foreach ($compradoras as $compradora) {

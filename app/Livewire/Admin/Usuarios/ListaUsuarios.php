@@ -66,7 +66,7 @@ class ListaUsuarios extends Component
         $this->name = $usuario->name;
         $this->email = $usuario->email;
         $this->isAdmin = $usuario->is_admin;
-        $this->isCompradora = $usuario->is_compradora;
+        $this->isCompradora = $usuario->hasRole('compras');
         $this->status = $usuario->status;
         $this->mostrarModal = true;
     }
@@ -96,9 +96,9 @@ class ListaUsuarios extends Component
                 'name' => $this->name,
                 'email' => $this->email,
                 'is_admin' => $this->isAdmin,
-                'is_compradora' => $this->isCompradora,
                 'status' => $this->status,
             ]);
+            // TODO(P3): atribuir/retirar o papel 'compras' via roles() conforme $this->isCompradora.
             $this->mostrarModal = false;
             $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
         } else {
@@ -107,11 +107,12 @@ class ListaUsuarios extends Component
                 'name' => $this->name,
                 'email' => $this->email,
                 'password' => bcrypt($this->senhaProvisoria),
+                'tenant_id' => auth()->user()->tenant_id,
                 'is_admin' => $this->isAdmin,
-                'is_compradora' => $this->isCompradora,
                 'status' => $this->status,
                 'precisa_trocar_senha' => true,
             ]);
+            // TODO(P3): atribuir o papel 'compras' via roles() conforme $this->isCompradora.
             $this->mostrarModal = false;
         }
     }

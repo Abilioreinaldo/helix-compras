@@ -2,8 +2,6 @@
 
 use App\Http\Controllers\BaixarPdfPedidoCompraController;
 use App\Http\Controllers\DownloadArquivoCotacaoController;
-use App\Http\Middleware\AdminMiddleware;
-use App\Http\Middleware\ForcaTrocaSenha;
 use App\Livewire\Admin\Alcadas\ListaAlcadas;
 use App\Livewire\Admin\CatalogoItens\ListaCatalogoItens;
 use App\Livewire\Admin\CatalogoItens\ReconciliacaoSaldos;
@@ -19,8 +17,6 @@ use App\Livewire\Almoxarife\RegistroRecebimento;
 use App\Livewire\Almoxarife\SaldosEstoque;
 use App\Livewire\Aprovacoes\FilaAprovacoes;
 use App\Livewire\Aprovacoes\PainelAprovacao;
-use App\Livewire\Auth\Login;
-use App\Livewire\Auth\TrocarSenha;
 use App\Livewire\Compradora\DetalhePedidoCompra;
 use App\Livewire\Compradora\FormularioPedidoCompra;
 use App\Livewire\Compradora\GestaoCotacoes;
@@ -47,24 +43,10 @@ use App\Livewire\Requisicoes\DetalheRequisicao;
 use App\Livewire\Requisicoes\FormularioRequisicao;
 use App\Livewire\Requisicoes\ListaRequisicoes;
 use App\Livewire\Solicitante\RequisicoesMaterial;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('guest')->group(function () {
-    Route::get('/login', Login::class)->name('login');
-});
-
-Route::middleware(['auth', ForcaTrocaSenha::class])->group(function () {
-    Route::get('/senha/trocar', TrocarSenha::class)->name('senha.trocar');
-
-    Route::post('/logout', function () {
-        Auth::logout();
-        request()->session()->invalidate();
-        request()->session()->regenerateToken();
-
-        return redirect()->route('login');
-    })->name('logout');
-
+// Login/logout/senha-trocar/2FA vêm da fundação (helix/foundation).
+Route::middleware(['auth', 'ativo', 'troca.senha', '2fa.enforce'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
 
     // Fase 2 — Requisições (qualquer usuário autenticado)
