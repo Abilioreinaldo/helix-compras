@@ -110,7 +110,7 @@ Route::middleware(['auth', 'ativo', 'troca.senha', '2fa.enforce'])->group(functi
     Route::get('/pagamentos/agendamentos', Agendamentos::class)->name('pagamentos.agendamentos');
 
     // Fase 1 — somente Admin
-    Route::middleware(AdminMiddleware::class)->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/unidades', ListaUnidades::class)->name('unidades');
         Route::get('/usuarios', ListaUsuarios::class)->name('usuarios');
         Route::get('/fornecedores', ListaFornecedores::class)->name('fornecedores');
