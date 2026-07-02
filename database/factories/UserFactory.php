@@ -68,10 +68,19 @@ class UserFactory extends Factory
 
     /**
      * Usuário administrador do sistema.
+     *
+     * Admin agora é por-tenant (pivot tenant_user.is_admin), então além da flag
+     * global cria a membership admin no tenant do usuário — senão o AdminMiddleware
+     * (que lê o pivot) barraria o acesso às rotas /admin.
      */
     public function admin(): static
     {
-        return $this->state(['is_admin' => true]);
+        return $this->state(['is_admin' => true])
+            ->afterCreating(function (User $user) {
+                $user->memberships()->syncWithoutDetaching([
+                    $user->getAttributes()['tenant_id'] => ['is_admin' => true, 'status' => 'active'],
+                ]);
+            });
     }
 
     /**
