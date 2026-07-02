@@ -67,20 +67,28 @@ class UserFactory extends Factory
     }
 
     /**
-     * Usuário administrador do sistema.
-     *
-     * Admin agora é por-tenant (pivot tenant_user.is_admin), então além da flag
-     * global cria a membership admin no tenant do usuário — senão o AdminMiddleware
-     * (que lê o pivot) barraria o acesso às rotas /admin.
+     * Todo usuário criado ganha a membership no seu tenant home (como em produção,
+     * via UserService::createUser) — com is_admin espelhando a flag. Sem isto o
+     * EnsureTenantActive/AdminMiddleware (que leem o pivot) barrariam o acesso.
+     */
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            $user->memberships()->syncWithoutDetaching([
+                $user->getAttributes()['tenant_id'] => [
+                    'is_admin' => (bool) ($user->getAttributes()['is_admin'] ?? false),
+                    'status' => 'active',
+                ],
+            ]);
+        });
+    }
+
+    /**
+     * Usuário administrador do tenant (pivot tenant_user.is_admin via configure()).
      */
     public function admin(): static
     {
-        return $this->state(['is_admin' => true])
-            ->afterCreating(function (User $user) {
-                $user->memberships()->syncWithoutDetaching([
-                    $user->getAttributes()['tenant_id'] => ['is_admin' => true, 'status' => 'active'],
-                ]);
-            });
+        return $this->state(['is_admin' => true]);
     }
 
     /**
