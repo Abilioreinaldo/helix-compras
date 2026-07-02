@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BaixarPdfPedidoCompraController;
 use App\Http\Controllers\DownloadArquivoCotacaoController;
+use App\Livewire\Account2FA;
 use App\Livewire\Admin\Alcadas\ListaAlcadas;
 use App\Livewire\Admin\CatalogoItens\ListaCatalogoItens;
 use App\Livewire\Admin\CatalogoItens\ReconciliacaoSaldos;
@@ -49,6 +50,9 @@ use Illuminate\Support\Facades\Route;
 // `feature:compras` barra tenants sem o entitlement (controle comercial no console).
 Route::middleware(['auth', 'ativo', 'tenant.ctx', 'tenant.ativo', 'troca.senha', '2fa.enforce', 'feature:compras'])->group(function () {
     Route::get('/dashboard', Dashboard::class)->name('dashboard');
+
+    // Segurança da conta — setup de 2FA (destino do RequireTwoFactor / twofactor.route).
+    Route::get('/seguranca/2fa', Account2FA::class)->name('seguranca.2fa');
 
     // Fase 2 — Requisições (qualquer usuário autenticado)
     Route::get('/requisicoes', ListaRequisicoes::class)->name('requisicoes.index');
