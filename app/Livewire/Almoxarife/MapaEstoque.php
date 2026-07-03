@@ -2,10 +2,10 @@
 
 namespace App\Livewire\Almoxarife;
 
-use App\Enums\Perfil;
 use App\Models\EstoqueMinimo;
 use App\Models\LoteEstoque;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -19,7 +19,7 @@ use Livewire\WithPagination;
  */
 class MapaEstoque extends Component
 {
-    use WithPagination;
+    use AuthorizesRequests, WithPagination;
 
     public string $filtroItem = '';
 
@@ -31,14 +31,7 @@ class MapaEstoque extends Component
 
     public function mount(): void
     {
-        abort_unless($this->autorizado(), 403);
-    }
-
-    private function autorizado(): bool
-    {
-        $usuario = auth()->user();
-
-        return $usuario->is_admin || $usuario->temPerfil(Perfil::Almoxarife);
+        $this->authorize('estoque.gerenciar');
     }
 
     public function updatingFiltroItem(): void
@@ -76,7 +69,7 @@ class MapaEstoque extends Component
 
     public function render(): View
     {
-        abort_unless($this->autorizado(), 403);
+        $this->authorize('estoque.gerenciar');
 
         $posicao = EstoqueMinimo::posicaoEstoquePara(auth()->user());
         $saldoIds = $posicao->pluck('saldo_id')->all();

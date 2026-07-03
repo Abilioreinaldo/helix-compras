@@ -11,6 +11,7 @@ use App\Models\LoteEstoque;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class SaldosEstoque extends Component
 {
-    use WithPagination;
+    use AuthorizesRequests, WithPagination;
 
     public string $busca = '';
 
@@ -53,7 +54,7 @@ class SaldosEstoque extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
     }
 
     public function updatingBusca(): void
@@ -68,7 +69,7 @@ class SaldosEstoque extends Component
 
     public function abrirModalMinimo(int $saldoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         // Restringe o saldo às unidades onde o usuário é Almoxarife — não vazar dados de outra unidade.
         $unidadeIds = auth()->user()->unidades()
@@ -108,7 +109,7 @@ class SaldosEstoque extends Component
 
     public function salvarMinimo(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $this->validate([
             'minimoQuantidade' => 'required|numeric|min:0',
@@ -143,7 +144,7 @@ class SaldosEstoque extends Component
 
     public function abrirTransferencia(int $saldoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $saldo = SaldoEstoque::whereIn('unidade_id', $this->unidadesDoAlmoxarife())->findOrFail($saldoId);
 
@@ -167,7 +168,7 @@ class SaldosEstoque extends Component
 
     public function confirmarTransferencia(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $this->validate([
             'transferDestinoId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')],
@@ -211,7 +212,7 @@ class SaldosEstoque extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $usuario = auth()->user();
 

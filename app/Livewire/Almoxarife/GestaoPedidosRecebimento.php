@@ -6,21 +6,22 @@ use App\Enums\Perfil;
 use App\Enums\StatusPedidoCompra;
 use App\Models\PedidoCompra;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class GestaoPedidosRecebimento extends Component
 {
-    use WithPagination;
+    use AuthorizesRequests, WithPagination;
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $usuario = auth()->user();
 

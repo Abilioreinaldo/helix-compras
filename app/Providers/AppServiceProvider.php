@@ -12,6 +12,7 @@ use App\Models\Pagamento;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Policies\AprovacaoPolicy;
+use App\Policies\EstoquePolicy;
 use App\Policies\PagamentoPolicy;
 use App\Policies\RequisicaoPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -53,5 +54,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('aprovacao.acessar-fila', [AprovacaoPolicy::class, 'acessarFila']);
         Gate::define('aprovacao.acessar', [AprovacaoPolicy::class, 'acessar']);
         Gate::define('aprovacao.decidir', [AprovacaoPolicy::class, 'decidir']);
+
+        // Estoque/Almoxarife: acesso ao módulo (estado/saldo/lote seguem nas Actions).
+        Gate::define('estoque.gerenciar', [EstoquePolicy::class, 'gerenciar']);
     }
 }

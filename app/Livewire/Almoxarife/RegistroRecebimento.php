@@ -8,12 +8,15 @@ use App\Enums\StatusPedidoCompra;
 use App\Models\CatalogoItem;
 use App\Models\PedidoCompra;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class RegistroRecebimento extends Component
 {
+    use AuthorizesRequests;
+
     public int $id;
 
     public string $observacoes = '';
@@ -26,7 +29,7 @@ class RegistroRecebimento extends Component
 
     public function mount(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $pedido = $this->carregarPedido();
         abort_unless($pedido->status === StatusPedidoCompra::Emitido, 403);
@@ -47,7 +50,7 @@ class RegistroRecebimento extends Component
 
     public function registrar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $pedido = $this->carregarPedido();
         abort_unless($pedido->status === StatusPedidoCompra::Emitido, 403);
@@ -155,7 +158,7 @@ class RegistroRecebimento extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $pedido = $this->carregarPedido();
         $this->autorizarAcesso($pedido);

@@ -10,11 +10,14 @@ use App\Enums\StatusInventario;
 use App\Models\SessaoInventario;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class Inventario extends Component
 {
+    use AuthorizesRequests;
+
     // ─── Form de abertura ────────────────────────────────────────────────────
     public string $depositoAbertura = '';
 
@@ -37,19 +40,12 @@ class Inventario extends Component
 
     public function mount(): void
     {
-        abort_unless($this->usuarioAutorizado(), 403);
-    }
-
-    private function usuarioAutorizado(): bool
-    {
-        $usuario = auth()->user();
-
-        return $usuario->temPerfil(Perfil::Admin) || $usuario->temPerfil(Perfil::Almoxarife);
+        $this->authorize('estoque.gerenciar');
     }
 
     public function abrirFormAbrir(): void
     {
-        abort_unless($this->usuarioAutorizado(), 403);
+        $this->authorize('estoque.gerenciar');
         $this->mostrarFormAbrir = true;
         $this->depositoAbertura = '';
         $this->erro = '';
@@ -63,7 +59,7 @@ class Inventario extends Component
 
     public function abrirSessao(): void
     {
-        abort_unless($this->usuarioAutorizado(), 403);
+        $this->authorize('estoque.gerenciar');
         $this->erro = '';
 
         $usuario = auth()->user();
@@ -98,7 +94,7 @@ class Inventario extends Component
 
     public function abrirModalAplicar(): void
     {
-        abort_unless($this->usuarioAutorizado(), 403);
+        $this->authorize('estoque.gerenciar');
         $this->mostrarModalAplicar = true;
         $this->justificativaAplicar = '';
         $this->erro = '';
@@ -112,7 +108,7 @@ class Inventario extends Component
 
     public function aplicar(): void
     {
-        abort_unless($this->usuarioAutorizado(), 403);
+        $this->authorize('estoque.gerenciar');
         $this->erro = '';
 
         $sessao = SessaoInventario::find($this->sessaoAtivaId);
@@ -154,7 +150,7 @@ class Inventario extends Component
 
     public function cancelar(): void
     {
-        abort_unless($this->usuarioAutorizado(), 403);
+        $this->authorize('estoque.gerenciar');
         $this->erro = '';
 
         $sessao = SessaoInventario::find($this->sessaoAtivaId);
@@ -177,7 +173,7 @@ class Inventario extends Component
 
     public function render(): View
     {
-        abort_unless($this->usuarioAutorizado(), 403);
+        $this->authorize('estoque.gerenciar');
 
         $sessaoAtiva = $this->sessaoAtivaId
             ? SessaoInventario::with('itens.saldoEstoque')->find($this->sessaoAtivaId)

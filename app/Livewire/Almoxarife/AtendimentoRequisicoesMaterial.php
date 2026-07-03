@@ -9,13 +9,14 @@ use App\Enums\StatusRequisicaoMaterial;
 use App\Models\LoteEstoque;
 use App\Models\RequisicaoMaterial;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class AtendimentoRequisicoesMaterial extends Component
 {
-    use WithPagination;
+    use AuthorizesRequests, WithPagination;
 
     public ?int $recusandoId = null;
 
@@ -25,12 +26,12 @@ class AtendimentoRequisicoesMaterial extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
     }
 
     public function atender(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $this->erroAtendimento = '';
         $rim = RequisicaoMaterial::withoutGlobalScopes()->findOrFail($id);
@@ -45,7 +46,7 @@ class AtendimentoRequisicoesMaterial extends Component
 
     public function abrirRecusa(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
         $this->recusandoId = $id;
         $this->motivoRecusa = '';
         $this->erroAtendimento = '';
@@ -53,7 +54,7 @@ class AtendimentoRequisicoesMaterial extends Component
 
     public function confirmarRecusa(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $this->validate(['motivoRecusa' => 'required|string|min:5'], [
             'motivoRecusa.required' => 'Informe o motivo da recusa.',
@@ -79,7 +80,7 @@ class AtendimentoRequisicoesMaterial extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Almoxarife), 403);
+        $this->authorize('estoque.gerenciar');
 
         $usuario = auth()->user();
 
