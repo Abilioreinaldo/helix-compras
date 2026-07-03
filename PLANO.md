@@ -22,10 +22,12 @@ Revisão da frente de Compras. Pontos registrados como **fonte da verdade** dest
   `unidade_id`/`tenant_id`; a autorização é por papel global (`financeiro`/admin via
   `podeVerPagamentos`/`podeGerenciarPagamentos`), então o Financeiro enxerga contas de todas as
   unidades. **Não** filtrar por unidade sem antes decidir modelar `unidade_id` na tabela.
-- **Ponto cego — validação em MySQL real antes do go-live:** os itens **A3** (ordem de deploy
-  do UNIQUE) e **A7** (índice único "1 pagamento ativo por pedido", módulo Financeiro) do
-  checklist §A seguem **abertos** e precisam ser confirmados em MySQL real. Os itens D9–D12 já
-  têm registro de validação (MySQL 8.0.46) — ver seção "D. Checklist MySQL Pré-Go-Live (v1.1-C)".
+- **Validação em MySQL real (atualização 2026-07-03):** o **A7** (índice único "1 pagamento
+  ativo por pedido") foi **validado em MySQL 8.0.46** — e revelou um bug: a migration dropava o
+  unique composto direto, mas no MySQL ele sustenta a FK de `pedido_compra_id` (erro 1553 no
+  deploy). Corrigido (índice simples antes do drop) no commit do fix; guardado pelo teste
+  portável `tests/Feature/PagamentoAtivoUnicoTest.php`. Resta o **A3** (ordem de deploy do
+  UNIQUE — procedimental) a exercitar no deploy. Os D9–D12 já tinham registro (MySQL 8.0.46).
 
 ---
 
@@ -539,8 +541,9 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
 - [x] **A6 — Enum `tipo` ampliado para transferência** (`add_transferencia_tipos_to_movimentacoes_estoque`): adiciona `'transferencia_saida'` e `'transferencia_entrada'` via `MODIFY COLUMN tipo ENUM(...)` (só MySQL; SQLite TEXT → no-op).
   - **Como:** `migrate` no MySQL; `SHOW COLUMNS FROM movimentacoes_estoque LIKE 'tipo'` deve listar os 9 valores; executar uma transferência e confirmar as duas movimentações (`transferencia_saida`/`transferencia_entrada`) aceitas.
 
-- [ ] **A7 — Índice único parcial "1 pagamento ativo por pedido"** (`fix_unique_pagamento_por_pedido`, módulo Financeiro). ⚠️ PONTO CEGO: `unique(pedido_compra_id, deleted_at)` é inócuo (NULL distinto em ambos os bancos). Driver-aware: SQLite usa `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL`; **MySQL** usa coluna gerada `pedido_ativo_key BIGINT GENERATED ALWAYS AS (...) STORED` + unique nela.
-  - **Como validar no MySQL:** `migrate`; `SHOW INDEX FROM pagamentos` deve listar `pagamentos_pedido_ativo_unique`; tentar inserir 2 pagamentos ativos (deleted_at NULL) para o mesmo `pedido_compra_id` → o 2º deve falhar (erro 1062); soft-delete do 1º + novo insert deve passar.
+- [x] **A7 — Índice único parcial "1 pagamento ativo por pedido"** (`fix_unique_pagamento_por_pedido`, módulo Financeiro). ✅ **VALIDADO em MySQL 8.0.46 (2026-07-03).** Driver-aware: SQLite usa `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL`; **MySQL** usa coluna gerada `pedido_ativo_key BIGINT GENERATED ALWAYS AS (...) STORED` + unique nela.
+  - **Bug encontrado e corrigido na validação:** o drop do unique composto `(pedido_compra_id, deleted_at)` falhava no MySQL com **erro 1553** ("needed in a foreign key constraint") — o índice sustentava a FK de `pedido_compra_id`. Fix: criar índice simples em `pedido_compra_id` **antes** do drop (ramo MySQL). Coberto por `tests/Feature/PagamentoAtivoUnicoTest.php` (portável).
+  - **Validado:** `migrate` OK; `SHOW INDEX` lista `pagamentos_pedido_ativo_unique`; coluna gerada STORED presente; 2 pagamentos ativos no mesmo pedido → 2º falha com **1062**; soft-delete do 1º + novo insert passa.
 
 ### B. Relatórios driver-aware
 
