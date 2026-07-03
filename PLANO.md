@@ -2,8 +2,30 @@
 # Rede Comendador
 
 **Última atualização:** 2026-06-18
-**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) + **v1.1-C (lote/validade+FEFO)** + **Rateio da central** + **validade da proposta na cotação (#9)** implementados. **+ transferência entre unidades (#6, sec/QA) + lembrete diário +48h (#8).** **465 testes verdes.** **v1 COMPLETA** — todas as pendências reais entregues. Resta apenas a validação do checklist MySQL pré-go-live (seção A/D abaixo). Ver "Pendências reais de v1" abaixo.
+**Status geral:** Fases 0–8 + v1.1-A (catálogo) + v1.1-B (fusão/UNIQUE) + RIM/Inventário/Atendimento direto + Estoque mínimo + Relatórios #7 (R1–R5) + **v1.1-C (lote/validade+FEFO)** + **Rateio da central** + **validade da proposta na cotação (#9)** implementados. **+ transferência entre unidades (#6, sec/QA) + lembrete diário +48h (#8).** **576 testes verdes.** **v1 COMPLETA** — todas as pendências reais entregues. Resta apenas a validação do checklist MySQL pré-go-live (seção A/D abaixo). Ver "Pendências reais de v1" abaixo.
 **Branch principal:** main
+
+---
+
+## Nota de revisão de plataforma (2026-07-03)
+
+Revisão da frente de Compras. Pontos registrados como **fonte da verdade** deste PLANO:
+
+- **Ambientes:** produção é **MySQL**; testes locais rodam em **SQLite**. Nenhuma função/sintaxe
+  específica de dialeto sem ramo `DB::getDriverName()` — guardado por teste de arquitetura
+  (`tests/Unit/ArquiteturaTest.php`).
+- **Financeiro faz parte da v1.** O módulo (contas a pagar: pagamentos, agendamento,
+  reconciliação CSV) foi entregue — ver `app/Livewire/Financeiro/`, `app/Actions/*Pagamento*`,
+  rotas `pagamentos.*`. A antiga listagem de "financeiro fora da v1" (aqui e no ESCOPO) estava
+  desatualizada e foi corrigida.
+- **Pagamentos são globais por papel, por design.** A tabela `pagamentos` **não** tem
+  `unidade_id`/`tenant_id`; a autorização é por papel global (`financeiro`/admin via
+  `podeVerPagamentos`/`podeGerenciarPagamentos`), então o Financeiro enxerga contas de todas as
+  unidades. **Não** filtrar por unidade sem antes decidir modelar `unidade_id` na tabela.
+- **Ponto cego — validação em MySQL real antes do go-live:** os itens **A3** (ordem de deploy
+  do UNIQUE) e **A7** (índice único "1 pagamento ativo por pedido", módulo Financeiro) do
+  checklist §A seguem **abertos** e precisam ser confirmados em MySQL real. Os itens D9–D12 já
+  têm registro de validação (MySQL 8.0.46) — ver seção "D. Checklist MySQL Pré-Go-Live (v1.1-C)".
 
 ---
 
@@ -541,15 +563,18 @@ Relatórios complementares aos 4 da Fase 8. Cada um: componente Livewire + view 
   - **O que validar:** violação UNIQUE em MySQL cai no ramo 1062 e degrada para UPDATE/relê corretamente. **Atenção:** em MySQL a transação **aborta** na violação (diferente do rollback statement-level do SQLite) — confirmar que o retry funciona.
   - **Como:** forçar corrida de `updateOrCreate` do mesmo `(unidade, item)` e confirmar resultado consistente sem exceção propagada.
 
-### D. v1.1-C — Lote/Validade (quando implementado)
+### D. v1.1-C — Lote/Validade ✅ VALIDADO em MySQL 8.0.46
 
-- [ ] **D9 — UNIQUE parcial de `lotes_estoque`** `(saldo_estoque_id, numero_lote)` em `fundido_para_id IS NULL`: índice parcial (SQLite) vs coluna gerada STORED + UNIQUE (MySQL), mesma técnica de A2.
+> Reconciliação (2026-07-03): estes itens estavam abertos aqui mas já constam validados na
+> seção "D. Checklist MySQL Pré-Go-Live (v1.1-C)" ao final. Marcados como concluídos.
+
+- [x] **D9 — UNIQUE parcial de `lotes_estoque`** `(saldo_estoque_id, numero_lote)` em `fundido_para_id IS NULL`: índice parcial (SQLite) vs coluna gerada STORED + UNIQUE (MySQL), mesma técnica de A2.
   - **Como:** `SHOW CREATE TABLE lotes_estoque`; inserir duplicata viva → falha 1062; após tombstone, inserir mesmo `numero_lote` → passa.
-- [ ] **D10 — Ordenação FEFO `(validade IS NULL), validade ASC, id ASC`** (NULL por último sem `NULLS LAST`).
+- [x] **D10 — Ordenação FEFO `(validade IS NULL), validade ASC, id ASC`** (NULL por último sem `NULLS LAST`).
   - **Como:** com lotes de validade NULL + datas, confirmar no MySQL que NULL sai por último e a saída debita o de menor validade primeiro.
-- [ ] **D11 — Comparação de vencido `validade < hoje`** (date puro, sem `julianday`/`DATEDIFF`).
+- [x] **D11 — Comparação de vencido `validade < hoje`** (date puro, sem `julianday`/`DATEDIFF`).
   - **Como:** lote com `validade` no passado é marcado vencido (alerta) no MySQL, sem erro de função e sem bloquear a saída.
-- [ ] **D12 — Case-sensitivity de `numero_lote` no agrupamento de lote** (Passo 2, `EntradaEstoqueAction::creditarLote`): a busca do lote vivo usa `WHERE numero_lote = ?` e o UNIQUE parcial `(saldo_estoque_id, numero_lote)`. SQLite (binary) trata `'L-001'` ≠ `'l-001'` → **2 lotes**; MySQL com collation padrão `utf8mb4_unicode_ci` trata `'L-001'` = `'l-001'` → **1 lote (soma)**. A invariante `SUM(lotes vivos)==saldo` **não quebra** nos dois casos (ambos somam ao saldo); o que diverge é a granularidade dos lotes. **Decisão do dono pendente:** normalizar `numero_lote` (ex.: `upper(trim())`) na entrada para tornar determinístico entre bancos, ou aceitar a divergência.
+- [x] **D12 — Case-sensitivity de `numero_lote` no agrupamento de lote** (Passo 2, `EntradaEstoqueAction::creditarLote`): a busca do lote vivo usa `WHERE numero_lote = ?` e o UNIQUE parcial `(saldo_estoque_id, numero_lote)`. SQLite (binary) trata `'L-001'` ≠ `'l-001'` → **2 lotes**; MySQL com collation padrão `utf8mb4_unicode_ci` trata `'L-001'` = `'l-001'` → **1 lote (soma)**. A invariante `SUM(lotes vivos)==saldo` **não quebra** nos dois casos (ambos somam ao saldo); o que diverge é a granularidade dos lotes. **Decisão tomada (2026-07-03):** aceitar o comportamento do MySQL (`utf8mb4_unicode_ci`, case-insensitive) — ver seção final; normalização de `numero_lote` fica como melhoria opcional pós-v1.
   - **Como:** receber `'L-001'` e depois `'l-001'` no mesmo saldo; conferir `LoteEstoque::count()` (2 em SQLite, 1 em MySQL) e confirmar o comportamento desejado no MySQL real.
 
 ---
@@ -625,7 +650,6 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 (Alinhado ao ESCOPO.md, seção "Fora de escopo (v1)".)
 
 - Integração com ERP / contabilidade
-- Pagamento e financeiro (contas a pagar)
 - App mobile nativo
 - Portal do fornecedor
 - Contratos recorrentes
@@ -633,6 +657,9 @@ ficaram só com Action (lógica), sem tela/fluxo. Lista em ordem de criticidade 
 - Localização do item no estoque (prateleira/bin) — cosmético, pós-v1
 
 > Catálogo de itens centralizado saiu desta lista: **já implementado** em v1.1-A.
+>
+> Financeiro (contas a pagar) também saiu desta lista: **já implementado** na v1 — ver
+> "Nota de revisão de plataforma" no topo.
 
 
 
