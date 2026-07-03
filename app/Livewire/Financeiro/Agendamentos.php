@@ -6,15 +6,18 @@ use App\Enums\StatusPagamento;
 use App\Models\Pagamento;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Carbon;
 use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class Agendamentos extends Component
 {
+    use AuthorizesRequests;
+
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerPagamentos(), 403);
+        $this->authorize('viewAny', Pagamento::class);
     }
 
     /**
@@ -35,7 +38,7 @@ class Agendamentos extends Component
     /** Exporta os pagamentos dos próximos 30 dias em CSV (lista para o banco). */
     public function exportar(): StreamedResponse
     {
-        abort_unless(auth()->user()->podeVerPagamentos(), 403);
+        $this->authorize('viewAny', Pagamento::class);
 
         $pagamentos = $this->proximos();
 
@@ -63,7 +66,7 @@ class Agendamentos extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerPagamentos(), 403);
+        $this->authorize('viewAny', Pagamento::class);
 
         return view('livewire.financeiro.agendamentos', [
             'pagamentos' => $this->proximos(),

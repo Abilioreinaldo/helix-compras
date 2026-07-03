@@ -11,6 +11,7 @@ use App\Models\Banco;
 use App\Models\Fornecedor;
 use App\Models\Pagamento;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -19,7 +20,7 @@ use Livewire\WithPagination;
 
 class ListaPagamentos extends Component
 {
-    use WithPagination;
+    use AuthorizesRequests, WithPagination;
 
     public string $filtroStatus = '';
 
@@ -60,7 +61,7 @@ class ListaPagamentos extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerPagamentos(), 403);
+        $this->authorize('viewAny', Pagamento::class);
     }
 
     public function updatingFiltroStatus(): void
@@ -94,7 +95,7 @@ class ListaPagamentos extends Component
 
     public function abrirRegistrar(int $id): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
         $pag = Pagamento::findOrFail($id);
 
         $this->pagamentoId = $id;
@@ -111,7 +112,7 @@ class ListaPagamentos extends Component
 
     public function registrar(): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
 
         $this->validate([
             'valorPago' => 'required|numeric|min:0.01',
@@ -148,7 +149,7 @@ class ListaPagamentos extends Component
 
     public function abrirAgendar(int $id): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
         $this->pagamentoId = $id;
         $this->dataAgendamento = now()->addDay()->toDateString();
         $this->resetValidation();
@@ -157,7 +158,7 @@ class ListaPagamentos extends Component
 
     public function agendar(): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
         $this->validate(['dataAgendamento' => 'required|date']);
 
         try {
@@ -176,7 +177,7 @@ class ListaPagamentos extends Component
 
     public function abrirCancelar(int $id): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
         $this->pagamentoId = $id;
         $this->motivoCancelamento = '';
         $this->resetValidation();
@@ -185,7 +186,7 @@ class ListaPagamentos extends Component
 
     public function cancelar(): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
         $this->validate(['motivoCancelamento' => 'required|string|min:3|max:1000']);
 
         try {
@@ -202,7 +203,7 @@ class ListaPagamentos extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerPagamentos(), 403);
+        $this->authorize('viewAny', Pagamento::class);
 
         $base = Pagamento::query()->with(['fornecedor', 'banco']);
 

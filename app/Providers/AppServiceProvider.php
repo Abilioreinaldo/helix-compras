@@ -8,8 +8,11 @@ use App\Imap\WebklexLeitorCaixaCotacoes;
 use App\Models\CentroCusto;
 use App\Models\Fornecedor;
 use App\Models\Obra;
+use App\Models\Pagamento;
 use App\Models\Unidade;
+use App\Policies\PagamentoPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -39,5 +42,7 @@ class AppServiceProvider extends ServiceProvider
             'fornecedor' => Fornecedor::class,
             'centro_custo' => CentroCusto::class,
         ]);
+
+        Gate::policy(Pagamento::class, PagamentoPolicy::class);
     }
 }

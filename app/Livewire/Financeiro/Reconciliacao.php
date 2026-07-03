@@ -4,8 +4,10 @@ namespace App\Livewire\Financeiro;
 
 use App\Actions\ProcessarReconciliacaoCsvAction;
 use App\Models\Banco;
+use App\Models\Pagamento;
 use App\Models\ReconciliacaoBancaria;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -14,7 +16,7 @@ use Livewire\WithFileUploads;
 
 class Reconciliacao extends Component
 {
-    use WithFileUploads;
+    use AuthorizesRequests, WithFileUploads;
 
     public string $bancoId = '';
 
@@ -26,12 +28,12 @@ class Reconciliacao extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
     }
 
     public function processar(): void
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
 
         $this->validate([
             'bancoId' => 'required|exists:bancos,id',
@@ -62,7 +64,7 @@ class Reconciliacao extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeGerenciarPagamentos(), 403);
+        $this->authorize('manage', Pagamento::class);
 
         $reconciliacao = $this->reconciliacaoId !== null
             ? ReconciliacaoBancaria::with(['itens.pagamento.fornecedor', 'banco'])->find($this->reconciliacaoId)
