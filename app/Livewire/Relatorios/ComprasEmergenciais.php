@@ -15,14 +15,14 @@ class ComprasEmergenciais extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
         $this->ano = (int) now()->year;
         $this->mes = (int) now()->month;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         // Valor por requisição usando cascata: PC emitido > cotação vencedora > estimativa.
         $resultados = DB::table('requisicoes as r')

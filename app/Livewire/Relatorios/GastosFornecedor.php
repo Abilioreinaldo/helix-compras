@@ -17,13 +17,13 @@ class GastosFornecedor extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
         $this->ano = (int) now()->year;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         $porCategoria = $this->agrupamento === 'categoria';
 

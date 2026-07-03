@@ -16,12 +16,12 @@ class PosicaoEstoque extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         // Posição reusa EstoqueMinimo::posicaoEstoquePara (tombstone fundido_para_id IS NULL).
         $posicao = EstoqueMinimo::posicaoEstoquePara(auth()->user());

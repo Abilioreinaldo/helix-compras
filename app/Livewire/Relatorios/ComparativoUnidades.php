@@ -15,13 +15,13 @@ class ComparativoUnidades extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
         $this->ano = (int) now()->year;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         // Gasto atribuído à UNIDADE DA REQUISIÇÃO (r.unidade_id), não à do pedido de
         // compra (pc.unidade_id) — decisão R5. O join é via ipc.requisicao_id → r.

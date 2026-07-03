@@ -15,13 +15,13 @@ class TempoAprovacao extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
         $this->ano = (int) now()->year;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         // Duração do ciclo de aprovação em horas (fração). Driver-aware como no v1.1-B:
         // - MySQL/MariaDB: TIMESTAMPDIFF(SECOND, ...) / 3600 (julianday não existe no MySQL).

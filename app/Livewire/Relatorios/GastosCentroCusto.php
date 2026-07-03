@@ -15,13 +15,13 @@ class GastosCentroCusto extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
         $this->ano = (int) now()->year;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         $resultados = DB::table('itens_pedido_compra as ipc')
             ->join('pedidos_compra as pc', 'pc.id', '=', 'ipc.pedido_compra_id')

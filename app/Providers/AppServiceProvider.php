@@ -14,6 +14,7 @@ use App\Models\Unidade;
 use App\Policies\AprovacaoPolicy;
 use App\Policies\EstoquePolicy;
 use App\Policies\PagamentoPolicy;
+use App\Policies\RelatorioPolicy;
 use App\Policies\RequisicaoPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
@@ -57,5 +58,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Estoque/Almoxarife: acesso ao módulo (estado/saldo/lote seguem nas Actions).
         Gate::define('estoque.gerenciar', [EstoquePolicy::class, 'gerenciar']);
+
+        // Relatórios consolidados (RateioMensalCentral tem regra própria no componente).
+        Gate::define('relatorio.ver', [RelatorioPolicy::class, 'ver']);
     }
 }

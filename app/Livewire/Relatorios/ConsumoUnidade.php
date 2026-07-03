@@ -15,13 +15,13 @@ class ConsumoUnidade extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
         $this->ano = (int) now()->year;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
         // Consumo = saídas de estoque (RIM). A unidade vem do saldo de origem.
         // Apenas tipo 'saida' entra — entrada/ajuste/fusão não são consumo.
