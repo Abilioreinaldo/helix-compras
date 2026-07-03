@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin\Fornecedores;
 
-use App\Enums\Perfil;
 use App\Models\Fornecedor;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
@@ -73,7 +72,7 @@ class ListaFornecedores extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $cnpjUnico = Rule::unique('fornecedores', 'cnpj')
             ->whereNull('deleted_at')
@@ -118,7 +117,7 @@ class ListaFornecedores extends Component
 
     public function homologar(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $fornecedor = Fornecedor::findOrFail($id);
 
         if ($fornecedor->homologado) {
@@ -136,7 +135,7 @@ class ListaFornecedores extends Component
 
     public function excluir(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         Fornecedor::findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Fornecedor removido.');
     }

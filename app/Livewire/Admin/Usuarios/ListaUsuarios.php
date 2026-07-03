@@ -74,7 +74,7 @@ class ListaUsuarios extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $emailUnico = $this->editandoId
             ? Rule::unique('users', 'email')->ignore($this->editandoId)
@@ -136,7 +136,7 @@ class ListaUsuarios extends Component
 
     public function excluir(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         User::withoutGlobalScopes()->findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Usuário removido.');
     }
@@ -152,7 +152,7 @@ class ListaUsuarios extends Component
 
     public function adicionarVinculo(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $this->validate([
             'vincularUnidadeId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')],
@@ -179,7 +179,7 @@ class ListaUsuarios extends Component
 
     public function removerVinculo(int $unidadeId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $usuario = User::withoutGlobalScopes()->findOrFail($this->usuarioVinculosId);
         $usuario->unidades()->detach($unidadeId);
         $this->dispatch('notify', mensagem: 'Vínculo removido.');

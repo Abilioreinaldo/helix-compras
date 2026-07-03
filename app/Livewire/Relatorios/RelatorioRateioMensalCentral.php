@@ -35,7 +35,7 @@ class RelatorioRateioMensalCentral extends Component
 
     public function abrirReversao(int $itemId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->revertendoItemId = $itemId;
         $this->motivoReversao = '';
         $this->resetValidation();
@@ -50,7 +50,7 @@ class RelatorioRateioMensalCentral extends Component
 
     public function confirmarReversao(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $item = RateioUnidade::with('rateioCentral')->findOrFail($this->revertendoItemId);
 

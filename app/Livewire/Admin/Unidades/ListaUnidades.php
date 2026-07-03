@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin\Unidades;
 
-use App\Enums\Perfil;
 use App\Enums\StatusUnidade;
 use App\Enums\TipoUnidade;
 use App\Models\Obra;
@@ -89,7 +88,7 @@ class ListaUnidades extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $regrasObra = $this->tipo === TipoUnidade::Obra->value
             ? ['obraIniciadaEm' => 'required|date']
@@ -153,7 +152,7 @@ class ListaUnidades extends Component
 
     public function excluir(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         Unidade::withoutGlobalScopes()->findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Unidade removida.');
     }

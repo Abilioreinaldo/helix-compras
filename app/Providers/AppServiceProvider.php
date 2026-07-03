@@ -11,6 +11,7 @@ use App\Models\Obra;
 use App\Models\Pagamento;
 use App\Models\Requisicao;
 use App\Models\Unidade;
+use App\Policies\AdminPolicy;
 use App\Policies\AprovacaoPolicy;
 use App\Policies\EstoquePolicy;
 use App\Policies\PagamentoPolicy;
@@ -61,5 +62,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Relatórios consolidados (RateioMensalCentral tem regra própria no componente).
         Gate::define('relatorio.ver', [RelatorioPolicy::class, 'ver']);
+
+        // Administração (cadastros/parâmetros) — mesma checagem do middleware `admin`.
+        Gate::define('admin.gerenciar', [AdminPolicy::class, 'gerenciar']);
     }
 }

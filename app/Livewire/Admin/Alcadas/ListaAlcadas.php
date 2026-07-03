@@ -3,7 +3,6 @@
 namespace App\Livewire\Admin\Alcadas;
 
 use App\Enums\NivelAlcada;
-use App\Enums\Perfil;
 use App\Models\EtapaAlcada;
 use App\Models\FaixaAlcada;
 use Illuminate\Contracts\View\View;
@@ -72,7 +71,7 @@ class ListaAlcadas extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $this->validate([
             'nome' => 'required|string|max:255',
@@ -117,7 +116,7 @@ class ListaAlcadas extends Component
 
     public function excluir(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $faixa = FaixaAlcada::findOrFail($id);
         $faixa->etapas()->delete();
         $faixa->delete();

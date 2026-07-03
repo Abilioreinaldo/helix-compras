@@ -4,7 +4,6 @@ namespace App\Livewire\Admin\CatalogoItens;
 
 use App\Actions\DefinirEstoqueMinimoAction;
 use App\Actions\LigarControleLoteAction;
-use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
 use App\Models\Fornecedor;
@@ -74,7 +73,7 @@ class ListaCatalogoItens extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
     }
 
     public function abrirCriar(): void
@@ -91,7 +90,7 @@ class ListaCatalogoItens extends Component
 
     public function abrirEditar(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $item = CatalogoItem::findOrFail($id);
         $this->editandoId = $id;
@@ -105,7 +104,7 @@ class ListaCatalogoItens extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $codigoUnico = Rule::unique('catalogo_itens', 'codigo')
             ->whereNull('deleted_at')
@@ -142,7 +141,7 @@ class ListaCatalogoItens extends Component
 
     public function excluir(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         if (SaldoEstoque::where('item_catalogo_id', $id)->exists()) {
             $this->addError('excluir', 'Não é possível excluir: existem saldos de estoque vinculados a este item. Desvincule-os primeiro na tela de Reconciliação de Saldos.');
@@ -156,7 +155,7 @@ class ListaCatalogoItens extends Component
 
     public function alternarControleLote(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $this->resetValidation();
 
@@ -183,7 +182,7 @@ class ListaCatalogoItens extends Component
 
     public function abrirModalMinimos(int $itemId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $item = CatalogoItem::findOrFail($itemId);
         $this->minimoItemId = $item->id;
@@ -220,7 +219,7 @@ class ListaCatalogoItens extends Component
 
     public function salvarMinimoUnidade(int $unidadeId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         if (! $this->minimoItemId) {
             return;
@@ -261,7 +260,7 @@ class ListaCatalogoItens extends Component
 
     public function abrirModalHomologacoes(int $itemId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $item = CatalogoItem::findOrFail($itemId);
         $this->homologacaoItemId = $item->id;
@@ -322,7 +321,7 @@ class ListaCatalogoItens extends Component
 
     public function adicionarHomologacao(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         if (! $this->homologacaoItemId) {
             return;
@@ -363,7 +362,7 @@ class ListaCatalogoItens extends Component
 
     public function removerHomologacao(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $homologacao = PrecoHomologado::where('item_catalogo_id', $this->homologacaoItemId)
             ->findOrFail($id);
@@ -374,7 +373,7 @@ class ListaCatalogoItens extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $itens = CatalogoItem::query()
             ->when($this->busca, fn ($q) => $q->where(function ($inner) {

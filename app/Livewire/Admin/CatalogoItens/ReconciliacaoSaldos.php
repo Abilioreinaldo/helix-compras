@@ -4,7 +4,6 @@ namespace App\Livewire\Admin\CatalogoItens;
 
 use App\Actions\ConfirmarVinculoSaldoAction;
 use App\Actions\SugerirVinculoCatalogoAction;
-use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\SaldoEstoque;
 use Illuminate\Contracts\View\View;
@@ -22,26 +21,26 @@ class ReconciliacaoSaldos extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
     }
 
     public function abrirVinculoManual(int $saldoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->saldoSelecionadoId = $saldoId;
         $this->buscaManual = '';
     }
 
     public function fecharVinculoManual(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->saldoSelecionadoId = null;
         $this->buscaManual = '';
     }
 
     public function vincular(int $saldoId, int $itemCatalogoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $saldo = SaldoEstoque::findOrFail($saldoId);
         $item = CatalogoItem::findOrFail($itemCatalogoId);
@@ -60,7 +59,7 @@ class ReconciliacaoSaldos extends Component
 
     public function desvincular(int $saldoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $saldo = SaldoEstoque::findOrFail($saldoId);
 
@@ -71,7 +70,7 @@ class ReconciliacaoSaldos extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $saldos = SaldoEstoque::with('unidade')
             ->whereNull('item_catalogo_id')

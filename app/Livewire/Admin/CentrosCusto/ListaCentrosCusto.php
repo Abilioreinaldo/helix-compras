@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Admin\CentrosCusto;
 
-use App\Enums\Perfil;
 use App\Models\CentroCusto;
 use App\Models\Unidade;
 use App\Models\User;
@@ -61,7 +60,7 @@ class ListaCentrosCusto extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $regraCodigoUnico = Rule::unique('centros_custo', 'codigo')
             ->where('unidade_id', $this->unidadeId)
@@ -101,7 +100,7 @@ class ListaCentrosCusto extends Component
 
     public function excluir(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Admin), 403);
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         CentroCusto::withoutGlobalScopes()->findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Centro de custo removido.');
     }
