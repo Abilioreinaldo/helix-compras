@@ -9,8 +9,10 @@ use App\Models\CentroCusto;
 use App\Models\Fornecedor;
 use App\Models\Obra;
 use App\Models\Pagamento;
+use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Policies\PagamentoPolicy;
+use App\Policies\RequisicaoPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -44,5 +46,6 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         Gate::policy(Pagamento::class, PagamentoPolicy::class);
+        Gate::policy(Requisicao::class, RequisicaoPolicy::class);
     }
 }

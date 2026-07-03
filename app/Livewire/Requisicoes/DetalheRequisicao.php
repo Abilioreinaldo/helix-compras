@@ -43,10 +43,15 @@ class DetalheRequisicao extends Component
 
     private function carregarRequisicao(): Requisicao
     {
-        $podeVerTudo = auth()->user()->podeVerTodasUnidades();
-        $query = $podeVerTudo ? Requisicao::withoutGlobalScopes() : Requisicao::query();
+        $requisicao = Requisicao::withoutGlobalScopes()
+            ->with(['solicitante', 'unidade', 'centroCusto', 'obra', 'faixaAlcada.etapas', 'itens', 'logs.usuario'])
+            ->findOrFail($this->id);
 
-        return $query->with(['solicitante', 'unidade', 'centroCusto', 'obra', 'faixaAlcada.etapas', 'itens', 'logs.usuario'])->findOrFail($this->id);
+        // Autorização centralizada na RequisicaoPolicy. Mantém 404 (não 403) para não
+        // revelar a existência de requisição de outra unidade — mesmo efeito do escoping anterior.
+        abort_unless(auth()->user()->can('view', $requisicao), 404);
+
+        return $requisicao;
     }
 
     public function render(): View

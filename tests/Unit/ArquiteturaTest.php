@@ -163,16 +163,18 @@ test('uploads não usam disco público (arquivos de negócio ficam em disco priv
     expect($violacoes)->toBe([]);
 });
 
-test('nº de withoutGlobalScopes() não cresce sem revisão (baseline 115)', function () {
+test('nº de withoutGlobalScopes() não cresce sem revisão (baseline 116)', function () {
     // Cada withoutGlobalScopes() fura o isolamento por unidade — é uma decisão de
     // segurança. Se este número subir, revise o novo call-site (precisa de guarda
     // admin/role? escopo de unidade explícito?) e só então atualize o baseline.
+    // 116: +1 em RequisicaoPolicy::view (checagem de vínculo de unidade, padrão de
+    // FormularioRequisicao) ao centralizar a autorização de Requisições.
     $total = 0;
     foreach (arquivosDaApp() as $arquivo) {
         $total += substr_count(file_get_contents($arquivo), 'withoutGlobalScopes(');
     }
 
-    expect($total)->toBeLessThanOrEqual(115);
+    expect($total)->toBeLessThanOrEqual(116);
 });
 
 test('e-mail transacional não promete fila sem ShouldQueue', function () {

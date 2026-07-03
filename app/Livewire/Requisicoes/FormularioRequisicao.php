@@ -11,6 +11,7 @@ use App\Models\Obra;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -18,6 +19,8 @@ use Livewire\Component;
 
 class FormularioRequisicao extends Component
 {
+    use AuthorizesRequests;
+
     public ?int $requisicaoId = null;
 
     // Campos da requisição
@@ -53,7 +56,7 @@ class FormularioRequisicao extends Component
     {
         if ($id) {
             $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($id);
-            abort_unless($requisicao->status->permiteEdicao(), 403);
+            $this->authorize('update', $requisicao);
 
             $this->requisicaoId = $requisicao->id;
             $this->unidadeId = $requisicao->unidade_id;
