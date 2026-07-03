@@ -54,7 +54,7 @@ function v11b_criarSaldo(
  */
 function v11b_semConstraintCatalogo(): void
 {
-    DB::statement('DROP INDEX IF EXISTS saldos_estoque_catalogo_unique');
+    harnessDropIndiceCatalogoSaldos();
 }
 
 // ─── PASSO 0a — SugerirVinculoCatalogoAction: saldo já vinculado retorna vazio ─
@@ -454,11 +454,7 @@ it('unique_catalogo_ignora_avulsos_e_tombstones', function () {
     app(FusaoSaldosAction::class)->fundir([$saldoA, $saldoB], $admin);
 
     // Recriar o índice NÃO deve falhar: o tombstone está fora do predicado parcial
-    DB::statement(
-        'CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque '
-        .'(unidade_id, deposito, item_catalogo_id) '
-        .'WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL'
-    );
+    harnessCriaIndiceCatalogoSaldos();
 
     $daIdentidade = SaldoEstoque::withoutGlobalScopes()->where('item_catalogo_id', $catalogo->id)->get();
     expect($daIdentidade)->toHaveCount(2)

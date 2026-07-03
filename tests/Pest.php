@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Assert;
 use Tests\TestCase;
 
 /*
@@ -43,3 +45,39 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/**
+ * Harness do índice UNIQUE de catálogo (`saldos_estoque_catalogo_unique`) para os testes de
+ * fusão/saneamento (FaseV11A/B), que simulam o estado legado dropando/recriando o índice NO
+ * MEIO do teste.
+ *
+ * Esse padrão só isola em SQLite: no MySQL o DDL faz commit implícito e fura o
+ * RefreshDatabase (vira espera de lock/hang). Por isso estes casos são **SQLite-only** — a
+ * semântica do UNIQUE de catálogo em MySQL é coberta pelo `SaldoCatalogoUnicoTest` (portável,
+ * sem DDL no meio do teste). Chamado num driver != sqlite, o harness PULA o teste.
+ */
+function harnessDropIndiceCatalogoSaldos(): void
+{
+    if (DB::getDriverName() !== 'sqlite') {
+        Assert::markTestSkipped('Muta índice no meio do teste — SQLite-only (A2 em MySQL: ver SaldoCatalogoUnicoTest).');
+    }
+
+    DB::statement('DROP INDEX IF EXISTS saldos_estoque_catalogo_unique');
+}
+
+/**
+ * Recria o índice UNIQUE de catálogo (pós-saneamento) — par do
+ * {@see harnessDropIndiceCatalogoSaldos()}. Mesma regra: SQLite-only.
+ */
+function harnessCriaIndiceCatalogoSaldos(): void
+{
+    if (DB::getDriverName() !== 'sqlite') {
+        Assert::markTestSkipped('Muta índice no meio do teste — SQLite-only.');
+    }
+
+    DB::statement(
+        'CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque '
+        .'(unidade_id, deposito, item_catalogo_id) '
+        .'WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL'
+    );
+}

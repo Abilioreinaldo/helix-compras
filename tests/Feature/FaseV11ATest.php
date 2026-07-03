@@ -870,7 +870,7 @@ it('entrada_catalogo_apos_fusao_credita_no_destino_nao_no_tombstone', function (
     $deposito = 'Almox Pos Fusao';
 
     // Estado legado: dois saldos catálogo no mesmo trio → fundidos (destino ativo + tombstone)
-    DB::statement('DROP INDEX IF EXISTS saldos_estoque_catalogo_unique');
+    harnessDropIndiceCatalogoSaldos();
     $criarSaldo = fn (string $desc, float $qtd, float $cmp) => SaldoEstoque::create([
         'unidade_id' => $unidade->id,
         'deposito' => $deposito,
