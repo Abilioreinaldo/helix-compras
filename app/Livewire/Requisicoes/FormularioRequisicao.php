@@ -15,12 +15,15 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class FormularioRequisicao extends Component
 {
     use AuthorizesRequests;
 
+    // Locked: id vem do servidor (mount/salvar); impede o cliente apontar para outra requisição.
+    #[Locked]
     public ?int $requisicaoId = null;
 
     // Campos da requisição
@@ -309,6 +312,9 @@ class FormularioRequisicao extends Component
 
         if ($this->requisicaoId) {
             $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($this->requisicaoId);
+            // Defesa em profundidade (além do #[Locked] e do authorize no mount): reautoriza
+            // a edição no salvar/submeter — mesma unidade/visibilidade + status editável.
+            $this->authorize('update', $requisicao);
         } else {
             $requisicao = new Requisicao;
             $requisicao->solicitante_id = auth()->id();

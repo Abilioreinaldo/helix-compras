@@ -2,11 +2,13 @@
 
 use App\Enums\Perfil;
 use App\Enums\StatusRequisicao;
+use App\Livewire\Requisicoes\FormularioRequisicao;
 use App\Models\CentroCusto;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 
 /*
 |--------------------------------------------------------------------------
@@ -81,6 +83,33 @@ it('editar só é permitido enquanto o status permite edição', function () {
 
     expect($user->can('update', $rascunho))->toBeTrue()
         ->and($user->can('update', $aprovada))->toBeFalse();
+});
+
+// ─── update cross-unidade (anti-IDOR) ────────────────────────────────────────
+
+it('solicitante de outra unidade NÃO pode editar, mesmo com status editável (anti-IDOR)', function () {
+    $requisicao = rp_requisicao(Unidade::factory()->create(), StatusRequisicao::Rascunho);
+    $deOutraUnidade = rp_userNaUnidade(Unidade::factory()->create());
+
+    expect($deOutraUnidade->can('update', $requisicao))->toBeFalse();
+});
+
+it('formulário barra a edição de requisição de OUTRA unidade (403)', function () {
+    $requisicao = rp_requisicao(Unidade::factory()->create(), StatusRequisicao::Rascunho);
+    $deOutraUnidade = rp_userNaUnidade(Unidade::factory()->create());
+
+    Livewire::actingAs($deOutraUnidade)
+        ->test(FormularioRequisicao::class, ['id' => $requisicao->id])
+        ->assertForbidden();
+});
+
+it('solicitante edita requisição da própria unidade normalmente', function () {
+    $unidade = Unidade::factory()->create();
+    $requisicao = rp_requisicao($unidade, StatusRequisicao::Rascunho);
+
+    Livewire::actingAs(rp_userNaUnidade($unidade))
+        ->test(FormularioRequisicao::class, ['id' => $requisicao->id])
+        ->assertOk();
 });
 
 // ─── create ──────────────────────────────────────────────────────────────────

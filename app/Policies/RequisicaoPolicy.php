@@ -37,13 +37,12 @@ class RequisicaoPolicy
     }
 
     /**
-     * Editar: permitido enquanto o status permitir edição (Rascunho/Devolvida). Espelha
-     * EXATAMENTE o abort_unless atual de FormularioRequisicao (mount) — hoje NÃO checa
-     * unidade/dono (ver follow-up de IDOR sinalizado à parte). Ao endurecer, basta compor
-     * com view().
+     * Editar: exige a MESMA regra de visibilidade da Policy ({@see view()} — papéis
+     * globais OU vínculo de unidade) E que o status permita edição (Rascunho/Devolvida).
+     * Fecha o IDOR: usuário de outra unidade não edita requisição alheia.
      */
     public function update(User $user, Requisicao $requisicao): bool
     {
-        return $requisicao->status->permiteEdicao();
+        return $this->view($user, $requisicao) && $requisicao->status->permiteEdicao();
     }
 }
