@@ -154,9 +154,32 @@ php artisan queue:work --tries=3 --max-time=3600
 
 ---
 
+## Validação: suíte contra MySQL (obrigatória antes do go-live)
+
+Produção é MySQL; os testes locais rodam em SQLite, que **esconde bugs de dialeto**
+(FK/índice/sintaxe). Antes de todo go-live, rode a suíte inteira contra um **MySQL real**,
+num banco descartável — já pegou bugs que travariam o deploy (A7/erro 1553; `DROP INDEX IF EXISTS`).
+
+```powershell
+# a senha vem por env var (ou -DbPassword); nunca no arquivo. O banco DEVE terminar em _test/_tmp.
+$env:DB_PASSWORD = '<senha do MySQL>'
+./scripts/rodar-suite-mysql.ps1 -DbUsername root -DbDatabase comendador_suite_test
+```
+
+O script cria o banco descartável, roda `php artisan test --compact` com `DB_CONNECTION=mysql`,
+e **dropa o banco no fim** (mesmo se falhar). Não lê nem modifica o `.env`.
+
+**Critério de go-live: 0 falhas.** Os *skips* são esperados (testes de fusão/saneamento que
+mutam índice no meio do teste — SQLite-only; a semântica em MySQL é coberta por testes portáveis).
+
+---
+
 ## Estado de qualidade no go-live
 
-- Suíte: **465 testes verdes** (SQLite). Suíte contra MySQL: 449/465 (16 = 13 testes de
-  fusão SQLite-only documentados + 3 já corrigidos). Ver nota no `PLANO.md`.
+- Suíte: **588 testes verdes** (SQLite). Contra **MySQL 8.0.46 real**: 588 = 575 ok +
+  13 skip (testes de fusão que mutam índice, SQLite-only e documentados) + **0 falha** —
+  rodar via `scripts/rodar-suite-mysql.ps1` (ver seção acima).
 - Sec/QA (rito completo) nas fatias de dinheiro/ledger: lote/FEFO, rateio, transferência.
-- Checklist MySQL A1–A6, B4/B5, C6/C7/C8, D9–D12 — todos validados em MySQL 8.0.46 real.
+- Checklist MySQL A1–A2, A4–A7, B4/B5, C6/C7/C8, D9–D12 — validados em MySQL 8.0.46 real
+  (A2 e A7 por testes portáveis `SaldoCatalogoUnicoTest`/`PagamentoAtivoUnicoTest`). O A3
+  (ordem de deploy) é procedimental — exercitar no próprio go-live.
