@@ -122,10 +122,14 @@ Requisição → Cotação → Aprovação → Pedido de Compra → Recebimento 
 ## Fora de escopo (v1)
 
 * Integração com ERP/contabilidade
-* Pagamento e financeiro (contas a pagar)
 * App mobile nativo
 * Portal do fornecedor
 * Contratos recorrentes
+
+> **Nota (reconciliação de escopo):** "Pagamento e financeiro (contas a pagar)" estava listado
+> como fora de escopo na v1 original, mas foi **entregue** (módulo Financeiro: pagamentos,
+> reconciliação e agendamentos — ver `routes/web.php` e `app/Livewire/Financeiro/`). O `PLANO.md`
+> é a fonte da verdade do que foi implementado; este ESCOPO descreve a intenção do produto.
 
 ## Métrica de sucesso
 

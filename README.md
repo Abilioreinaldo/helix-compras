@@ -1,58 +1,63 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HELIX Compras — Rede Comendador
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+ERP de compras da suíte **HELIX**. Requisição → cotação → aprovação por alçada → pedido de
+compra → recebimento → estoque → contas a pagar. Compras 100% centralizadas na Compradora
+Sênior; requisições partem das unidades; estoque e consumo controlados por unidade.
 
-## About Laravel
+É um **app próprio, com login próprio**, construído sobre o pacote de fundação
+[`helix/foundation`](../helix-foundation) (Identity + 2FA, RBAC, Company, Audit, Event,
+Notifications, entitlements). O acesso é liberado pelo entitlement `feature:compras`.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Arquitetura (importante)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- **1 tenant por instalação.** O domínio de compras é particionado por **`unidade_id`**, não
+  por `tenant_id` — não há coluna de tenant nas tabelas de negócio. A camada de identidade e
+  os middlewares `tenant.ctx` / `tenant.ativo` / `feature:compras` vêm da fundação e servem ao
+  controle comercial (suspensão de tenant, entitlement), não a isolar dados de compras entre
+  tenants no mesmo banco. **Multi-tenant real = uma instalação (um banco) por cliente.**
+- **Banco de identidade compartilhado** com o app People (mesmas credenciais + 2FA), via
+  `path` repository do `helix/foundation`. O domínio de compras usa IDs auto-incrementais
+  próprios, sem colisão com a fundação.
+- Autorização é feita in-line nos componentes Livewire / Actions (`abort_unless`, `temPerfil()`,
+  checagem de nível de alçada) — **não há `app/Policies`**.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Papéis
 
-## Learning Laravel
+Solicitante · Compradora Sênior · Aprovador (por nível de alçada) · Almoxarife · Financeiro · Admin.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Requisitos
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+- PHP 8.4, Composer, Node 18+
+- Dev: **SQLite**. **Produção: MySQL 8.0+** (ver regra de portabilidade abaixo).
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Instalação (dev)
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+npm install && npm run build   # ou: composer run dev (serve + queue + vite)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Testes
 
-## Contributing
+```bash
+php artisan test --compact                       # suíte completa (Pest)
+php artisan test --compact --filter=NomeDoTeste  # um caso
+vendor/bin/pint --format agent                   # estilo, antes de commitar
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+## Regra de ouro: produção é MySQL, testes rodam em SQLite
 
-## Code of Conduct
+Nunca usar função/sintaxe de um dialeto sem ramo por `DB::getDriverName()`
+(ex.: `julianday`/`TIMESTAMPDIFF`, enum via `ALTER`, índice parcial vs coluna gerada `STORED`).
+Todo ponto cego SQL fica registrado no checklist do [`PLANO.md`](PLANO.md) (seções A–D) e deve
+ser validado em MySQL real **antes** do go-live. Ver [`RUNBOOK-GO-LIVE.md`](RUNBOOK-GO-LIVE.md).
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Documentação
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- [`ESCOPO.md`](ESCOPO.md) — escopo funcional e perfis
+- [`PLANO.md`](PLANO.md) — fases, decisões e checklist MySQL pré-go-live
+- [`RUNBOOK-GO-LIVE.md`](RUNBOOK-GO-LIVE.md) — passo a passo de produção
+- [`claude.md`](claude.md) / [`AGENTS.md`](AGENTS.md) — regras de trabalho no repositório

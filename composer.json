@@ -1,11 +1,13 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "helix/compras",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "HELIX Compras — ERP de compras da Rede Comendador sobre a fundação helix/foundation.",
     "keywords": [
-        "laravel",
-        "framework"
+        "helix",
+        "compras",
+        "erp",
+        "laravel"
     ],
     "license": "MIT",
     "require": {

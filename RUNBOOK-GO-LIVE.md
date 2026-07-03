@@ -45,9 +45,11 @@ MAIL_USERNAME=...
 MAIL_PASSWORD=...
 MAIL_FROM_ADDRESS="compras@suaempresa.com"
 
-# Fila: Mailables são Queueable. Em produção use uma fila + worker (passo 5),
-# OU 'sync' se preferir envio inline (mais simples, sem worker):
-QUEUE_CONNECTION=database   # (ou 'sync' para envio imediato sem worker)
+# Fila / e-mail: HOJE o envio de e-mail é SÍNCRONO — as Actions chamam Mail::to()->send()
+# e os Mailables NÃO implementam ShouldQueue (o trait Queueable sozinho não enfileira).
+# Logo QUEUE_CONNECTION não afeta e-mail: ele sai inline no request (após o commit da transação).
+# Para tornar assíncrono seria preciso `implements ShouldQueue` nos Mailables + worker (passo 5).
+QUEUE_CONNECTION=database
 ```
 
 `php artisan key:generate` se ainda não houver `APP_KEY`.
