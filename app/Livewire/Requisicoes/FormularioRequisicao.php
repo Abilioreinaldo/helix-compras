@@ -59,7 +59,8 @@ class FormularioRequisicao extends Component
     {
         if ($id) {
             $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($id);
-            $this->authorize('update', $requisicao);
+            $this->authorize('update', $requisicao);                    // visibilidade (admin bypassa via Gate::before)
+            abort_unless($requisicao->status->permiteEdicao(), 403);    // status: regra de negócio (admin sujeito)
 
             $this->requisicaoId = $requisicao->id;
             $this->unidadeId = $requisicao->unidade_id;
@@ -312,9 +313,10 @@ class FormularioRequisicao extends Component
 
         if ($this->requisicaoId) {
             $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($this->requisicaoId);
-            // Defesa em profundidade (além do #[Locked] e do authorize no mount): reautoriza
-            // a edição no salvar/submeter — mesma unidade/visibilidade + status editável.
+            // Defesa em profundidade (além do #[Locked] e do mount): reautoriza a edição —
+            // visibilidade (Policy) + status editável (regra de negócio, admin sujeito ao status).
             $this->authorize('update', $requisicao);
+            abort_unless($requisicao->status->permiteEdicao(), 403);
         } else {
             $requisicao = new Requisicao;
             $requisicao->solicitante_id = auth()->id();

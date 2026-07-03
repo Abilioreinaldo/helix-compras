@@ -74,15 +74,35 @@ it('usuário sem perfil/unidade NÃO pode ver a requisição', function () {
 
 // ─── update (status) ───────────────────────────────────────────────────────────
 
-it('editar só é permitido enquanto o status permite edição', function () {
+it('update (Policy) reflete só a VISIBILIDADE — status é regra de negócio à parte', function () {
     $unidade = Unidade::factory()->create();
     $user = rp_userNaUnidade($unidade);
 
-    $rascunho = rp_requisicao($unidade, StatusRequisicao::Rascunho);   // permiteEdicao = true
-    $aprovada = rp_requisicao($unidade, StatusRequisicao::Aprovada);   // permiteEdicao = false
+    // update = view: verdadeiro p/ requisição visível na unidade, independentemente do status.
+    $rascunho = rp_requisicao($unidade, StatusRequisicao::Rascunho);
+    $aprovada = rp_requisicao($unidade, StatusRequisicao::Aprovada);
 
     expect($user->can('update', $rascunho))->toBeTrue()
-        ->and($user->can('update', $aprovada))->toBeFalse();
+        ->and($user->can('update', $aprovada))->toBeTrue();
+});
+
+it('formulário barra edição de requisição em status não-editável (403)', function () {
+    $unidade = Unidade::factory()->create();
+    $aprovada = rp_requisicao($unidade, StatusRequisicao::Aprovada);
+
+    Livewire::actingAs(rp_userNaUnidade($unidade))
+        ->test(FormularioRequisicao::class, ['id' => $aprovada->id])
+        ->assertForbidden();
+});
+
+it('admin NÃO edita requisição em status não-editável (status é regra de negócio, não Gate)', function () {
+    // O Gate::before da fundação libera o admin na VISIBILIDADE, mas o status permiteEdicao é
+    // guarda de negócio (abort_unless manual) — o admin também é barrado.
+    $aprovada = rp_requisicao(Unidade::factory()->create(), StatusRequisicao::Aprovada);
+
+    Livewire::actingAs(User::factory()->admin()->create())
+        ->test(FormularioRequisicao::class, ['id' => $aprovada->id])
+        ->assertForbidden();
 });
 
 // ─── update cross-unidade (anti-IDOR) ────────────────────────────────────────

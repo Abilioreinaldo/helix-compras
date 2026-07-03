@@ -37,12 +37,16 @@ class RequisicaoPolicy
     }
 
     /**
-     * Editar: exige a MESMA regra de visibilidade da Policy ({@see view()} — papéis
-     * globais OU vínculo de unidade) E que o status permita edição (Rascunho/Devolvida).
-     * Fecha o IDOR: usuário de outra unidade não edita requisição alheia.
+     * Editar — VISIBILIDADE: mesma regra do {@see view()} (papéis globais OU vínculo de
+     * unidade). Fecha o IDOR: usuário de outra unidade não edita requisição alheia.
+     *
+     * O status editável (Rascunho/Devolvida) NÃO entra aqui de propósito: é regra de
+     * NEGÓCIO e fica como guarda separada (abort_unless em FormularioRequisicao), senão o
+     * Gate::before da fundação — que libera admin em qualquer ability — deixaria o admin
+     * editar requisição em status não-editável.
      */
     public function update(User $user, Requisicao $requisicao): bool
     {
-        return $this->view($user, $requisicao) && $requisicao->status->permiteEdicao();
+        return $this->view($user, $requisicao);
     }
 }
