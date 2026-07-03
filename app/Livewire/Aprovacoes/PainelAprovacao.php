@@ -4,16 +4,17 @@ namespace App\Livewire\Aprovacoes;
 
 use App\Actions\AprovarEtapaAction;
 use App\Actions\ReprovarRequisicaoAction;
-use App\Enums\Perfil;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 class PainelAprovacao extends Component
 {
+    use AuthorizesRequests;
+
     public int $id;
 
     public string $justificativa = '';
@@ -30,22 +31,20 @@ class PainelAprovacao extends Component
 
     public function mount(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
         $this->id = $id;
-        // Valida acesso à unidade desta requisição já no mount
+        // Autoriza acesso à unidade desta requisição já no mount (via carregarRequisicao).
         $this->carregarRequisicao();
     }
 
     public function aprovar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
+        // Autoriza antes de validar (403 independe do input).
+        $requisicao = $this->carregarRequisicao();
 
         $this->validate(
             ['justificativa' => 'nullable|string|max:1000'],
             ['justificativa.max' => 'A justificativa não pode ultrapassar 1000 caracteres.']
         );
-
-        $requisicao = $this->carregarRequisicao();
 
         $itensRejeitados = [];
         foreach ($this->rejeitar as $itemId => $marcado) {
@@ -69,7 +68,8 @@ class PainelAprovacao extends Component
 
     public function reprovar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
+        // Autoriza antes de validar (403 independe do input).
+        $requisicao = $this->carregarRequisicao();
 
         $this->validate(
             ['justificativa' => 'required|string|min:10|max:1000'],
@@ -78,8 +78,6 @@ class PainelAprovacao extends Component
                 'justificativa.min' => 'A justificativa deve ter ao menos 10 caracteres.',
             ]
         );
-
-        $requisicao = $this->carregarRequisicao();
 
         try {
             app(ReprovarRequisicaoAction::class)->execute($requisicao, auth()->user(), $this->justificativa);
@@ -107,37 +105,19 @@ class PainelAprovacao extends Component
             ])
             ->findOrFail($this->id);
 
-        // Verifica que o usuário é Aprovador na unidade desta requisição (anti-IDOR)
-        $temAcesso = (bool) DB::table('unidade_user')
-            ->where('user_id', auth()->id())
-            ->where('unidade_id', $requisicao->unidade_id)
-            ->where('perfil', Perfil::Aprovador->value)
-            ->exists();
-
-        abort_unless($temAcesso, 403);
+        // Autorização centralizada (AprovacaoPolicy): Aprovador na unidade desta requisição.
+        $this->authorize('aprovacao.acessar', $requisicao);
 
         return $requisicao;
     }
 
     public function podeAprovar(Requisicao $requisicao): bool
     {
-        $etapa = $requisicao->etapaAprovacaoAtual();
-        if (! $etapa) {
-            return false;
-        }
-
-        return (bool) DB::table('unidade_user')
-            ->where('user_id', auth()->id())
-            ->where('unidade_id', $requisicao->unidade_id)
-            ->where('perfil', Perfil::Aprovador->value)
-            ->where('nivel_alcada', $etapa->nivel_exigido->value)
-            ->exists();
+        return auth()->user()->can('aprovacao.decidir', $requisicao);
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
-
         $requisicao = $this->carregarRequisicao();
         $etapaAtual = $requisicao->etapaAprovacaoAtual();
         $podeAprovar = $this->podeAprovar($requisicao);

@@ -11,6 +11,7 @@ use App\Models\Obra;
 use App\Models\Pagamento;
 use App\Models\Requisicao;
 use App\Models\Unidade;
+use App\Policies\AprovacaoPolicy;
 use App\Policies\PagamentoPolicy;
 use App\Policies\RequisicaoPolicy;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -47,5 +48,10 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Pagamento::class, PagamentoPolicy::class);
         Gate::policy(Requisicao::class, RequisicaoPolicy::class);
+
+        // Aprovações: Gates nomeados (Requisicao já tem policy própria).
+        Gate::define('aprovacao.acessar-fila', [AprovacaoPolicy::class, 'acessarFila']);
+        Gate::define('aprovacao.acessar', [AprovacaoPolicy::class, 'acessar']);
+        Gate::define('aprovacao.decidir', [AprovacaoPolicy::class, 'decidir']);
     }
 }

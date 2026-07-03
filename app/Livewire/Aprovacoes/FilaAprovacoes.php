@@ -10,12 +10,13 @@ use App\Models\FaixaAlcada;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class FilaAprovacoes extends Component
 {
-    use WithPagination;
+    use AuthorizesRequests, WithPagination;
 
     public string $filtroUnidadeId = '';
 
@@ -26,7 +27,7 @@ class FilaAprovacoes extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
+        $this->authorize('aprovacao.acessar-fila');
     }
 
     public function updatingFiltroUnidadeId(): void
@@ -46,7 +47,7 @@ class FilaAprovacoes extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Aprovador), 403);
+        $this->authorize('aprovacao.acessar-fila');
 
         $usuario = auth()->user();
 
