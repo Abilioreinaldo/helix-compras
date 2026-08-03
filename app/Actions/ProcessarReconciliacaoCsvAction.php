@@ -13,8 +13,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Processa um extrato bancário (CSV) e concilia com os pagamentos pela referência.
- * Formato esperado por linha: numero_documento ; valor ; data_transacao ; descricao(opcional)
+ * Processa um extrato bancário (CSV) e concilia com os pagamentos casando por
+ * BANCO + referência + valor (com tolerância de centavos). Status por linha:
+ * conciliado | divergente (ref bate, valor não) | ambiguo (mais de um) |
+ * orfao (nenhum). Só 'conciliado' entra no total conciliado.
+ * Formato por linha: numero_documento ; valor ; data_transacao ; descricao(opcional)
  */
 class ProcessarReconciliacaoCsvAction
 {
@@ -57,9 +60,35 @@ class ProcessarReconciliacaoCsvAction
             foreach ($linhas as $linha) {
                 $totalProcessado += $linha['valor'];
 
-                $pagamento = Pagamento::whereNull('deleted_at')
+                // Casa pelo BANCO selecionado + referência (não só a referência):
+                // uma linha do banco X nunca concilia com pagamento do banco Y.
+                $candidatos = Pagamento::whereNull('deleted_at')
+                    ->where('banco_id', $banco->id)
                     ->where('referencia_banco', $linha['numero_documento'])
-                    ->first();
+                    ->orderBy('id')                 // determinístico (nada de first() ao acaso)
+                    ->get();
+
+                $pagamento = null;
+
+                if ($candidatos->count() > 1) {
+                    // referência ambígua no banco — decisão humana, não escolhe um
+                    $status = 'ambiguo';
+                } elseif ($candidatos->count() === 1) {
+                    $candidato = $candidatos->first();
+                    $valorPago = (float) $candidato->valor_pago > 0
+                        ? (float) $candidato->valor_pago
+                        : (float) $candidato->valor_total;
+
+                    if (abs($valorPago - $linha['valor']) <= 0.01) {
+                        $pagamento = $candidato;
+                        $status = 'conciliado';
+                    } else {
+                        // referência bate, valor não — não fecha como conciliado
+                        $status = 'divergente';
+                    }
+                } else {
+                    $status = 'orfao';
+                }
 
                 $reconciliacao->itens()->create([
                     'numero_documento' => $linha['numero_documento'],
@@ -67,10 +96,12 @@ class ProcessarReconciliacaoCsvAction
                     'data_transacao' => $linha['data'],
                     'descricao' => $linha['descricao'],
                     'pagamento_id' => $pagamento?->id,
-                    'status' => $pagamento ? 'conciliado' : 'orfao',
+                    'status' => $status,
                 ]);
 
-                if ($pagamento) {
+                // Só o que realmente conciliou entra no total (antes somava o valor
+                // do extrato mesmo quando o pagamento era de outro montante).
+                if ($status === 'conciliado') {
                     $totalConciliado += $linha['valor'];
                 }
             }

@@ -122,7 +122,8 @@ it('não cancela pagamento já pago', function () {
 it('reconcilia: casa por referência e marca órfão sem match', function () {
     $user = User::factory()->financeiro()->create();
     $banco = Banco::factory()->create();
-    pa_pagamento(['referencia_banco' => 'DOC123']);
+    // pagamento no MESMO banco do extrato (a conciliação casa por banco + ref + valor)
+    pa_pagamento(['referencia_banco' => 'DOC123', 'banco_id' => $banco->id]);
 
     $csv = "DOC123;1.000,00;01/06/2026;Pagamento fornecedor\nDOC999;50,00;02/06/2026;Tarifa\n";
     $arquivo = UploadedFile::fake()->createWithContent('extrato.csv', $csv);
