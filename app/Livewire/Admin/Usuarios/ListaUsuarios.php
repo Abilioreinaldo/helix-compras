@@ -62,7 +62,7 @@ class ListaUsuarios extends Component
     public function abrirEditar(int $id): void
     {
         $this->resetValidation();
-        $usuario = User::withoutGlobalScopes()->findOrFail($id);
+        $usuario = $this->usuariosDoTenant()->findOrFail($id);
         $this->editandoId = $id;
         $this->name = $usuario->name;
         $this->email = $usuario->email;
@@ -93,7 +93,7 @@ class ListaUsuarios extends Component
         ]);
 
         if ($this->editandoId) {
-            $usuario = User::withoutGlobalScopes()->findOrFail($this->editandoId);
+            $usuario = $this->usuariosDoTenant()->findOrFail($this->editandoId);
             $usuario->update([
                 'name' => $this->name,
                 'email' => $this->email,
@@ -137,7 +137,7 @@ class ListaUsuarios extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        User::withoutGlobalScopes()->findOrFail($id)->delete();
+        $this->usuariosDoTenant()->findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Usuário removido.');
     }
 
@@ -163,7 +163,7 @@ class ListaUsuarios extends Component
             'vincularPerfil.required' => 'Selecione um perfil.',
         ]);
 
-        $usuario = User::withoutGlobalScopes()->findOrFail($this->usuarioVinculosId);
+        $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
         $usuario->unidades()->syncWithoutDetaching([
             $this->vincularUnidadeId => [
                 'perfil' => $this->vincularPerfil,
@@ -180,14 +180,26 @@ class ListaUsuarios extends Component
     public function removerVinculo(int $unidadeId): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        $usuario = User::withoutGlobalScopes()->findOrFail($this->usuarioVinculosId);
+        $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
         $usuario->unidades()->detach($unidadeId);
         $this->dispatch('notify', mensagem: 'Vínculo removido.');
     }
 
+    /**
+     * Base de usuários SEMPRE escopada ao tenant ativo do admin — a
+     * administração de usuários nunca cruza tenants (achado C2 da revisão).
+     * Mantém o bypass dos demais global scopes (soft delete etc.), só amarra
+     * o tenant.
+     */
+    private function usuariosDoTenant()
+    {
+        return User::withoutGlobalScopes()
+            ->where('tenant_id', auth()->user()->getActiveTenantId());
+    }
+
     public function render(): View
     {
-        $usuarios = User::withoutGlobalScopes()
+        $usuarios = $this->usuariosDoTenant()
             ->when($this->busca, fn ($q) => $q->where(function ($inner) {
                 $inner->where('name', 'like', "%{$this->busca}%")
                     ->orWhere('email', 'like', "%{$this->busca}%");
@@ -196,7 +208,7 @@ class ListaUsuarios extends Component
             ->paginate(15);
 
         $usuarioVinculos = $this->usuarioVinculosId
-            ? User::withoutGlobalScopes()->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()])->find($this->usuarioVinculosId)
+            ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()])->find($this->usuarioVinculosId)
             : null;
 
         $todasUnidades = Unidade::withoutGlobalScopes()->orderBy('nome')->get();
