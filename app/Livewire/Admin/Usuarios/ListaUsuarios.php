@@ -101,6 +101,7 @@ class ListaUsuarios extends Component
                 'status' => $this->status,
             ]);
             $this->aplicarPapelCompras($usuario);
+            $this->sincronizarMembership($usuario);
             $this->mostrarModal = false;
             $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
         } else {
@@ -115,8 +116,21 @@ class ListaUsuarios extends Component
                 'precisa_trocar_senha' => true,
             ]);
             $this->aplicarPapelCompras($usuario);
+            $this->sincronizarMembership($usuario);
             $this->mostrarModal = false;
         }
+    }
+
+    /**
+     * Sincroniza a membership tenant_user (com is_admin no pivot, que é o que a
+     * autorização lê). Sem ela o usuário nasce sem tenant ativo (403 no login);
+     * e editar is_admin só na coluna deixava o pivot dessincronizado.
+     */
+    private function sincronizarMembership(User $usuario): void
+    {
+        $usuario->memberships()->syncWithoutDetaching([
+            $usuario->tenant_id => ['is_admin' => $this->isAdmin, 'status' => 'active'],
+        ]);
     }
 
     /** Atribui ou remove o papel RBAC 'compras' conforme o checkbox do formulário. */
