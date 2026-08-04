@@ -31,7 +31,7 @@ trait ComprasUser
     public function temPerfil(Perfil $perfil): bool
     {
         return match ($perfil) {
-            Perfil::Admin => (bool) $this->is_admin,
+            Perfil::Admin => $this->isAdminForActiveTenant(),
             Perfil::CompradoraSenior => $this->hasRole('compras'),
             Perfil::Financeiro => $this->hasRole('financeiro'),
             default => $this->belongsToMany(Unidade::class, 'unidade_user')
@@ -45,19 +45,19 @@ trait ComprasUser
     /** Visualiza todas as unidades sem restrição (admin ou compradora sênior). */
     public function podeVerTodasUnidades(): bool
     {
-        return (bool) $this->is_admin || $this->hasRole('compras');
+        return $this->isAdminForActiveTenant() || $this->hasRole('compras');
     }
 
     /** Pode visualizar o módulo financeiro (contas a pagar). */
     public function podeVerPagamentos(): bool
     {
-        return $this->hasRole('financeiro') || (bool) $this->is_admin;
+        return $this->hasRole('financeiro') || $this->isAdminForActiveTenant();
     }
 
     /** Pode registrar/agendar/cancelar/reconciliar pagamentos. */
     public function podeGerenciarPagamentos(): bool
     {
-        return $this->hasRole('financeiro') || (bool) $this->is_admin;
+        return $this->hasRole('financeiro') || $this->isAdminForActiveTenant();
     }
 
     /** Staff de compras (papéis globais) — usado para 2FA obrigatório. */
