@@ -7,14 +7,13 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\SessaoInventarioFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * NÃO usa o trait PertenceAUnidade (diferente de Requisicao/PedidoCompra): o acesso é por
- * pivot de Almoxarife (suas unidades) ou global (Admin). O filtro de unidade é aplicado
- * EXPLICITAMENTE nos componentes/actions, não por GlobalScope.
+ * NÃƒO usa o trait PertenceAUnidade (diferente de Requisicao/PedidoCompra): o acesso Ã© por
+ * pivot de Almoxarife (suas unidades) ou global (Admin). O filtro de unidade Ã© aplicado
+ * EXPLICITAMENTE nos componentes/actions, nÃ£o por GlobalScope.
  */
 #[Fillable([
     'unidade_id',
@@ -25,7 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'justificativa',
     'concluida_em',
 ])]
-class SessaoInventario extends Model
+class SessaoInventario extends ComprasModel
 {
     /** @use HasFactory<SessaoInventarioFactory> */
     use Auditavel, HasFactory;

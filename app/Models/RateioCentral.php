@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\RateioCentralFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -16,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'valor_total',
     'criado_por',
 ])]
-class RateioCentral extends Model
+class RateioCentral extends ComprasModel
 {
     /** @use HasFactory<RateioCentralFactory> */
     use Auditavel, HasFactory;

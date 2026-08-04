@@ -8,7 +8,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\AprovacaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -24,7 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'justificativa',
     'decidida_em',
 ])]
-class Aprovacao extends Model
+class Aprovacao extends ComprasModel
 {
     /** @use HasFactory<AprovacaoFactory> */
     use Auditavel, HasFactory, SoftDeletes;

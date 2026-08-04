@@ -7,14 +7,13 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\RequisicaoMaterialFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * NÃO usa o trait PertenceAUnidade: o Solicitante vê as próprias RIMs (filtro por
- * solicitante_id) e o Almoxarife vê as da sua unidade (pivot). O filtro é EXPLÍCITO nos
- * componentes/actions, não por GlobalScope. Campos como almoxarife_id e
- * movimentacao_estoque_id são preenchidos só pelas Actions, nunca por input do usuário.
+ * NÃƒO usa o trait PertenceAUnidade: o Solicitante vÃª as prÃ³prias RIMs (filtro por
+ * solicitante_id) e o Almoxarife vÃª as da sua unidade (pivot). O filtro Ã© EXPLÃCITO nos
+ * componentes/actions, nÃ£o por GlobalScope. Campos como almoxarife_id e
+ * movimentacao_estoque_id sÃ£o preenchidos sÃ³ pelas Actions, nunca por input do usuÃ¡rio.
  */
 #[Fillable([
     'unidade_id',
@@ -29,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'atendida_em',
     'recusada_em',
 ])]
-class RequisicaoMaterial extends Model
+class RequisicaoMaterial extends ComprasModel
 {
     /** @use HasFactory<RequisicaoMaterialFactory> */
     use Auditavel, HasFactory;

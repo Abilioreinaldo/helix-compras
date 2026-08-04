@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\SaldoEstoqueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -23,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'fundido_para_id',
     'fundido_em',
 ])]
-class SaldoEstoque extends Model
+class SaldoEstoque extends ComprasModel
 {
     /** @use HasFactory<SaldoEstoqueFactory> */
     use Auditavel, HasFactory;
@@ -67,7 +66,7 @@ class SaldoEstoque extends Model
         return $this->hasMany(SaldoEstoque::class, 'fundido_para_id');
     }
 
-    /** Logs de fusão onde este saldo é o destino. */
+    /** Logs de fusÃ£o onde este saldo Ã© o destino. */
     public function fusaoLogs(): HasMany
     {
         return $this->hasMany(SaldoFusaoLog::class, 'saldo_destino_id');
@@ -79,16 +78,16 @@ class SaldoEstoque extends Model
         return $this->hasMany(LoteEstoque::class);
     }
 
-    /** Lotes vivos (não tombstones) vinculados a este saldo. */
+    /** Lotes vivos (nÃ£o tombstones) vinculados a este saldo. */
     public function lotesVivos(): HasMany
     {
         return $this->hasMany(LoteEstoque::class)->whereNull('fundido_para_id');
     }
 
     /**
-     * Indica se o item de catálogo deste saldo controla lote/validade.
-     * withTrashed: catálogo soft-deleted não rebaixa o saldo (mantém a invariante
-     * SUM(lotes vivos) == saldo.quantidade ao longo das operações de estoque).
+     * Indica se o item de catÃ¡logo deste saldo controla lote/validade.
+     * withTrashed: catÃ¡logo soft-deleted nÃ£o rebaixa o saldo (mantÃ©m a invariante
+     * SUM(lotes vivos) == saldo.quantidade ao longo das operaÃ§Ãµes de estoque).
      */
     public function controlaLote(): bool
     {
@@ -96,7 +95,7 @@ class SaldoEstoque extends Model
             && (bool) CatalogoItem::withTrashed()->whereKey($this->item_catalogo_id)->value('controla_lote');
     }
 
-    /** Normaliza a descrição para busca/unicidade: trim + lowercase + colapsa espaços múltiplos. */
+    /** Normaliza a descriÃ§Ã£o para busca/unicidade: trim + lowercase + colapsa espaÃ§os mÃºltiplos. */
     public static function normalizarDescricao(string $descricao): string
     {
         return preg_replace('/\s+/', ' ', mb_strtolower(trim($descricao)));

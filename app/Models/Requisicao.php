@@ -8,7 +8,6 @@ use App\Models\Concerns\PertenceAUnidade;
 use Database\Factories\RequisicaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -42,7 +41,7 @@ use Illuminate\Support\Carbon;
     'reprovada_em',
     'reprovada_por',
 ])]
-class Requisicao extends Model
+class Requisicao extends ComprasModel
 {
     /** @use HasFactory<RequisicaoFactory> */
     use Auditavel, HasFactory, PertenceAUnidade, SoftDeletes;
@@ -83,7 +82,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Usuário solicitante desta requisição.
+     * UsuÃ¡rio solicitante desta requisiÃ§Ã£o.
      */
     public function solicitante(): BelongsTo
     {
@@ -91,7 +90,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Unidade à qual esta requisição pertence.
+     * Unidade Ã  qual esta requisiÃ§Ã£o pertence.
      */
     public function unidade(): BelongsTo
     {
@@ -99,7 +98,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Centro de custo vinculado à requisição.
+     * Centro de custo vinculado Ã  requisiÃ§Ã£o.
      */
     public function centroCusto(): BelongsTo
     {
@@ -107,7 +106,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Obra vinculada à requisição (opcional).
+     * Obra vinculada Ã  requisiÃ§Ã£o (opcional).
      */
     public function obra(): BelongsTo
     {
@@ -115,7 +114,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Faixa de alçada snapshot no momento da submissão.
+     * Faixa de alÃ§ada snapshot no momento da submissÃ£o.
      */
     public function faixaAlcada(): BelongsTo
     {
@@ -123,7 +122,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Itens desta requisição.
+     * Itens desta requisiÃ§Ã£o.
      */
     public function itens(): HasMany
     {
@@ -131,7 +130,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Itens ativos (não rejeitados na decisão por linha da aprovação).
+     * Itens ativos (nÃ£o rejeitados na decisÃ£o por linha da aprovaÃ§Ã£o).
      */
     public function itensAtivos(): HasMany
     {
@@ -139,7 +138,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Logs de transição de status desta requisição.
+     * Logs de transiÃ§Ã£o de status desta requisiÃ§Ã£o.
      */
     public function logs(): HasMany
     {
@@ -147,7 +146,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Cotações vinculadas a esta requisição.
+     * CotaÃ§Ãµes vinculadas a esta requisiÃ§Ã£o.
      */
     public function cotacoes(): HasMany
     {
@@ -155,7 +154,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Etapas de aprovação instanciadas para esta requisição.
+     * Etapas de aprovaÃ§Ã£o instanciadas para esta requisiÃ§Ã£o.
      */
     public function aprovacoes(): HasMany
     {
@@ -163,7 +162,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Etapa de aprovação atualmente pendente (ciclo atual, menor ordem pendente).
+     * Etapa de aprovaÃ§Ã£o atualmente pendente (ciclo atual, menor ordem pendente).
      */
     public function etapaAprovacaoAtual(): ?Aprovacao
     {
@@ -175,7 +174,7 @@ class Requisicao extends Model
     }
 
     /**
-     * Calcula o valor total estimado somando quantidade × valor_unitario_estimado dos itens.
+     * Calcula o valor total estimado somando quantidade Ã— valor_unitario_estimado dos itens.
      */
     public function valorTotal(): float
     {
@@ -185,8 +184,8 @@ class Requisicao extends Model
     }
 
     /**
-     * Valor estimado apenas dos itens aprovados (exclui rejeitados na decisão
-     * por linha). Para exibição — a alçada permanece roteada pelo valor total.
+     * Valor estimado apenas dos itens aprovados (exclui rejeitados na decisÃ£o
+     * por linha). Para exibiÃ§Ã£o â€” a alÃ§ada permanece roteada pelo valor total.
      */
     public function valorAprovado(): float
     {
@@ -196,13 +195,13 @@ class Requisicao extends Model
     }
 
     /**
-     * Avalia se a requisição é elegível à via expressa: todos os itens são de
-     * catálogo com preço homologado válido na data e todos resolvem ao MESMO
-     * fornecedor (invariante de "uma cotação vencedora por requisição").
+     * Avalia se a requisiÃ§Ã£o Ã© elegÃ­vel Ã  via expressa: todos os itens sÃ£o de
+     * catÃ¡logo com preÃ§o homologado vÃ¡lido na data e todos resolvem ao MESMO
+     * fornecedor (invariante de "uma cotaÃ§Ã£o vencedora por requisiÃ§Ã£o").
      *
      * Retorna o fornecedor escolhido e o mapa item_id => PrecoHomologado, ou
-     * null se inelegível (item avulso, sem homologação válida ou fornecedores
-     * diferentes — neste caso a requisição segue o fluxo normal de cotação).
+     * null se inelegÃ­vel (item avulso, sem homologaÃ§Ã£o vÃ¡lida ou fornecedores
+     * diferentes â€” neste caso a requisiÃ§Ã£o segue o fluxo normal de cotaÃ§Ã£o).
      *
      * @return array{fornecedor_id: int, precos: array<int, PrecoHomologado>}|null
      */

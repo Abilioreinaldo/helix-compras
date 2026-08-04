@@ -5,7 +5,6 @@ namespace App\Models;
 use App\Enums\TipoMovimentacao;
 use App\Models\Concerns\Auditavel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
@@ -24,7 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'motivo',
     'registrado_por',
 ])]
-class MovimentacaoEstoque extends Model
+class MovimentacaoEstoque extends ComprasModel
 {
     use Auditavel;
 

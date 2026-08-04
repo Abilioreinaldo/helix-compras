@@ -7,7 +7,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\RateioUnidadeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -17,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'percentual_consumo',
     'valor_rateado',
 ])]
-class RateioUnidade extends Model
+class RateioUnidade extends ComprasModel
 {
     /** @use HasFactory<RateioUnidadeFactory> */
     use Auditavel, HasFactory;
@@ -45,13 +44,13 @@ class RateioUnidade extends Model
         return $this->belongsTo(Unidade::class);
     }
 
-    /** Movimentações do ledger ligadas a esta linha de rateio (rateio + eventual desconto). */
+    /** MovimentaÃ§Ãµes do ledger ligadas a esta linha de rateio (rateio + eventual desconto). */
     public function movimentacoes(): HasMany
     {
         return $this->hasMany(MovimentacaoEstoque::class, 'rateio_unidade_id');
     }
 
-    /** Indica se esta linha já foi revertida por um DescontoRateio. */
+    /** Indica se esta linha jÃ¡ foi revertida por um DescontoRateio. */
     public function foiRevertido(): bool
     {
         return $this->movimentacoes()

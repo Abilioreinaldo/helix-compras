@@ -6,12 +6,11 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\ReconciliacaoBancariaFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Registro (log) de uma reconciliação bancária a partir de um extrato CSV.
+ * Registro (log) de uma reconciliaÃ§Ã£o bancÃ¡ria a partir de um extrato CSV.
  */
 #[Fillable([
     'banco_id',
@@ -22,7 +21,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'arquivo_hash',
     'criado_por',
 ])]
-class ReconciliacaoBancaria extends Model
+class ReconciliacaoBancaria extends ComprasModel
 {
     /** @use HasFactory<ReconciliacaoBancariaFactory> */
     use Auditavel, HasFactory;

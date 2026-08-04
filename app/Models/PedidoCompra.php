@@ -11,7 +11,6 @@ use Database\Factories\PedidoCompraFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -35,7 +34,7 @@ use Illuminate\Support\Facades\DB;
     'cancelado_por',
     'motivo_cancelamento',
 ])]
-class PedidoCompra extends Model
+class PedidoCompra extends ComprasModel
 {
     /** @use HasFactory<PedidoCompraFactory> */
     use Auditavel, HasFactory, PertenceAUnidade, SoftDeletes;
@@ -135,11 +134,11 @@ class PedidoCompra extends Model
         return StatusRecebimentoPedido::Parcial;
     }
 
-    /** Requisições distintas vinculadas a este pedido via itens. */
+    /** RequisiÃ§Ãµes distintas vinculadas a este pedido via itens. */
     public function requisicoesVinculadas(): Collection
     {
         // reorder(): DISTINCT em requisicao_id + ORDER BY id (herdado de itens()) quebra no
-        // MySQL (ONLY_FULL_GROUP_BY). A ordem dos ids não importa para o whereIn.
+        // MySQL (ONLY_FULL_GROUP_BY). A ordem dos ids nÃ£o importa para o whereIn.
         $ids = $this->itens()->reorder()->distinct()->pluck('requisicao_id');
 
         return Requisicao::withoutGlobalScopes()->whereIn('id', $ids)->get();
@@ -152,6 +151,6 @@ class PedidoCompra extends Model
      */
     public function itensPorDestino(): array
     {
-        return $this->itens->groupBy(fn (ItemPedidoCompra $item) => $item->destino ?? 'Não definido')->toArray();
+        return $this->itens->groupBy(fn (ItemPedidoCompra $item) => $item->destino ?? 'NÃ£o definido')->toArray();
     }
 }

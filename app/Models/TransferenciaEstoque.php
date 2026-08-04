@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\TransferenciaEstoqueFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -20,7 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'motivo',
     'executado_por',
 ])]
-class TransferenciaEstoque extends Model
+class TransferenciaEstoque extends ComprasModel
 {
     /** @use HasFactory<TransferenciaEstoqueFactory> */
     use Auditavel, HasFactory;
@@ -59,7 +58,7 @@ class TransferenciaEstoque extends Model
         return $this->belongsTo(User::class, 'executado_por');
     }
 
-    /** As duas movimentações do ledger (saída na origem + entrada no destino). */
+    /** As duas movimentaÃ§Ãµes do ledger (saÃ­da na origem + entrada no destino). */
     public function movimentacoes(): HasMany
     {
         return $this->hasMany(MovimentacaoEstoque::class, 'transferencia_estoque_id');

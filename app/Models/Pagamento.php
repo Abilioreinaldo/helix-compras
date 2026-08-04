@@ -8,14 +8,13 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\PagamentoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
 /**
- * Conta a pagar — gerada ao emitir um Pedido de Compra. Área de dinheiro (Auditavel).
+ * Conta a pagar â€” gerada ao emitir um Pedido de Compra. Ãrea de dinheiro (Auditavel).
  */
 #[Fillable([
     'pedido_compra_id',
@@ -39,7 +38,7 @@ use Illuminate\Support\Carbon;
     'criado_por',
     'atualizado_por',
 ])]
-class Pagamento extends Model
+class Pagamento extends ComprasModel
 {
     /** @use HasFactory<PagamentoFactory> */
     use Auditavel, HasFactory, SoftDeletes;
@@ -108,20 +107,20 @@ class Pagamento extends Model
         return (float) $this->valor_desconto > 0;
     }
 
-    /** Dias até o vencimento (negativo se já venceu). */
+    /** Dias atÃ© o vencimento (negativo se jÃ¡ venceu). */
     public function diasAteVencimento(): int
     {
         return (int) Carbon::today()->diffInDays($this->data_vencimento, false);
     }
 
-    /** Está vencido: em aberto e com vencimento no passado. */
+    /** EstÃ¡ vencido: em aberto e com vencimento no passado. */
     public function ehVencido(): bool
     {
         if (in_array($this->status, [StatusPagamento::Pago, StatusPagamento::Cancelado], true)) {
             return false;
         }
 
-        // O próprio dia do vencimento ainda NÃO está vencido (alinha com o card "Vencido",
+        // O prÃ³prio dia do vencimento ainda NÃƒO estÃ¡ vencido (alinha com o card "Vencido",
         // que usa data_vencimento < hoje).
         return $this->data_vencimento !== null && $this->data_vencimento->startOfDay()->isBefore(Carbon::today());
     }

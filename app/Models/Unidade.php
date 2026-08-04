@@ -8,7 +8,6 @@ use App\Models\Concerns\Auditavel;
 use App\Models\Concerns\PertenceAUnidade;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -16,7 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['tenant_id', 'nome', 'tipo', 'cnpj', 'endereco', 'gestor_id', 'status'])]
 // #[UnidadeScope] amarra ao tenant ativo via esta coluna (ver UnidadeScope::filtraTenant).
-class Unidade extends Model
+class Unidade extends ComprasModel
 {
     use Auditavel, HasFactory, PertenceAUnidade, SoftDeletes;
 
@@ -38,7 +37,7 @@ class Unidade extends Model
     }
 
     /**
-     * Gestor responsável pela unidade.
+     * Gestor responsÃ¡vel pela unidade.
      */
     public function gestor(): BelongsTo
     {
@@ -54,7 +53,7 @@ class Unidade extends Model
     }
 
     /**
-     * Usuários vinculados a esta unidade.
+     * UsuÃ¡rios vinculados a esta unidade.
      */
     public function usuarios(): BelongsToMany
     {

@@ -6,11 +6,10 @@ use App\Enums\NivelAlcada;
 use App\Models\Concerns\Auditavel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['faixa_alcada_id', 'ordem', 'nivel_exigido'])]
-class EtapaAlcada extends Model
+class EtapaAlcada extends ComprasModel
 {
     use Auditavel, HasFactory;
 
@@ -28,7 +27,7 @@ class EtapaAlcada extends Model
     }
 
     /**
-     * Faixa de alçada à qual esta etapa pertence.
+     * Faixa de alÃ§ada Ã  qual esta etapa pertence.
      */
     public function faixa(): BelongsTo
     {

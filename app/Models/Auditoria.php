@@ -3,15 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 #[Fillable(['auditavel_type', 'auditavel_id', 'campo', 'valor_anterior', 'valor_novo', 'evento', 'user_id', 'created_at'])]
-class Auditoria extends Model
+class Auditoria extends ComprasModel
 {
     /**
-     * Log imutável: não possui updated_at.
+     * Log imutÃ¡vel: nÃ£o possui updated_at.
      */
     const UPDATED_AT = null;
 
@@ -26,7 +25,7 @@ class Auditoria extends Model
     }
 
     /**
-     * Retorna o model auditado (polimórfico).
+     * Retorna o model auditado (polimÃ³rfico).
      */
     public function auditavel(): MorphTo
     {
@@ -34,7 +33,7 @@ class Auditoria extends Model
     }
 
     /**
-     * Usuário que originou o evento (nullable para ações de sistema/job).
+     * UsuÃ¡rio que originou o evento (nullable para aÃ§Ãµes de sistema/job).
      */
     public function usuario(): BelongsTo
     {

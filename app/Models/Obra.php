@@ -7,11 +7,10 @@ use App\Models\Concerns\Auditavel;
 use App\Models\Concerns\PertenceAUnidade;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['unidade_id', 'iniciada_em', 'previsao_termino', 'encerrada_em', 'status', 'verba'])]
-class Obra extends Model
+class Obra extends ComprasModel
 {
     use Auditavel, HasFactory, PertenceAUnidade;
 
@@ -35,7 +34,7 @@ class Obra extends Model
     }
 
     /**
-     * Unidade à qual esta obra pertence.
+     * Unidade Ã  qual esta obra pertence.
      */
     public function unidade(): BelongsTo
     {

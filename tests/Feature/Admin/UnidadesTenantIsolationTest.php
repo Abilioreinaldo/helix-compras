@@ -3,6 +3,7 @@
 use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -23,6 +24,10 @@ beforeEach(function () {
 
     $this->unidadeA = Unidade::factory()->create(['tenant_id' => $this->tenantA->id, 'nome' => 'Obra Alpha']);
     $this->unidadeB = Unidade::factory()->create(['tenant_id' => $this->tenantB->id, 'nome' => 'Obra Bravo']);
+
+    // Multi-tenant: opt-out do contexto canônico global — as leituras devem
+    // resolver pelo tenant do usuário autenticado (auth), não pelo fixado.
+    TenantContext::forget();
 });
 
 it('o admin só enxerga unidades do próprio tenant', function () {

@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\CatalogoItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -21,7 +20,7 @@ use Illuminate\Support\Str;
     'ativo',
     'controla_lote',
 ])]
-class CatalogoItem extends Model
+class CatalogoItem extends ComprasModel
 {
     /** @use HasFactory<CatalogoItemFactory> */
     use Auditavel, HasFactory, SoftDeletes;
@@ -49,7 +48,7 @@ class CatalogoItem extends Model
     }
 
     /**
-     * Estoques mínimos definidos para este item de catálogo.
+     * Estoques mÃ­nimos definidos para este item de catÃ¡logo.
      */
     public function estoqueMinimos(): HasMany
     {
@@ -57,7 +56,7 @@ class CatalogoItem extends Model
     }
 
     /**
-     * Preços homologados deste item (qualquer fornecedor/validade).
+     * PreÃ§os homologados deste item (qualquer fornecedor/validade).
      */
     public function precosHomologados(): HasMany
     {
@@ -65,11 +64,11 @@ class CatalogoItem extends Model
     }
 
     /**
-     * Resolve o preço homologado preferencial e válido para a data informada
-     * (hoje por padrão): ativo e dentro da janela de validade. Desempate por
-     * `preferencial`, depois pelo menor preço. Retorna null se não houver.
+     * Resolve o preÃ§o homologado preferencial e vÃ¡lido para a data informada
+     * (hoje por padrÃ£o): ativo e dentro da janela de validade. Desempate por
+     * `preferencial`, depois pelo menor preÃ§o. Retorna null se nÃ£o houver.
      *
-     * Filtro de data por bind (string), sem função de dialeto — portável SQLite↔MySQL.
+     * Filtro de data por bind (string), sem funÃ§Ã£o de dialeto â€” portÃ¡vel SQLiteâ†”MySQL.
      */
     public function precoHomologadoValido(?Carbon $data = null): ?PrecoHomologado
     {

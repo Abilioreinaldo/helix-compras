@@ -3,6 +3,7 @@
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -27,6 +28,9 @@ beforeEach(function () {
     $this->userB = User::factory()->create([
         'tenant_id' => $this->tenantB->id, 'name' => 'Fulano Bravo', 'email' => 'fulano@bravo.test',
     ]);
+
+    // Multi-tenant: leituras resolvem pelo tenant autenticado, não pelo canônico.
+    TenantContext::forget();
 });
 
 it('não lista usuários de outro tenant', function () {

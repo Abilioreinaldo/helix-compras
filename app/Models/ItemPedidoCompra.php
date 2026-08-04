@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\ItemPedidoCompraFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -24,7 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'item_catalogo_id',
     'avulso',
 ])]
-class ItemPedidoCompra extends Model
+class ItemPedidoCompra extends ComprasModel
 {
     /** @use HasFactory<ItemPedidoCompraFactory> */
     use Auditavel, HasFactory, SoftDeletes;

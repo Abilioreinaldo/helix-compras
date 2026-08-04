@@ -7,7 +7,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\CotacaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -28,14 +27,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'vencedora_definida_por',
     'cancelada_em',
     'motivo_cancelamento',
-    // Captura IMAP (advisory) — sugestão extraída do e-mail do fornecedor.
+    // Captura IMAP (advisory) â€” sugestÃ£o extraÃ­da do e-mail do fornecedor.
     'valor_respondido',
     'prazo_respondido',
     'observacoes_fornecedor',
     'resposta_recebida_em',
     'email_externo_id',
 ])]
-class Cotacao extends Model
+class Cotacao extends ComprasModel
 {
     /** @use HasFactory<CotacaoFactory> */
     use Auditavel, HasFactory, SoftDeletes;
@@ -61,19 +60,19 @@ class Cotacao extends Model
         ];
     }
 
-    /** Há uma sugestão de valor capturada do e-mail do fornecedor (ainda não confirmada). */
+    /** HÃ¡ uma sugestÃ£o de valor capturada do e-mail do fornecedor (ainda nÃ£o confirmada). */
     public function temRespostaSugerida(): bool
     {
         return $this->valor_respondido !== null;
     }
 
-    /** A compradora já confirmou um valor oficial para esta cotação. */
+    /** A compradora jÃ¡ confirmou um valor oficial para esta cotaÃ§Ã£o. */
     public function valorConfirmado(): bool
     {
         return $this->valor !== null;
     }
 
-    /** Dias decorridos desde a criação/solicitação da cotação. */
+    /** Dias decorridos desde a criaÃ§Ã£o/solicitaÃ§Ã£o da cotaÃ§Ã£o. */
     public function diasAguardando(): int
     {
         return (int) $this->created_at->diffInDays(now());
@@ -89,7 +88,7 @@ class Cotacao extends Model
         return $this->belongsTo(Fornecedor::class);
     }
 
-    /** Preços por item desta cotação (matriz). O total (coluna `valor`) é a soma das linhas. */
+    /** PreÃ§os por item desta cotaÃ§Ã£o (matriz). O total (coluna `valor`) Ã© a soma das linhas. */
     public function itensCotacao(): HasMany
     {
         return $this->hasMany(ItemCotacao::class);

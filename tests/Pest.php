@@ -1,5 +1,8 @@
 <?php
 
+use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Models\Platform\Identity\TenantFeature;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Assert;
@@ -18,6 +21,25 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
+    // Contexto de tenant nos testes: em produção todo write nasce num request
+    // autenticado (tenant no contexto). Muitos testes deste app são pré-tenant e
+    // criam dados ANTES do actingAs — sem contexto, o BelongsToTenant carimbaria
+    // tenant_id null e o próprio teste não veria o dado. Fixamos o tenant canônico
+    // (o mesmo que a UserFactory reusa) para o setup carimbar corretamente; testes
+    // multi-tenant fazem opt-out com TenantContext::forget() e semeiam tenant_id
+    // explícito (padrão Fuel).
+    ->beforeEach(function () {
+        $tenant = Tenant::query()->orderBy('created_at')->first()
+            ?? Tenant::create(['slug' => 'comendador', 'name' => 'Comendador', 'status' => 'active']);
+
+        TenantFeature::firstOrCreate(
+            ['tenant_id' => $tenant->id, 'feature' => 'compras'],
+            ['enabled' => true],
+        );
+
+        TenantContext::set($tenant->id);
+    })
+    ->afterEach(fn () => TenantContext::forget())
     ->in('Feature');
 
 /*

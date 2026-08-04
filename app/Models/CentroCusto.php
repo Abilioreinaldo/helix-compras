@@ -7,12 +7,11 @@ use App\Models\Concerns\PertenceAUnidade;
 use Database\Factories\CentroCustoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['unidade_id', 'codigo', 'nome', 'gestor_id', 'ativo'])]
-class CentroCusto extends Model
+class CentroCusto extends ComprasModel
 {
     /** @use HasFactory<CentroCustoFactory> */
     use Auditavel, HasFactory, PertenceAUnidade, SoftDeletes;
@@ -38,7 +37,7 @@ class CentroCusto extends Model
     }
 
     /**
-     * Unidade à qual este centro de custo pertence.
+     * Unidade Ã  qual este centro de custo pertence.
      */
     public function unidade(): BelongsTo
     {
@@ -46,7 +45,7 @@ class CentroCusto extends Model
     }
 
     /**
-     * Gestor responsável pelo centro de custo.
+     * Gestor responsÃ¡vel pelo centro de custo.
      */
     public function gestor(): BelongsTo
     {

@@ -24,6 +24,7 @@ use App\Models\Requisicao;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -829,7 +830,12 @@ it('entrada_em_corrida_de_unicidade_degrada_para_update_sem_erro_500', function 
             return;
         }
         $competidorCriado = true;
-        SaldoEstoque::withoutEvents(fn () => SaldoEstoque::create([
+        // withoutEvents pula o carimbo do BelongsToTenant; um concorrente real
+        // (autenticado) teria o tenant do contexto ativo. forceCreate porque
+        // tenant_id não é fillable (system-controlled) — sem ele o re-SELECT
+        // escopado da ação não encontraria o concorrente e a corrida daria 500.
+        SaldoEstoque::withoutEvents(fn () => SaldoEstoque::forceCreate([
+            'tenant_id' => TenantContext::id(),
             'unidade_id' => $novo->unidade_id,
             'deposito' => $novo->deposito,
             'descricao_item' => 'Concorrente',

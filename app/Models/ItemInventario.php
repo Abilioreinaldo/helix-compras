@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\ItemInventarioFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
@@ -16,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'quantidade_contada',
     'movimentacao_estoque_id',
 ])]
-class ItemInventario extends Model
+class ItemInventario extends ComprasModel
 {
     /** @use HasFactory<ItemInventarioFactory> */
     use Auditavel, HasFactory;
@@ -47,7 +46,7 @@ class ItemInventario extends Model
     }
 
     /**
-     * Divergência entre quantidade contada e sistema (positiva = sobra, negativa = falta).
+     * DivergÃªncia entre quantidade contada e sistema (positiva = sobra, negativa = falta).
      */
     public function getDivergenciaAttribute(): ?float
     {

@@ -6,11 +6,10 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\ItemReconciliacaoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Linha de um extrato bancário processado. status: pendente_match | conciliado | orfao.
+ * Linha de um extrato bancÃ¡rio processado. status: pendente_match | conciliado | orfao.
  */
 #[Fillable([
     'reconciliacao_bancaria_id',
@@ -21,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'pagamento_id',
     'status',
 ])]
-class ItemReconciliacao extends Model
+class ItemReconciliacao extends ComprasModel
 {
     /** @use HasFactory<ItemReconciliacaoFactory> */
     use Auditavel, HasFactory;

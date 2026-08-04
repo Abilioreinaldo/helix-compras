@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Log imutável (append-only) de fusões de saldos de estoque.
- * Preserva snapshot completo do saldo origem antes da fusão.
- * Sem updated_at — padrão de log de auditoria do projeto.
+ * Log imutÃ¡vel (append-only) de fusÃµes de saldos de estoque.
+ * Preserva snapshot completo do saldo origem antes da fusÃ£o.
+ * Sem updated_at â€” padrÃ£o de log de auditoria do projeto.
  */
 #[Fillable([
     'saldo_destino_id',
@@ -23,11 +22,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'unidade_id_origem',
     'executado_por',
 ])]
-class SaldoFusaoLog extends Model
+class SaldoFusaoLog extends ComprasModel
 {
     protected $table = 'saldo_fusao_log';
 
-    /** Log imutável — sem updated_at. */
+    /** Log imutÃ¡vel â€” sem updated_at. */
     public const UPDATED_AT = null;
 
     /**

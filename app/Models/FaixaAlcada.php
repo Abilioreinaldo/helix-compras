@@ -6,12 +6,11 @@ use App\Models\Concerns\Auditavel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable(['nome', 'valor_minimo', 'valor_maximo', 'is_emergencial', 'ativo', 'minimo_cotacoes'])]
-class FaixaAlcada extends Model
+class FaixaAlcada extends ComprasModel
 {
     use Auditavel, HasFactory, SoftDeletes;
 
@@ -32,7 +31,7 @@ class FaixaAlcada extends Model
     }
 
     /**
-     * Etapas de aprovação desta faixa, ordenadas pela sequência.
+     * Etapas de aprovaÃ§Ã£o desta faixa, ordenadas pela sequÃªncia.
      */
     public function etapas(): HasMany
     {

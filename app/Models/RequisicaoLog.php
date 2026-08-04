@@ -4,14 +4,13 @@ namespace App\Models;
 
 use App\Enums\StatusRequisicao;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['requisicao_id', 'status_anterior', 'status_novo', 'user_id', 'observacao', 'automatico'])]
-class RequisicaoLog extends Model
+class RequisicaoLog extends ComprasModel
 {
     /**
-     * Log imutável: não possui updated_at.
+     * Log imutÃ¡vel: nÃ£o possui updated_at.
      */
     public $timestamps = false;
 
@@ -33,7 +32,7 @@ class RequisicaoLog extends Model
     }
 
     /**
-     * Requisição à qual este log pertence.
+     * RequisiÃ§Ã£o Ã  qual este log pertence.
      */
     public function requisicao(): BelongsTo
     {
@@ -41,7 +40,7 @@ class RequisicaoLog extends Model
     }
 
     /**
-     * Usuário que gerou esta transição (null para ações automáticas).
+     * UsuÃ¡rio que gerou esta transiÃ§Ã£o (null para aÃ§Ãµes automÃ¡ticas).
      */
     public function usuario(): BelongsTo
     {

@@ -6,12 +6,11 @@ use App\Enums\Perfil;
 use App\Models\Concerns\Auditavel;
 use Database\Factories\EstoqueMinimoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class EstoqueMinimo extends Model
+class EstoqueMinimo extends ComprasModel
 {
     /** @use HasFactory<EstoqueMinimoFactory> */
     use Auditavel, HasFactory;
@@ -31,7 +30,7 @@ class EstoqueMinimo extends Model
         ];
     }
 
-    // ─── Relações ─────────────────────────────────────────────────────────────
+    // â”€â”€â”€ RelaÃ§Ãµes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function unidade(): BelongsTo
     {
@@ -43,15 +42,15 @@ class EstoqueMinimo extends Model
         return $this->belongsTo(CatalogoItem::class, 'item_catalogo_id');
     }
 
-    // ─── Leitura (métodos estáticos) ──────────────────────────────────────────
+    // â”€â”€â”€ Leitura (mÃ©todos estÃ¡ticos) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
-     * Retorna itens abaixo do mínimo para o usuário informado.
+     * Retorna itens abaixo do mÃ­nimo para o usuÃ¡rio informado.
      *
      * Visibilidade:
-     * - podeVerTodasUnidades() → rede inteira
-     * - Almoxarife → só unidades do pivot
-     * - outro → coleção vazia
+     * - podeVerTodasUnidades() â†’ rede inteira
+     * - Almoxarife â†’ sÃ³ unidades do pivot
+     * - outro â†’ coleÃ§Ã£o vazia
      *
      * Cada linha: {unidade_id, unidade_nome, item_catalogo_id, item_descricao,
      *              unidade_medida, quantidade_minima, saldo_atual, quantidade_sugerida}
@@ -116,15 +115,15 @@ class EstoqueMinimo extends Model
     }
 
     /**
-     * Posição atual de estoque (todos os saldos vivos) visível ao usuário.
+     * PosiÃ§Ã£o atual de estoque (todos os saldos vivos) visÃ­vel ao usuÃ¡rio.
      *
-     * Exclui saldos fundidos (`fundido_para_id IS NOT NULL`) — tombstones de fusão
-     * não contam, evitando dupla contagem do saldo já migrado para o saldo-destino.
-     * Para itens de catálogo, anexa `quantidade_minima` e a flag `em_alerta` via leftJoin;
-     * saldos avulsos (sem `item_catalogo_id`) não casam no leftJoin → mínimo nulo.
+     * Exclui saldos fundidos (`fundido_para_id IS NOT NULL`) â€” tombstones de fusÃ£o
+     * nÃ£o contam, evitando dupla contagem do saldo jÃ¡ migrado para o saldo-destino.
+     * Para itens de catÃ¡logo, anexa `quantidade_minima` e a flag `em_alerta` via leftJoin;
+     * saldos avulsos (sem `item_catalogo_id`) nÃ£o casam no leftJoin â†’ mÃ­nimo nulo.
      *
-     * Visibilidade idêntica a itensAReporPara: rede inteira (podeVerTodasUnidades),
-     * unidades do pivot (Almoxarife) ou coleção vazia.
+     * Visibilidade idÃªntica a itensAReporPara: rede inteira (podeVerTodasUnidades),
+     * unidades do pivot (Almoxarife) ou coleÃ§Ã£o vazia.
      *
      * Cada linha: {saldo_id, unidade_id, unidade_nome, deposito, item_catalogo_id,
      *              descricao_item, unidade_medida, saldo_atual, custo_medio_ponderado,
@@ -179,10 +178,10 @@ class EstoqueMinimo extends Model
         });
     }
 
-    // ─── Helpers privados ─────────────────────────────────────────────────────
+    // â”€â”€â”€ Helpers privados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
-     * Resolve os IDs de unidade para o usuário.
+     * Resolve os IDs de unidade para o usuÃ¡rio.
      * Retorna null quando podeVerTodasUnidades (sem filtro); Collection quando Almoxarife.
      *
      * @return Collection<int, int>|null

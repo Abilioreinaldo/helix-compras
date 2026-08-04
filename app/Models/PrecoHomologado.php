@@ -6,14 +6,13 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\PrecoHomologadoFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * Preço de um item de catálogo homologado junto a um fornecedor, com validade.
- * Um preço homologado válido dispensa a cotação ad-hoc na via expressa.
+ * PreÃ§o de um item de catÃ¡logo homologado junto a um fornecedor, com validade.
+ * Um preÃ§o homologado vÃ¡lido dispensa a cotaÃ§Ã£o ad-hoc na via expressa.
  */
 #[Fillable([
     'uuid',
@@ -26,7 +25,7 @@ use Illuminate\Support\Str;
     'ativo',
     'observacao',
 ])]
-class PrecoHomologado extends Model
+class PrecoHomologado extends ComprasModel
 {
     /** @use HasFactory<PrecoHomologadoFactory> */
     use Auditavel, HasFactory, SoftDeletes;

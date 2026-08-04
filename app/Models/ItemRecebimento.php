@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -12,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'item_pedido_compra_id',
     'quantidade_recebida',
 ])]
-class ItemRecebimento extends Model
+class ItemRecebimento extends ComprasModel
 {
     use SoftDeletes;
 

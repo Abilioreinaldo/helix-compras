@@ -6,7 +6,6 @@ use App\Models\Concerns\Auditavel;
 use Database\Factories\FornecedorFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -24,7 +23,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'ativo',
     'observacoes',
 ])]
-class Fornecedor extends Model
+class Fornecedor extends ComprasModel
 {
     /** @use HasFactory<FornecedorFactory> */
     use Auditavel, HasFactory, SoftDeletes;
@@ -44,7 +43,7 @@ class Fornecedor extends Model
     }
 
     /**
-     * Usuário que realizou a homologação do fornecedor.
+     * UsuÃ¡rio que realizou a homologaÃ§Ã£o do fornecedor.
      */
     public function quemHomologou(): BelongsTo
     {
