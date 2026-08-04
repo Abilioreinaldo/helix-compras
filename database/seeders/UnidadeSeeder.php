@@ -24,8 +24,11 @@ class UnidadeSeeder extends Seeder
         $solicitante = User::where('email', 'solicitante@comendador.com.br')->firstOrFail();
         $almoxarife = User::where('email', 'almoxarife@comendador.com.br')->firstOrFail();
 
+        $tenantId = $gestor->getAttributes()['tenant_id'];
+
         // --- Unidade 1: Obra ---
         $unidadeObra = Unidade::withoutGlobalScopes()->create([
+            'tenant_id' => $tenantId,
             'nome' => 'Obra Expansão Norte',
             'tipo' => TipoUnidade::Obra->value,
             'cnpj' => '12345678000195',
@@ -44,6 +47,7 @@ class UnidadeSeeder extends Seeder
 
         // --- Unidade 2: Posto ---
         $unidadePosto = Unidade::withoutGlobalScopes()->create([
+            'tenant_id' => $tenantId,
             'nome' => 'Posto Comendador Centro',
             'tipo' => TipoUnidade::Posto->value,
             'cnpj' => '98765432000110',
@@ -54,6 +58,7 @@ class UnidadeSeeder extends Seeder
 
         // --- Unidade 3: Central ---
         $unidadeCentral = Unidade::withoutGlobalScopes()->create([
+            'tenant_id' => $tenantId,
             'nome' => 'Central Administrativa',
             'tipo' => TipoUnidade::Central->value,
             'cnpj' => null,

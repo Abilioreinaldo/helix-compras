@@ -169,7 +169,7 @@ class ListaUsuarios extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $this->validate([
-            'vincularUnidadeId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')],
+            'vincularUnidadeId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')->where('tenant_id', auth()->user()->getActiveTenantId())],
             'vincularPerfil' => ['required', 'in:'.implode(',', array_column(Perfil::cases(), 'value'))],
             'vincularNivelAlcada' => 'nullable|in:'.implode(',', array_column(NivelAlcada::cases(), 'value')),
         ], [
@@ -221,11 +221,13 @@ class ListaUsuarios extends Component
             ->orderBy('name')
             ->paginate(15);
 
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $usuarioVinculos = $this->usuarioVinculosId
-            ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()])->find($this->usuarioVinculosId)
+            ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
             : null;
 
-        $todasUnidades = Unidade::withoutGlobalScopes()->orderBy('nome')->get();
+        $todasUnidades = Unidade::withoutGlobalScopes()->where('tenant_id', $tenantId)->orderBy('nome')->get();
         $perfis = Perfil::cases();
         $niveisAlcada = NivelAlcada::cases();
 

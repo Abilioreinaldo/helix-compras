@@ -65,7 +65,7 @@ class ListaUnidades extends Component
     public function abrirEditar(int $id): void
     {
         $this->resetValidation();
-        $unidade = Unidade::withoutGlobalScopes()->findOrFail($id);
+        $unidade = $this->unidadesDoTenant()->findOrFail($id);
         $this->editandoId = $id;
         $this->nome = $unidade->nome;
         $this->tipo = $unidade->tipo->value;
@@ -120,7 +120,7 @@ class ListaUnidades extends Component
         ];
 
         if ($this->editandoId) {
-            $unidade = Unidade::withoutGlobalScopes()->findOrFail($this->editandoId);
+            $unidade = $this->unidadesDoTenant()->findOrFail($this->editandoId);
             $unidade->update($dados);
 
             if ($this->tipo === TipoUnidade::Obra->value) {
@@ -134,7 +134,7 @@ class ListaUnidades extends Component
                     : $unidade->obra()->create(array_merge($dadosObra, ['status' => 'ativa']));
             }
         } else {
-            $unidade = Unidade::withoutGlobalScopes()->create($dados);
+            $unidade = $this->unidadesDoTenant()->create($dados + ['tenant_id' => auth()->user()->getActiveTenantId()]);
 
             if ($this->tipo === TipoUnidade::Obra->value) {
                 $unidade->obra()->create([
@@ -153,13 +153,20 @@ class ListaUnidades extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        Unidade::withoutGlobalScopes()->findOrFail($id)->delete();
+        $this->unidadesDoTenant()->findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Unidade removida.');
+    }
+
+    /** Unidades SEMPRE escopadas ao tenant ativo (a tela de admin não cruza tenants). */
+    private function unidadesDoTenant()
+    {
+        return Unidade::withoutGlobalScopes()
+            ->where('tenant_id', auth()->user()->getActiveTenantId());
     }
 
     public function render(): View
     {
-        $unidades = Unidade::withoutGlobalScopes()
+        $unidades = $this->unidadesDoTenant()
             ->when($this->busca, fn ($q) => $q->where('nome', 'like', "%{$this->busca}%"))
             ->when($this->filtroTipo, fn ($q) => $q->where('tipo', $this->filtroTipo))
             ->when($this->filtroStatus, fn ($q) => $q->where('status', $this->filtroStatus))

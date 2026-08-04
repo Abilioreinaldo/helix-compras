@@ -14,10 +14,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['nome', 'tipo', 'cnpj', 'endereco', 'gestor_id', 'status'])]
+#[Fillable(['tenant_id', 'nome', 'tipo', 'cnpj', 'endereco', 'gestor_id', 'status'])]
+// #[UnidadeScope] amarra ao tenant ativo via esta coluna (ver UnidadeScope::filtraTenant).
 class Unidade extends Model
 {
     use Auditavel, HasFactory, PertenceAUnidade, SoftDeletes;
+
+    /** Coluna de tenant lida pelo UnidadeScope para amarrar ao tenant ativo. */
+    public static function colunaTenant(): string
+    {
+        return 'tenant_id';
+    }
 
     /**
      * @return array<string, string>
