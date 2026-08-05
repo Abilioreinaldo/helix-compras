@@ -73,6 +73,19 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // Observabilidade (2.4): logs em JSON (uma linha por evento) p/ ingestao por
+        // agregadores. O contexto (correlation_id/tenant_id/user_id via LogContext +
+        // SetActiveTenant) sai como campos estruturados. Producao: LOG_CHANNEL=structured
+        // (ou inclua no LOG_STACK); dev segue legivel no canal padrao.
+        'structured' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/structured.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'formatter' => Monolog\Formatter\JsonFormatter::class,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),
