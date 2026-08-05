@@ -86,3 +86,82 @@ jobs:
       - name: Run tests (Pest)
         working-directory: comendador-compras
         run: php artisan test
+
+  # Produção é MySQL; a suíte roda em SQLite. Este job fecha o buraco: migrations
+  # + suíte contra MySQL 8 real (pegou nomes de índice > 64 chars, FK duplicada e
+  # função sqlite-only nos apps irmãos).
+  mysql:
+    name: Pest em MySQL 8 (driver de produção)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: helix_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: helix_ci
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - name: Checkout helix-compras
+        uses: actions/checkout@v4
+        with:
+          path: comendador-compras
+
+      - name: Checkout helix-foundation (path repo)
+        uses: actions/checkout@v4
+        with:
+          repository: Abilioreinaldo/helix-foundation
+          ref: master
+          token: ${{ secrets.FOUNDATION_TOKEN }}
+          path: helix-foundation
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, dom, xml, ctype, pdo, mysql, pdo_mysql, bcmath, intl, fileinfo, curl
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: comendador-compras/package-lock.json
+
+      - name: Prepare .env
+        working-directory: comendador-compras
+        run: cp .env.example .env
+
+      - name: Install PHP dependencies
+        working-directory: comendador-compras
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Generate app key
+        working-directory: comendador-compras
+        run: php artisan key:generate
+
+      - name: Build frontend assets (@vite manifest exigido nos testes de tela)
+        working-directory: comendador-compras
+        run: npm install --no-audit --no-fund && npm run build
+
+      - name: Run migrations (MySQL)
+        working-directory: comendador-compras
+        run: php artisan migrate --force --no-interaction
+
+      - name: Run tests (Pest em MySQL)
+        working-directory: comendador-compras
+        run: php artisan test
