@@ -65,9 +65,12 @@ jobs:
         working-directory: comendador-compras
         run: php artisan key:generate
 
+      # npm install (não ci): o lock deste app sofre drift de optionals @emnapi
+      # entre npm 11 (dev, Windows) e npm 10 (runner) — o ci reprova por "out of
+      # sync" a cada regeneração. install resolve e segue; build é o que importa.
       - name: Build frontend assets (@vite manifest exigido nos testes de tela)
         working-directory: comendador-compras
-        run: npm ci && npm run build
+        run: npm install --no-audit --no-fund && npm run build
 
       - name: Check code style (Pint)
         working-directory: comendador-compras
