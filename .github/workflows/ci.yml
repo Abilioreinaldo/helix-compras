@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.3', '8.4']
+        php: ['8.4'] # 8.3 removido: o lock exige PHP >= 8.4.1 (symfony/error-handler v8.1)
 
     steps:
       - name: Checkout helix-compras
