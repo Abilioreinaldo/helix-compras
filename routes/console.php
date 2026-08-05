@@ -17,3 +17,6 @@ Schedule::command('precos:expirar-homologacoes')->dailyAt('00:30');
 // antigos, e drena os failed_jobs — antes cresciam sem teto (achado 4.10).
 Schedule::command('platform:prune --force')->dailyAt('03:30')->withoutOverlapping();
 Schedule::command('queue:prune-failed --hours=168')->dailyAt('03:45')->withoutOverlapping();
+
+// Observabilidade (2.4): alerta de failed_jobs/dead_letter/backlog acima do teto.
+Schedule::command('platform:health')->hourly()->withoutOverlapping();
