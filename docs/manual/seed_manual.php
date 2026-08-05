@@ -1,13 +1,14 @@
 <?php
+
 /**
  * Seed aditivo (não destrutivo) para enriquecer os screenshots do manual:
  *  - cria preços homologados para alguns itens de catálogo;
  *  - cria uma requisição em "aguardando triagem" 100% homologada (mostra a Via Expressa).
  * Uso: php docs/manual/seed_manual.php
  */
-require __DIR__ . '/../../vendor/autoload.php';
-$app = require_once __DIR__ . '/../../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+require __DIR__.'/../../vendor/autoload.php';
+$app = require_once __DIR__.'/../../bootstrap/app.php';
+$app->make(Kernel::class)->bootstrap();
 
 use App\Enums\StatusRequisicao;
 use App\Models\CatalogoItem;
@@ -19,6 +20,7 @@ use App\Models\PrecoHomologado;
 use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\User;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
 
 DB::transaction(function () {
@@ -74,7 +76,7 @@ DB::transaction(function () {
         'faixa_alcada_id' => $faixa?->id,
         'submetida_em' => now(),
     ]);
-    $req->update(['codigo' => 'REQ-' . now()->year . '-' . str_pad((string) $req->id, 6, '0', STR_PAD_LEFT)]);
+    $req->update(['codigo' => 'REQ-'.now()->year.'-'.str_pad((string) $req->id, 6, '0', STR_PAD_LEFT)]);
 
     foreach ($itensReq as [$item, $qtd, $preco]) {
         ItemRequisicao::create([
@@ -87,8 +89,8 @@ DB::transaction(function () {
             'avulso' => false,
         ]);
     }
-    echo "Requisição expressa criada: {$req->codigo} (total R$ " . number_format($total, 2, ',', '.') . ")\n";
-    echo "Elegível via expressa: " . ($req->avaliarViaExpressa() !== null ? 'SIM' : 'NAO') . "\n";
+    echo "Requisição expressa criada: {$req->codigo} (total R$ ".number_format($total, 2, ',', '.').")\n";
+    echo 'Elegível via expressa: '.($req->avaliarViaExpressa() !== null ? 'SIM' : 'NAO')."\n";
 });
 
 echo "Seed concluído.\n";
