@@ -26,18 +26,8 @@ jobs:
         with:
           path: comendador-compras
 
-      # helix/foundation é dependência via *path repo* (../helix-foundation).
-      # Repo PRIVADO -> o checkout precisa de um token com leitura nele. Crie um
-      # secret `FOUNDATION_TOKEN` (PAT fine-grained com Contents: Read em
-      # Abilioreinaldo/helix-foundation) em Settings -> Secrets do repositório.
-      - name: Checkout helix-foundation (path repo)
-        uses: actions/checkout@v4
-        with:
-          repository: Abilioreinaldo/helix-foundation
-          ref: master
-          token: ${{ secrets.FOUNDATION_TOKEN }}
-          path: helix-foundation
-
+      # helix/foundation é dependência VCS versionada (^0.1); o composer clona o
+      # repo privado via COMPOSER_AUTH (secret FOUNDATION_TOKEN, Contents: Read).
       - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
         with:
@@ -59,6 +49,8 @@ jobs:
 
       - name: Install PHP dependencies
         working-directory: comendador-compras
+        env:
+          COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.FOUNDATION_TOKEN }}"}}'
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Generate app key
@@ -119,14 +111,6 @@ jobs:
         with:
           path: comendador-compras
 
-      - name: Checkout helix-foundation (path repo)
-        uses: actions/checkout@v4
-        with:
-          repository: Abilioreinaldo/helix-foundation
-          ref: master
-          token: ${{ secrets.FOUNDATION_TOKEN }}
-          path: helix-foundation
-
       - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
@@ -148,6 +132,8 @@ jobs:
 
       - name: Install PHP dependencies
         working-directory: comendador-compras
+        env:
+          COMPOSER_AUTH: '{"github-oauth": {"github.com": "${{ secrets.FOUNDATION_TOKEN }}"}}'
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Generate app key

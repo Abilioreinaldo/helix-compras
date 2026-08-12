@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "617d3a733c567bac00efbc8eb00d1537",
+    "content-hash": "97bdc36d22699c75adb57c03aad088bf",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -1397,11 +1397,17 @@
         },
         {
             "name": "helix/foundation",
-            "version": "dev-master",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Abilioreinaldo/helix-foundation",
+                "reference": "2a20377a446f928897a1e9a43e7c4229a2167c80"
+            },
             "dist": {
-                "type": "path",
-                "url": "../helix-foundation",
-                "reference": "b30bff278479d39e7a07975b877cecf93b7005ee"
+                "type": "zip",
+                "url": "https://api.github.com/repos/Abilioreinaldo/helix-foundation/zipball/2a20377a446f928897a1e9a43e7c4229a2167c80",
+                "reference": "2a20377a446f928897a1e9a43e7c4229a2167c80",
+                "shasum": ""
             },
             "require": {
                 "bacon/bacon-qr-code": "^3.1",
@@ -1410,6 +1416,10 @@
                 "livewire/livewire": "^4.3",
                 "php": "^8.3",
                 "pragmarx/google2fa": "^9.0"
+            },
+            "require-dev": {
+                "orchestra/testbench": "^11.1",
+                "pestphp/pest": "^4.7"
             },
             "type": "library",
             "extra": {
@@ -1426,17 +1436,20 @@
             },
             "autoload-dev": {
                 "psr-4": {
-                    "Helix\\Foundation\\Tests\\": "tests/"
+                    "Helix\\Foundation\\Tests\\": "tests/",
+                    "App\\": "tests/Fixtures/App/"
                 }
+            },
+            "scripts": {
+                "test": [
+                    "pest"
+                ]
             },
             "license": [
                 "proprietary"
             ],
             "description": "HELIX shared foundation: identity, 2FA, RBAC, company, audit, events, notifications, documents, flow.",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
+            "time": "2026-08-12T19:26:52+00:00"
         },
         {
             "name": "laravel/framework",
@@ -10793,9 +10806,7 @@
     ],
     "aliases": [],
     "minimum-stability": "dev",
-    "stability-flags": {
-        "helix/foundation": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
