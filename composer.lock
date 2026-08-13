@@ -1397,16 +1397,16 @@
         },
         {
             "name": "helix/foundation",
-            "version": "v0.1.0",
+            "version": "v0.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Abilioreinaldo/helix-foundation",
-                "reference": "2a20377a446f928897a1e9a43e7c4229a2167c80"
+                "reference": "35b37aabc4f87efdd75532f17783b3846d592ece"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Abilioreinaldo/helix-foundation/zipball/2a20377a446f928897a1e9a43e7c4229a2167c80",
-                "reference": "2a20377a446f928897a1e9a43e7c4229a2167c80",
+                "url": "https://api.github.com/repos/Abilioreinaldo/helix-foundation/zipball/35b37aabc4f87efdd75532f17783b3846d592ece",
+                "reference": "35b37aabc4f87efdd75532f17783b3846d592ece",
                 "shasum": ""
             },
             "require": {
@@ -1449,7 +1449,7 @@
                 "proprietary"
             ],
             "description": "HELIX shared foundation: identity, 2FA, RBAC, company, audit, events, notifications, documents, flow.",
-            "time": "2026-08-12T19:26:52+00:00"
+            "time": "2026-08-13T11:41:23+00:00"
         },
         {
             "name": "laravel/framework",
