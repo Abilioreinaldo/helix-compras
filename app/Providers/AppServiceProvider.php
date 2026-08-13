@@ -49,6 +49,14 @@ class AppServiceProvider extends ServiceProvider
             'centro_custo' => CentroCusto::class,
         ]);
 
+        // ADR-015: consome o pedido de compra da loja (Store) e grava no inbox
+        // pedidos_loja_recebidos. O evento chega pelo receptor inbound assinado da
+        // foundation (/api/inbound/events) e roda aqui no ProcessDomainEvent.
+        app(\Helix\Foundation\Services\Platform\Event\SubscriberRegistry::class)->subscribe(
+            \App\Subscribers\IngerirPedidoLoja::EVENTO,
+            \App\Subscribers\IngerirPedidoLoja::class,
+        );
+
         Gate::policy(Pagamento::class, PagamentoPolicy::class);
         Gate::policy(Requisicao::class, RequisicaoPolicy::class);
 
