@@ -5,6 +5,7 @@ use App\Subscribers\IngerirPedidoLoja;
 use Helix\Foundation\Models\Platform\Event\DomainEvent;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Helix\Foundation\Services\Platform\Transport\WebhookSigner;
+use Illuminate\Testing\TestResponse;
 
 /**
  * ADR-015 (Fatia 3) — Compras consome `store.purchase_request.created` no inbox
@@ -80,7 +81,7 @@ it('rejeita (401) envelope com assinatura inválida', function () {
 });
 
 /** POST assinado com corpo bruto controlado (para o HMAC bater). */
-function postAssinado(array $envelope, string $secret): \Illuminate\Testing\TestResponse
+function postAssinado(array $envelope, string $secret): TestResponse
 {
     $body = json_encode($envelope, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     $ts = now()->getTimestamp();

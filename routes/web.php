@@ -25,6 +25,7 @@ use App\Livewire\Compradora\GestaoPedidosCompra;
 use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\ListaCotacoes;
 use App\Livewire\Compradora\MapaCotacao;
+use App\Livewire\Compradora\PedidosLoja;
 use App\Livewire\Compradora\TriagemRequisicoes;
 use App\Livewire\Dashboard;
 use App\Livewire\Financeiro\Agendamentos;
@@ -62,6 +63,9 @@ Route::middleware(['auth', 'ativo', 'tenant.ctx', 'tenant.ativo', 'troca.senha',
 
     // Fase 2 — Triagem (Compradora)
     Route::get('/compradora/triagem', TriagemRequisicoes::class)->name('compradora.triagem');
+
+    // ADR-015: inbox dos pedidos de compra vindos da loja (Store) → promoção a requisição.
+    Route::get('/compradora/pedidos-loja', PedidosLoja::class)->name('compradora.pedidos-loja');
 
     // v1.1-D — Itens a repor (Compradora + Admin)
     Route::get('/compradora/itens-a-repor', ItensARepor::class)->name('compradora.itens-a-repor');

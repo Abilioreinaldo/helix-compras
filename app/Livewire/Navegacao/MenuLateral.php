@@ -27,6 +27,7 @@ class MenuLateral extends Component
                 $this->item('Requisições', 'requisicoes.index', 'document'),
                 $this->item('Cotações', 'cotacoes.index', 'cotacao'),
                 $this->item('Triagem', 'compradora.triagem', 'inbox'),
+                $this->item('Pedidos da Loja', 'compradora.pedidos-loja', 'inbox'),
                 $this->item('Pedidos de Compra', 'compradora.pedidos.index', 'cart'),
             ];
         }
