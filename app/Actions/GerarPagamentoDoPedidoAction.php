@@ -6,6 +6,7 @@ use App\Enums\StatusPagamento;
 use App\Models\Pagamento;
 use App\Models\PedidoCompra;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -28,7 +29,7 @@ class GerarPagamentoDoPedidoAction
         $valorTotal = round((float) $pedido->itens()->whereNull('deleted_at')->sum('valor_total'), 2);
         $emissao = $pedido->emitido_em ? Carbon::parse($pedido->emitido_em) : Carbon::now();
 
-        return Pagamento::create([
+        $pagamento = Pagamento::create([
             'pedido_compra_id' => $pedido->id,
             'fornecedor_id' => $pedido->fornecedor_id,
             'data_emissao' => $emissao->toDateString(),
@@ -38,5 +39,13 @@ class GerarPagamentoDoPedidoAction
             'status' => StatusPagamento::Pendente,
             'criado_por' => $criador->id,
         ]);
+
+        // ESCOPO (D10, ponte dual): dual-write da foundation.
+        app(ActivityRecorder::class)->record('compras.pagamento_gerado', $pagamento, $pedido->tenant_id, [
+            'actor_id' => $criador->id,
+            'metadata' => ['valor_total' => $valorTotal, 'pedido_id' => $pedido->id],
+        ]);
+
+        return $pagamento;
     }
 }

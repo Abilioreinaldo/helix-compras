@@ -8,6 +8,7 @@ use App\Models\ItemPedidoCompra;
 use App\Models\PedidoCompra;
 use App\Models\Requisicao;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -76,6 +77,12 @@ class CancelarPedidoCompraAction
                     }
                 }
             }
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation.
+            app(ActivityRecorder::class)->record('compras.pedido_cancelado', $pedido, $pedido->tenant_id, [
+                'actor_id' => $usuario->id,
+                'metadata' => ['numero' => $pedido->numero, 'era_emitido' => $eraEmitido, 'motivo' => $motivo ?: null],
+            ]);
         });
     }
 }

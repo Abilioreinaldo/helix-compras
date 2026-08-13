@@ -9,6 +9,7 @@ use App\Mail\RequisicaoReprovada;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -76,6 +77,12 @@ class ReprovarRequisicaoAction
 
             $this->transicionar->execute($requisicao, StatusRequisicao::Reprovada, $justificativa);
             $this->transicionar->execute($requisicao, StatusRequisicao::EmCotacao, 'Retornada à cotação após reprovação.');
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation para a decisão.
+            app(ActivityRecorder::class)->record('compras.requisicao_reprovada', $requisicao, $requisicao->tenant_id, [
+                'actor_id' => $aprovador->id,
+                'metadata' => ['ciclo' => $requisicao->ciclo_aprovacao],
+            ]);
 
             $compradoras = User::whereHas('roles', fn ($q) => $q->where('slug', 'compras'))->get()->all();
         });

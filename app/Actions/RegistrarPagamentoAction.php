@@ -7,6 +7,7 @@ use App\Enums\StatusPagamento;
 use App\Models\Banco;
 use App\Models\Pagamento;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -86,6 +87,12 @@ class RegistrarPagamentoAction
                 'valor_pago' => $valorPago,
                 'status' => $status->value,
                 'por' => $usuario->id,
+            ]);
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation.
+            app(ActivityRecorder::class)->record('compras.pagamento_registrado', $pagamento, $pagamento->tenant_id, [
+                'actor_id' => $usuario->id,
+                'metadata' => ['valor_pago' => $valorPago, 'status' => $status->value],
             ]);
 
             return $pagamento->fresh();

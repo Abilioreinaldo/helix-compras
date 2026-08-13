@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -51,6 +52,12 @@ class ConcluirCotacaoAction
             $requisicao->update(['cotacao_concluida_em' => now()]);
 
             $this->transicionar->execute($requisicao, StatusRequisicao::CotacaoConcluida);
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation.
+            app(ActivityRecorder::class)->record('compras.cotacao_concluida', $requisicao, $requisicao->tenant_id, [
+                'actor_id' => auth()->id(),
+                'metadata' => ['cotacoes_confirmadas' => $confirmadas->count()],
+            ]);
         });
 
         // Inicia aprovação fora da transação de cotação para que o e-mail

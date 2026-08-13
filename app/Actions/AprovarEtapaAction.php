@@ -11,6 +11,7 @@ use App\Models\Aprovacao;
 use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -91,6 +92,12 @@ class AprovarEtapaAction
                     'solicitante' => $requisicao->solicitante,
                 ];
             }
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation para a decisão.
+            app(ActivityRecorder::class)->record('compras.aprovacao_etapa_aprovada', $requisicao, $requisicao->tenant_id, [
+                'actor_id' => $aprovador->id,
+                'metadata' => ['ordem' => $etapaAtual->ordem, 'final' => $proximaEtapa === null],
+            ]);
         });
 
         if (($notificar['tipo'] ?? null) === 'aguardando') {

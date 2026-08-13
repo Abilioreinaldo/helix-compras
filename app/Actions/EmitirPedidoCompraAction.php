@@ -9,6 +9,7 @@ use App\Models\Cotacao;
 use App\Models\PedidoCompra;
 use App\Models\Requisicao;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -117,6 +118,12 @@ class EmitirPedidoCompraAction
                     );
                 }
             }
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation.
+            app(ActivityRecorder::class)->record('compras.pedido_emitido', $pedido, $pedido->tenant_id, [
+                'actor_id' => $emissor->id,
+                'metadata' => ['numero' => $numero],
+            ]);
 
             return $pedido->fresh(['itens', 'fornecedor', 'unidade']);
         }, 3);

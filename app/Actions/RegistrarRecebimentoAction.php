@@ -10,6 +10,7 @@ use App\Models\PedidoCompra;
 use App\Models\Recebimento;
 use App\Models\Requisicao;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -102,6 +103,12 @@ class RegistrarRecebimentoAction
             foreach ($requisicaoIds as $requisicaoId) {
                 $this->verificarConclusaoRequisicao($requisicaoId);
             }
+
+            // ESCOPO (D10, ponte dual): dual-write da foundation.
+            app(ActivityRecorder::class)->record('compras.recebimento_registrado', $recebimento, $pedido->tenant_id, [
+                'actor_id' => $almoxarife->id,
+                'metadata' => ['pedido_numero' => $pedido->numero, 'itens' => $itensComQtd->count()],
+            ]);
 
             return $recebimento;
         }, 3);

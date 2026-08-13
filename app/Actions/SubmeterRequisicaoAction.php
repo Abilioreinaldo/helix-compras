@@ -7,6 +7,7 @@ use App\Models\FaixaAlcada;
 use App\Models\Obra;
 use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -97,6 +98,13 @@ class SubmeterRequisicaoAction
                 'user_id' => auth()->id(),
                 'observacao' => null,
                 'automatico' => false,
+            ]);
+
+            // ESCOPO (D10, ponte dual): evento de domínio + audit_log da foundation;
+            // a trilha fina por campo continua no AuditoriaObserver.
+            app(ActivityRecorder::class)->record('compras.requisicao_submetida', $requisicao, $requisicao->tenant_id, [
+                'actor_id' => auth()->id(),
+                'metadata' => ['codigo' => $codigo, 'valor_total' => (float) $valorTotal, 'expressa' => $expressa],
             ]);
 
             return $alerta;
