@@ -75,6 +75,13 @@ jobs:
         working-directory: comendador-compras
         run: composer audit --no-interaction
 
+      # Não-bloqueante: caça segredos commitados (cinto S11).
+      - name: Secret scan (gitleaks)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run tests (Pest)
         working-directory: comendador-compras
         run: php artisan test
