@@ -16,7 +16,7 @@ return new class extends Migration
     {
         Schema::create('pedidos_loja_recebidos', function (Blueprint $table) {
             $table->id();
-            $table->uuid('tenant_id')->nullable()->after('id');
+            $table->uuid('tenant_id')->nullable();
             $table->string('request_code');
             $table->string('store_code')->nullable();
             $table->string('supplier_cnpj', 14)->nullable();
