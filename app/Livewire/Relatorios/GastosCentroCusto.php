@@ -15,13 +15,13 @@ class GastosCentroCusto extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->can('relatorio.ver'), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->ano = (int) now()->year;
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->can('relatorio.ver'), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
         $tenantId = auth()->user()->getActiveTenantId();

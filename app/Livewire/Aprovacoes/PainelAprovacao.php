@@ -36,14 +36,14 @@ class PainelAprovacao extends Component
     public function mount(int $id): void
     {
         $this->id = $id;
-        // Autoriza acesso à unidade desta requisição já no mount (via carregarRequisicao).
-        $this->carregarRequisicao();
+        // Autoriza acesso à unidade desta requisição já no mount (via authorizedRequisicao).
+        $this->authorizedRequisicao();
     }
 
     public function aprovar(): void
     {
         // Autoriza antes de validar (403 independe do input).
-        $requisicao = $this->carregarRequisicao();
+        $requisicao = $this->authorizedRequisicao();
 
         $this->validate(
             ['justificativa' => 'nullable|string|max:1000'],
@@ -73,7 +73,7 @@ class PainelAprovacao extends Component
     public function reprovar(): void
     {
         // Autoriza antes de validar (403 independe do input).
-        $requisicao = $this->carregarRequisicao();
+        $requisicao = $this->authorizedRequisicao();
 
         $this->validate(
             ['justificativa' => 'required|string|min:10|max:1000'],
@@ -96,7 +96,7 @@ class PainelAprovacao extends Component
         $this->redirect(route('aprovacoes.fila'));
     }
 
-    private function carregarRequisicao(): Requisicao
+    private function authorizedRequisicao(): Requisicao
     {
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with([
@@ -115,14 +115,14 @@ class PainelAprovacao extends Component
         return $requisicao;
     }
 
-    public function podeAprovar(Requisicao $requisicao): bool
+    protected function podeAprovar(Requisicao $requisicao): bool
     {
         return auth()->user()->can('aprovacao.decidir', $requisicao);
     }
 
     public function render(): View
     {
-        $requisicao = $this->carregarRequisicao();
+        $requisicao = $this->authorizedRequisicao();
         $etapaAtual = $requisicao->etapaAprovacaoAtual();
         $podeAprovar = $this->podeAprovar($requisicao);
 

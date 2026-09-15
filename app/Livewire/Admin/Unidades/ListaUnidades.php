@@ -51,6 +51,7 @@ class ListaUnidades extends Component
 
     public function abrirCriar(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $this->editandoId = null;
         $this->nome = '';
@@ -67,6 +68,7 @@ class ListaUnidades extends Component
 
     public function abrirEditar(int $id): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $unidade = $this->unidadesDoTenant()->findOrFail($id);
         $this->editandoId = $id;

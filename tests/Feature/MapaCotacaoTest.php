@@ -75,7 +75,7 @@ it('identifica a melhor compra (menor valor confirmado)', function () {
     $componente = Livewire::actingAs($compradora)
         ->test(MapaCotacao::class, ['requisicaoId' => $req->id]);
 
-    expect($componente->instance()->melhorCotacaoId())->toBe($barata->id);
+    expect($componente->viewData('melhorTotalId'))->toBe($barata->id);
 });
 
 it('marca a cotação como vencedora', function () {
@@ -99,7 +99,7 @@ it('não há vencedor selecionável sem cotação confirmada', function () {
     $componente = Livewire::actingAs($compradora)
         ->test(MapaCotacao::class, ['requisicaoId' => $req->id]);
 
-    expect($componente->instance()->temCotacaoConfirmada())->toBeFalse();
+    expect((fn () => $this->temCotacaoConfirmada())->call($componente->instance()))->toBeFalse();
 });
 
 it('bloqueia quem não é compradora (403)', function () {
@@ -135,5 +135,5 @@ it('monta a matriz por item e destaca o menor de cada linha e o menor total', fu
         ->assertSee('R$ 585,00');  // melhor do Teclado (B)
 
     // Menor total geral = A (750 < 760).
-    expect($comp->instance()->melhorCotacaoId())->toBe($cotA->id);
+    expect($comp->viewData('melhorTotalId'))->toBe($cotA->id);
 });

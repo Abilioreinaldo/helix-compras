@@ -5,7 +5,6 @@ namespace App\Livewire\Compradora;
 use App\Actions\AtenderViaExpressaAction;
 use App\Actions\SaidaEstoqueAction;
 use App\Actions\TransicionarStatusRequisicaoAction;
-use App\Enums\Perfil;
 use App\Enums\StatusRequisicao;
 use App\Models\LoteEstoque;
 use App\Models\Requisicao;
@@ -34,12 +33,12 @@ class TriagemRequisicoes extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
     }
 
     public function iniciarTriagem(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::EmTriagem);
         $this->dispatch('notify', mensagem: 'Triagem iniciada.');
@@ -47,7 +46,7 @@ class TriagemRequisicoes extends Component
 
     public function enviarParaCotacao(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::EmCotacao);
         $this->dispatch('notify', mensagem: 'Requisição enviada para cotação.');
@@ -55,12 +54,14 @@ class TriagemRequisicoes extends Component
 
     public function abrirDevolucao(int $id): void
     {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->devolvendo = $id;
         $this->observacaoDevolucao = '';
     }
 
     public function cancelarDevolucao(): void
     {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->devolvendo = null;
         $this->observacaoDevolucao = '';
         $this->resetValidation();
@@ -68,7 +69,7 @@ class TriagemRequisicoes extends Component
 
     public function confirmarDevolucao(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $this->validate(['observacaoDevolucao' => 'required|string|min:5'], [
             'observacaoDevolucao.required' => 'Informe o motivo da devolução.',
@@ -85,8 +86,9 @@ class TriagemRequisicoes extends Component
     /**
      * Verifica se todos os itens da requisição têm saldo disponível na unidade de destino.
      * Retorna false se houver algum item avulso ou sem saldo suficiente.
+     * Helper da view (protected: não é action chamável pelo cliente).
      */
-    public function todosItensTemSaldo(Requisicao $requisicao): bool
+    protected function todosItensTemSaldo(Requisicao $requisicao): bool
     {
         $itens = $requisicao->itens;
 
@@ -117,9 +119,9 @@ class TriagemRequisicoes extends Component
     /**
      * Indica se o atendimento direto desta requisição debitaria algum lote VENCIDO
      * (item controla_lote com lote vivo de validade < hoje no saldo da unidade).
-     * Apenas alerta visual — não impede o atendimento.
+     * Apenas alerta visual — não impede o atendimento. Helper da view (protected).
      */
-    public function temLoteVencido(Requisicao $requisicao): bool
+    protected function temLoteVencido(Requisicao $requisicao): bool
     {
         $saldoIds = $requisicao->itens
             ->filter(fn ($item) => $item->item_catalogo_id)
@@ -134,7 +136,7 @@ class TriagemRequisicoes extends Component
 
     public function atenderDoEstoque(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $this->erroAtendimentoEstoque = '';
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->with('itens')->findOrFail($id);
@@ -191,15 +193,16 @@ class TriagemRequisicoes extends Component
     /**
      * Indica se a requisição é elegível à via expressa (todos os itens com preço
      * homologado válido do mesmo fornecedor). Habilita o atendimento em 1 clique.
+     * Helper da view (protected).
      */
-    public function podeAtenderExpressa(Requisicao $requisicao): bool
+    protected function podeAtenderExpressa(Requisicao $requisicao): bool
     {
         return $requisicao->avaliarViaExpressa() !== null;
     }
 
     public function atenderViaExpressa(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $this->erroExpressa = '';
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->with('itens')->findOrFail($id);

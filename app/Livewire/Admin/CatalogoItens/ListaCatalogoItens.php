@@ -83,6 +83,7 @@ class ListaCatalogoItens extends Component
 
     public function abrirCriar(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $this->editandoId = null;
         $this->descricao = '';
@@ -215,6 +216,7 @@ class ListaCatalogoItens extends Component
 
     public function fecharModalMinimos(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->mostrarModalMinimos = false;
         $this->minimoItemId = null;
         $this->minimoItemDescricao = '';
@@ -277,6 +279,7 @@ class ListaCatalogoItens extends Component
 
     public function fecharModalHomologacoes(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->mostrarModalHomologacoes = false;
         $this->homologacaoItemId = null;
         $this->homologacaoItemDescricao = '';
@@ -295,10 +298,11 @@ class ListaCatalogoItens extends Component
 
     /**
      * Homologações do item em edição, com fornecedor, mais recentes primeiro.
+     * Helper da view (protected: não é action chamável pelo cliente).
      *
      * @return Collection<int, PrecoHomologado>
      */
-    public function homologacoesDoItem(): Collection
+    protected function homologacoesDoItem(): Collection
     {
         if (! $this->homologacaoItemId) {
             return new Collection;
@@ -313,10 +317,11 @@ class ListaCatalogoItens extends Component
 
     /**
      * Fornecedores elegíveis a homologação: qualificados (homologados) e ativos.
+     * Helper da view (protected: não é action chamável pelo cliente).
      *
      * @return Collection<int, Fornecedor>
      */
-    public function fornecedoresDisponiveis(): Collection
+    protected function fornecedoresDisponiveis(): Collection
     {
         return Fornecedor::where('homologado', true)
             ->where('ativo', true)

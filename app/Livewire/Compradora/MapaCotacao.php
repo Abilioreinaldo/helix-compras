@@ -3,7 +3,6 @@
 namespace App\Livewire\Compradora;
 
 use App\Actions\MarcarCotacaoVencedoraAction;
-use App\Enums\Perfil;
 use App\Models\Cotacao;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
@@ -24,7 +23,7 @@ class MapaCotacao extends Component
 
     public function mount(int $requisicaoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $this->requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['unidade', 'itens'])
@@ -32,7 +31,7 @@ class MapaCotacao extends Component
     }
 
     /** Cotações da requisição (colunas), da mais barata para a mais cara. */
-    public function cotacoes(): Collection
+    protected function cotacoes(): Collection
     {
         // SoftDeletes já exclui apagadas. Carrega itemRequisicao para valorLinha() (evita N+1).
         return $this->requisicao->cotacoes()
@@ -43,7 +42,7 @@ class MapaCotacao extends Component
     }
 
     /** Id da cotação com o menor TOTAL confirmado (melhor compra geral). */
-    public function melhorCotacaoId(?Collection $cotacoes = null): ?int
+    protected function melhorCotacaoId(?Collection $cotacoes = null): ?int
     {
         return ($cotacoes ?? $this->cotacoes())
             ->filter(fn (Cotacao $c) => $c->valor !== null)
@@ -51,14 +50,15 @@ class MapaCotacao extends Component
             ->first()?->id;
     }
 
-    public function temCotacaoConfirmada(): bool
+    /** Helper da view/testes (protected: não é action chamável pelo cliente). */
+    protected function temCotacaoConfirmada(): bool
     {
         return $this->cotacoes()->contains(fn (Cotacao $c) => $c->valor !== null);
     }
 
     public function marcarVencedora(int $cotacaoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 

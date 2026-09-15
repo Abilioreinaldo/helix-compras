@@ -44,6 +44,7 @@ class ListaFornecedores extends Component
 
     public function abrirCriar(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $this->editandoId = null;
         $this->razaoSocial = '';
@@ -59,6 +60,7 @@ class ListaFornecedores extends Component
 
     public function abrirEditar(int $id): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $fornecedor = Fornecedor::findOrFail($id);
         $this->editandoId = $id;

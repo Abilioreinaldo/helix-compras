@@ -34,6 +34,7 @@ class RelatorioRateioMensalCentral extends Component
 
     public function toggleExpandir(int $id): void
     {
+        $this->authorizeAcesso();
         $this->expandidoId = $this->expandidoId === $id ? null : $id;
     }
 
@@ -47,6 +48,7 @@ class RelatorioRateioMensalCentral extends Component
 
     public function cancelarReversao(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->revertendoItemId = null;
         $this->motivoReversao = '';
         $this->resetValidation();
@@ -73,6 +75,12 @@ class RelatorioRateioMensalCentral extends Component
 
         $this->cancelarReversao();
         $this->dispatch('notify', mensagem: 'Rateio revertido com sucesso.');
+    }
+
+    /** Acesso ao relatório (mount e cada action): 403 se não {@see podeAcessar()}. */
+    private function authorizeAcesso(): void
+    {
+        abort_unless($this->podeAcessar(), 403);
     }
 
     /** Admin (todas) ou Aprovador de alguma unidade (própria). */

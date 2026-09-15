@@ -149,13 +149,31 @@ class FormularioRequisicao extends Component
         $this->recalcularVerba();
     }
 
+    /**
+     * Autoriza cada action do formulário (o mount não protege actions): edição de
+     * requisição existente pela policy `update` (visibilidade/tenant); rascunho novo
+     * pela policy `create`.
+     */
+    private function authorizeFormulario(): void
+    {
+        if ($this->requisicaoId) {
+            $this->authorize('update', Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->requisicaoId));
+
+            return;
+        }
+
+        $this->authorize('create', Requisicao::class);
+    }
+
     public function adicionarItem(): void
     {
+        $this->authorizeFormulario();
         $this->itens[] = ['descricao' => '', 'quantidade' => '1', 'unidade_medida' => 'un', 'valor_unitario_estimado' => '', 'item_catalogo_id' => null, 'avulso' => true];
     }
 
     public function removerItem(int $indice): void
     {
+        $this->authorizeFormulario();
         array_splice($this->itens, $indice, 1);
         $this->itens = array_values($this->itens);
         $this->recalcularVerba();
@@ -167,6 +185,8 @@ class FormularioRequisicao extends Component
      */
     public function selecionarItemCatalogo(int $indice, ?int $itemCatalogoId): void
     {
+        $this->authorizeFormulario();
+
         if ($itemCatalogoId === null) {
             $this->itens[$indice]['item_catalogo_id'] = null;
             $this->itens[$indice]['avulso'] = true;
@@ -200,6 +220,8 @@ class FormularioRequisicao extends Component
      */
     public function previewExpressa(): bool
     {
+        $this->authorizeFormulario();
+
         if (empty($this->itens)) {
             return false;
         }
@@ -356,6 +378,8 @@ class FormularioRequisicao extends Component
 
     public function submeter(): void
     {
+        $this->authorizeFormulario();
+
         $this->validate($this->regrasValidacao(), [
             'unidadeId.required' => 'A unidade é obrigatória.',
             'centroCustoId.required' => 'O centro de custo é obrigatório.',
@@ -380,11 +404,14 @@ class FormularioRequisicao extends Component
 
     public function abrirModalCancelar(): void
     {
+        $this->authorizeFormulario();
         $this->mostrarModalCancelar = true;
     }
 
     public function cancelarRequisicao(): void
     {
+        $this->authorizeFormulario();
+
         if (! $this->requisicaoId) {
             $this->mostrarModalCancelar = false;
 

@@ -161,7 +161,8 @@ class ComprasTesteEmpresaASeeder extends Seeder
         $tenant = Tenant::findOrFail($user->getAttributes()['tenant_id']);
         app(EntitlementService::class)->seedRbac($tenant, 'compras');
 
-        $role = Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail();
+        // Role usa BelongsToTenant: no console (modo estrito) a leitura exige o tenant no contexto.
+        $role = TenantContext::runFor((string) $tenant->id, fn () => Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail());
 
         $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $tenant->id]]);
     }

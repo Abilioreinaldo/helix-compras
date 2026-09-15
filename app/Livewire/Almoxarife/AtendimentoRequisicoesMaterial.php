@@ -78,6 +78,7 @@ class AtendimentoRequisicoesMaterial extends Component
 
     public function cancelarRecusa(): void
     {
+        $this->authorize('estoque.gerenciar');
         $this->recusandoId = null;
         $this->motivoRecusa = '';
     }

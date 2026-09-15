@@ -5,7 +5,6 @@ namespace App\Livewire\Compradora;
 use App\Actions\CancelarPedidoCompraAction;
 use App\Actions\EmitirPedidoCompraAction;
 use App\Enums\ModalidadeEntrega;
-use App\Enums\Perfil;
 use App\Models\PedidoCompra;
 use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
@@ -37,7 +36,7 @@ class FormularioPedidoCompra extends Component
 
     public function mount(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = $this->carregarPedido();
         abort_unless($pedido->status->ehEditavel(), 403);
@@ -61,6 +60,8 @@ class FormularioPedidoCompra extends Component
 
     public function atualizarTotal(int $index): void
     {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
+
         $qtd = (float) ($this->itens[$index]['quantidade'] ?? 0);
         $unit = (float) ($this->itens[$index]['valor_unitario'] ?? 0);
         $this->itens[$index]['valor_total'] = number_format($qtd * $unit, 2, '.', '');
@@ -68,7 +69,7 @@ class FormularioPedidoCompra extends Component
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = $this->carregarPedido();
         abort_unless($pedido->status->ehEditavel(), 403);
@@ -105,7 +106,7 @@ class FormularioPedidoCompra extends Component
 
     public function emitir(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $this->salvar();
 
@@ -125,7 +126,7 @@ class FormularioPedidoCompra extends Component
 
     public function cancelar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = $this->carregarPedido();
 
@@ -151,7 +152,7 @@ class FormularioPedidoCompra extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = $this->carregarPedido();
 

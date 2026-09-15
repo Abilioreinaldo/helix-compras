@@ -38,6 +38,7 @@ class ListaAlcadas extends Component
 
     public function abrirCriar(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $this->editandoId = null;
         $this->nome = '';
@@ -50,6 +51,7 @@ class ListaAlcadas extends Component
 
     public function abrirEditar(int $id): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $faixa = FaixaAlcada::with('etapas')->findOrFail($id);
         $this->editandoId = $id;
@@ -63,11 +65,13 @@ class ListaAlcadas extends Component
 
     public function adicionarEtapa(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->etapas[] = ['nivel_exigido' => NivelAlcada::Gestor->value];
     }
 
     public function removerEtapa(int $indice): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         array_splice($this->etapas, $indice, 1);
         $this->etapas = array_values($this->etapas);
     }

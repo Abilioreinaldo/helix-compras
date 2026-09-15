@@ -151,9 +151,12 @@ it('saldos_estoque_almoxarife_outra_unidade_nao_ve_saldos_nem_define_minimo', fu
     expect(fn () => $component->set('minimoItemCatalogoId', $item->id))
         ->toThrow(CannotUpdateLockedPropertyException::class);
 
-    // E mesmo com a unidade forjada, a action barra: almoxarife2 não tem vínculo com unidade1.
+    // A unidade do modal também é #[Locked] (apontada pelo servidor em abrirModalMinimo).
+    expect(fn () => $component->set('minimoUnidadeId', (string) $unidade1->id))
+        ->toThrow(CannotUpdateLockedPropertyException::class);
+
+    // Sem o modal aberto pelo servidor, salvar não tem item/unidade: a validação barra.
     $component
-        ->set('minimoUnidadeId', (string) $unidade1->id)
         ->set('minimoDescricaoItem', $item->descricao)
         ->set('mostrarModalMinimo', true)
         ->set('minimoQuantidade', '5')

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Solicitante;
 
-use App\Enums\Perfil;
 use App\Enums\StatusRequisicaoMaterial;
 use App\Models\RequisicaoMaterial;
 use App\Models\SaldoEstoque;
@@ -26,25 +25,26 @@ class RequisicoesMaterial extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Solicitante), 403);
+        abort_unless(auth()->user()->can('create', RequisicaoMaterial::class), 403);
     }
 
     public function abrirFormulario(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Solicitante), 403);
+        abort_unless(auth()->user()->can('create', RequisicaoMaterial::class), 403);
         $this->mostrarFormulario = true;
         $this->resetForm();
     }
 
     public function fecharFormulario(): void
     {
+        abort_unless(auth()->user()->can('create', RequisicaoMaterial::class), 403);
         $this->mostrarFormulario = false;
         $this->resetForm();
     }
 
     public function salvar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Solicitante), 403);
+        abort_unless(auth()->user()->can('create', RequisicaoMaterial::class), 403);
 
         $this->validate([
             'saldoEstoqueId' => ['required', 'integer', Rule::exists('saldos_estoque', 'id')->where('tenant_id', auth()->user()->getActiveTenantId())],
@@ -89,7 +89,7 @@ class RequisicoesMaterial extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::Solicitante), 403);
+        abort_unless(auth()->user()->can('create', RequisicaoMaterial::class), 403);
 
         $usuario = auth()->user();
 

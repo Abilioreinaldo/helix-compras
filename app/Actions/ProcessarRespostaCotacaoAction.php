@@ -6,6 +6,7 @@ use App\Imap\MensagemEmail;
 use App\Mail\RespostaCotacaoRecebida;
 use App\Models\Cotacao;
 use App\Services\ParseadorRespostaEmailService;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -20,8 +21,12 @@ class ProcessarRespostaCotacaoAction
 {
     public function execute(MensagemEmail $mensagem): ?Cotacao
     {
+        // A caixa IMAP é única da instalação e roda no console (sem tenant no contexto).
+        // Idempotência e casamento pelo token são lookups GLOBAIS deliberados (Message-ID e
+        // id da cotação são únicos na base); o processamento em si roda sob o tenant da cotação.
+
         // 1) Idempotência: o mesmo e-mail (Message-ID) nunca gera dois registros.
-        if (Cotacao::withTrashed()->where('email_externo_id', $mensagem->messageId)->exists()) {
+        if (Cotacao::withoutTenantScope()->withTrashed()->where('email_externo_id', $mensagem->messageId)->exists()) {
             Log::info('Resposta IMAP ignorada (Message-ID já processado).', ['message_id' => $mensagem->messageId]);
 
             return null;
@@ -34,9 +39,22 @@ class ProcessarRespostaCotacaoAction
             return null;
         }
 
-        $cotacao = Cotacao::query()->with(['fornecedor', 'criador'])->find((int) $m[1]);
-        if (! $cotacao) {
+        $tenantId = Cotacao::withoutTenantScope()->whereKey((int) $m[1])->value('tenant_id');
+        if ($tenantId === null) {
             Log::info('Resposta IMAP para cotação inexistente.', ['cotacao_id' => $m[1]]);
+
+            return null;
+        }
+
+        return TenantContext::runFor((string) $tenantId, fn () => $this->processarNoTenant($mensagem, (int) $m[1]));
+    }
+
+    /** Passos 3–7 sob o tenant da cotação (leitura/escrita/e-mail escopados). */
+    private function processarNoTenant(MensagemEmail $mensagem, int $cotacaoId): ?Cotacao
+    {
+        $cotacao = Cotacao::query()->with(['fornecedor', 'criador'])->find($cotacaoId);
+        if (! $cotacao) {
+            Log::info('Resposta IMAP para cotação inexistente.', ['cotacao_id' => $cotacaoId]);
 
             return null;
         }

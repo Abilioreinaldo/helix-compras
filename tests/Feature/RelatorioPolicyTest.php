@@ -9,30 +9,32 @@ use Livewire\Livewire;
 
 /*
 |--------------------------------------------------------------------------
-| RelatorioPolicy — Gate `relatorio.ver` (relatórios consolidados da rede).
+| Relatórios consolidados da rede — permissão do catálogo `compras.manage`.
 |--------------------------------------------------------------------------
 |
-| Espelha podeVerTodasUnidades() (admin ou compras sênior). O RelatorioRateioMensalCentral
-| tem regra própria (admin OU gestor da unidade + scoping) e não usa este gate.
+| Antes era o Gate `relatorio.ver` (RelatorioPolicy), que espelhava exatamente
+| podeVerTodasUnidades() = compras.manage (admin ou compras sênior); os componentes
+| checam agora a permissão do catálogo direto. O RelatorioRateioMensalCentral tem regra
+| própria (admin OU gestor da unidade + scoping) e não usa esta permissão.
 |
 */
 
 uses(RefreshDatabase::class);
 
 it('compradora sênior e admin veem os relatórios consolidados', function () {
-    expect(User::factory()->compradora()->create()->can('relatorio.ver'))->toBeTrue()
-        ->and(User::factory()->admin()->create()->can('relatorio.ver'))->toBeTrue();
+    expect(User::factory()->compradora()->create()->can('compras.manage'))->toBeTrue()
+        ->and(User::factory()->admin()->create()->can('compras.manage'))->toBeTrue();
 });
 
 it('solicitante de uma unidade NÃO vê os relatórios consolidados', function () {
     $user = User::factory()->create();
     $user->unidades()->attach(Unidade::factory()->create()->id, ['perfil' => Perfil::Solicitante->value]);
 
-    expect($user->can('relatorio.ver'))->toBeFalse();
+    expect($user->can('compras.manage'))->toBeFalse();
 });
 
 it('usuário comum não vê os relatórios consolidados', function () {
-    expect(User::factory()->create()->can('relatorio.ver'))->toBeFalse();
+    expect(User::factory()->create()->can('compras.manage'))->toBeFalse();
 });
 
 it('relatório consolidado: compradora acessa, usuário comum recebe 403', function () {

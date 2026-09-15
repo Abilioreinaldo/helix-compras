@@ -10,12 +10,13 @@ use App\Models\Fornecedor;
 use App\Models\Obra;
 use App\Models\Pagamento;
 use App\Models\Requisicao;
+use App\Models\RequisicaoMaterial;
 use App\Models\Unidade;
 use App\Policies\AdminPolicy;
 use App\Policies\AprovacaoPolicy;
 use App\Policies\EstoquePolicy;
 use App\Policies\PagamentoPolicy;
-use App\Policies\RelatorioPolicy;
+use App\Policies\RequisicaoMaterialPolicy;
 use App\Policies\RequisicaoPolicy;
 use App\Subscribers\IngerirPedidoLoja;
 use Helix\Foundation\Services\Platform\Event\SubscriberRegistry;
@@ -61,6 +62,7 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Pagamento::class, PagamentoPolicy::class);
         Gate::policy(Requisicao::class, RequisicaoPolicy::class);
+        Gate::policy(RequisicaoMaterial::class, RequisicaoMaterialPolicy::class);
 
         // Gates nomeados de ACESSO. O Gate::before da fundação tenta primeiro
         // hasPermission(ability): estes nomes (*.gerenciar/*.ver/*.acessar*) são
@@ -75,8 +77,10 @@ class AppServiceProvider extends ServiceProvider
         // Estoque/Almoxarife: acesso ao módulo (estado/saldo/lote seguem nas Actions).
         Gate::define('estoque.gerenciar', [EstoquePolicy::class, 'gerenciar']);
 
-        // Relatórios consolidados (RateioMensalCentral tem regra própria no componente).
-        Gate::define('relatorio.ver', [RelatorioPolicy::class, 'ver']);
+        // Relatórios consolidados: sem gate próprio — os componentes checam direto a
+        // permissão do catálogo `compras.manage` (a antiga `relatorio.ver` espelhava
+        // exatamente podeVerTodasUnidades() = compras.manage). O RateioMensalCentral
+        // tem regra própria no componente.
 
         // Administração (cadastros/parâmetros) — mesma checagem do middleware `admin`.
         Gate::define('admin.gerenciar', [AdminPolicy::class, 'gerenciar']);

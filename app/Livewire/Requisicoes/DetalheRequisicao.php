@@ -27,6 +27,7 @@ class DetalheRequisicao extends Component
 
     public function abrirModalCancelar(): void
     {
+        $this->authorizedRequisicao();
         $this->mostrarModalCancelar = true;
     }
 
@@ -36,7 +37,7 @@ class DetalheRequisicao extends Component
             'motivoCancelamento.required' => 'Informe o motivo do cancelamento.',
         ]);
 
-        $requisicao = $this->carregarRequisicao();
+        $requisicao = $this->authorizedRequisicao();
         $requisicao->update(['motivo_cancelamento' => $this->motivoCancelamento]);
 
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::Cancelada);
@@ -45,7 +46,8 @@ class DetalheRequisicao extends Component
         $this->dispatch('notify', mensagem: 'Requisição cancelada.');
     }
 
-    private function carregarRequisicao(): Requisicao
+    /** Carrega a requisição e autoriza (policy `view`) — toda action passa por aqui. */
+    private function authorizedRequisicao(): Requisicao
     {
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade', 'centroCusto', 'obra', 'faixaAlcada.etapas', 'itens', 'logs.usuario'])
@@ -60,7 +62,7 @@ class DetalheRequisicao extends Component
 
     public function render(): View
     {
-        $requisicao = $this->carregarRequisicao();
+        $requisicao = $this->authorizedRequisicao();
 
         return view('livewire.requisicoes.detalhe-requisicao', compact('requisicao'))
             ->layout('components.layouts.app');

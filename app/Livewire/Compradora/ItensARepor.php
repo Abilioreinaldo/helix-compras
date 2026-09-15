@@ -16,7 +16,7 @@ class ItensARepor extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
     }
 
     /**
@@ -24,7 +24,7 @@ class ItensARepor extends Component
      */
     public function solicitarReposicao(int $unidadeId, int $itemCatalogoId, float $quantidadeSugerida): void
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Só permite reposição de uma combinação (unidade, item) que está REALMENTE em alerta
         // na visão do usuário — evita redirect com parâmetros forjados.
@@ -45,7 +45,7 @@ class ItensARepor extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->podeVerTodasUnidades(), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $usuario = auth()->user();
 

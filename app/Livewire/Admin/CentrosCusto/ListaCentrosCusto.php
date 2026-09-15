@@ -38,6 +38,7 @@ class ListaCentrosCusto extends Component
 
     public function abrirCriar(): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $this->editandoId = null;
         $this->unidadeId = null;
@@ -50,6 +51,7 @@ class ListaCentrosCusto extends Component
 
     public function abrirEditar(int $id): void
     {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
         $this->editandoId = $id;

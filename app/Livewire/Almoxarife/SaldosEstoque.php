@@ -41,6 +41,7 @@ class SaldosEstoque extends Component
 
     public string $minimoDescricaoItem = '';
 
+    #[Locked]
     public string $minimoUnidadeId = '';
 
     public string $minimoQuantidade = '';
@@ -104,6 +105,7 @@ class SaldosEstoque extends Component
 
     public function fecharModalMinimo(): void
     {
+        $this->authorize('estoque.gerenciar');
         $this->mostrarModalMinimo = false;
         $this->minimoSaldoId = null;
         $this->minimoItemCatalogoId = null;
@@ -167,6 +169,7 @@ class SaldosEstoque extends Component
 
     public function cancelarTransferencia(): void
     {
+        $this->authorize('estoque.gerenciar');
         $this->transferindoSaldoId = null;
         $this->transferDescricaoItem = '';
         $this->transferDestinoId = '';

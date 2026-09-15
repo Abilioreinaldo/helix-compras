@@ -3,7 +3,6 @@
 namespace App\Livewire\Compradora;
 
 use App\Actions\CancelarPedidoCompraAction;
-use App\Enums\Perfil;
 use App\Models\PedidoCompra;
 use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
@@ -23,13 +22,13 @@ class DetalhePedidoCompra extends Component
 
     public function mount(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->id = $id;
     }
 
     public function cancelar(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = $this->carregarPedido();
 
@@ -55,7 +54,7 @@ class DetalhePedidoCompra extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = $this->carregarPedido();
 

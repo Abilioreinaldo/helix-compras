@@ -56,6 +56,7 @@ class Inventario extends Component
 
     public function fecharFormAbrir(): void
     {
+        $this->authorize('estoque.gerenciar');
         $this->mostrarFormAbrir = false;
         $this->depositoAbertura = '';
     }
@@ -105,6 +106,7 @@ class Inventario extends Component
 
     public function fecharModalAplicar(): void
     {
+        $this->authorize('estoque.gerenciar');
         $this->mostrarModalAplicar = false;
         $this->justificativaAplicar = '';
     }

@@ -2,7 +2,6 @@
 
 namespace App\Livewire\Compradora;
 
-use App\Enums\Perfil;
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use Illuminate\Contracts\View\View;
@@ -25,7 +24,7 @@ class ListaCotacoes extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
     }
 
     public function updatingFiltroStatus(): void
@@ -35,7 +34,7 @@ class ListaCotacoes extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $statusCotacao = [StatusRequisicao::EmCotacao->value, StatusRequisicao::CotacaoConcluida->value];
         $filtro = in_array($this->filtroStatus, $statusCotacao, true) ? $this->filtroStatus : null;

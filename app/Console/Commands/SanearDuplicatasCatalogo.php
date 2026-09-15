@@ -6,12 +6,16 @@ use App\Actions\FusaoSaldosAction;
 use App\Enums\Perfil;
 use App\Models\SaldoEstoque;
 use App\Models\User;
+use Helix\Foundation\Console\Concerns\ForEachTenant;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class SanearDuplicatasCatalogo extends Command
 {
+    use ForEachTenant;
+
     protected $signature = 'estoque:sanear-duplicatas-catalogo
         {--dry-run : Lista os grupos de saldos duplicados sem executar a fusão}
         {--executado-por= : ID do usuário Admin que autoriza e executa a fusão}';
@@ -47,19 +51,28 @@ class SanearDuplicatasCatalogo extends Command
             }
         }
 
-        $grupos = $this->gruposDuplicados();
+        // Console não tem tenant no contexto (modo estrito): tenant a tenant. A execução
+        // fica restrita ao tenant do Admin executor — ele não tem autoridade sobre os demais.
+        $tenantAlvo = $admin !== null ? (string) $admin->getAttributes()['tenant_id'] : null;
+        $encontrou = false;
+        $codigo = self::SUCCESS;
 
-        if ($grupos->isEmpty()) {
+        $this->forEachTenant(function () use ($dryRun, $admin, &$encontrou, &$codigo) {
+            $grupos = $this->gruposDuplicados();
+
+            if ($grupos->isEmpty()) {
+                return;
+            }
+
+            $encontrou = true;
+            $codigo = $dryRun ? $this->listar($grupos) : $this->executar($grupos, $admin);
+        }, $tenantAlvo);
+
+        if (! $encontrou) {
             $this->info('Nenhum grupo de saldos duplicados encontrado. Nada a sanear.');
-
-            return self::SUCCESS;
         }
 
-        if ($dryRun) {
-            return $this->listar($grupos);
-        }
-
-        return $this->executar($grupos, $admin);
+        return $codigo;
     }
 
     /**
@@ -71,7 +84,9 @@ class SanearDuplicatasCatalogo extends Command
      */
     private function gruposDuplicados(): Collection
     {
+        // Query builder não passa pelo BelongsToTenant: recorte explícito pelo tenant do contexto.
         return DB::table('saldos_estoque')
+            ->where('tenant_id', TenantContext::id())
             ->whereNotNull('item_catalogo_id')
             ->whereNull('fundido_para_id')
             ->selectRaw('unidade_id, deposito, item_catalogo_id, COUNT(*) as total')

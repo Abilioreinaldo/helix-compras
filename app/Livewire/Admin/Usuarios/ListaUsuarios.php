@@ -62,6 +62,7 @@ class ListaUsuarios extends Component
 
     public function abrirCriar(): void
     {
+        abort_unless(auth()->user()->can('users.manage'), 403);
         $this->resetValidation();
         $this->editandoId = null;
         $this->name = '';
@@ -74,6 +75,7 @@ class ListaUsuarios extends Component
 
     public function abrirEditar(int $id): void
     {
+        abort_unless(auth()->user()->can('users.manage'), 403);
         $this->resetValidation();
         $usuario = $this->usuariosDoTenant()->findOrFail($id);
         $this->editandoId = $id;
@@ -87,7 +89,7 @@ class ListaUsuarios extends Component
 
     public function salvar(UserService $users): void
     {
-        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
+        abort_unless(auth()->user()->can('users.manage'), 403);
 
         $tenantId = auth()->user()->getActiveTenantId();
         $emailUnico = $this->editandoId
@@ -142,14 +144,16 @@ class ListaUsuarios extends Component
 
     public function excluir(int $id, UserService $users): void
     {
-        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
+        abort_unless(auth()->user()->can('users.manage'), 403);
         $users->deleteUser($this->usuariosDoTenant()->findOrFail($id), auth()->user());
         $this->dispatch('notify', mensagem: 'Usuário removido.');
     }
 
     public function abrirVinculos(int $id): void
     {
-        $this->usuarioVinculosId = $id;
+        abort_unless(auth()->user()->can('users.manage'), 403);
+        // Anti-IDOR: o usuário alvo precisa ser do tenant ativo.
+        $this->usuarioVinculosId = $this->usuariosDoTenant()->findOrFail($id)->id;
         $this->vincularUnidadeId = null;
         $this->vincularPerfil = '';
         $this->vincularNivelAlcada = '';
@@ -158,7 +162,7 @@ class ListaUsuarios extends Component
 
     public function adicionarVinculo(): void
     {
-        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
+        abort_unless(auth()->user()->can('users.manage'), 403);
 
         $this->validate([
             'vincularUnidadeId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')->where('tenant_id', auth()->user()->getActiveTenantId())],
@@ -185,7 +189,7 @@ class ListaUsuarios extends Component
 
     public function removerVinculo(int $unidadeId): void
     {
-        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
+        abort_unless(auth()->user()->can('users.manage'), 403);
         $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
         $usuario->unidades()->detach($unidadeId);
         $this->dispatch('notify', mensagem: 'Vínculo removido.');

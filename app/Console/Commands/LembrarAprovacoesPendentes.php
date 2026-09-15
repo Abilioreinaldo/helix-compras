@@ -10,12 +10,16 @@ use App\Models\Aprovacao;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
+use DateTimeInterface;
+use Helix\Foundation\Console\Concerns\ForEachTenant;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 
 class LembrarAprovacoesPendentes extends Command
 {
+    use ForEachTenant;
+
     protected $signature = 'aprovacoes:lembrar-pendentes';
 
     protected $description = 'Envia lembrete por e-mail aos aprovadores de requisições aguardando aprovação há mais de 48h';
@@ -23,15 +27,27 @@ class LembrarAprovacoesPendentes extends Command
     public function handle(): int
     {
         $limite = now()->subHours(48);
+        $reqsLembradas = 0;
+        $emailsEnviados = 0;
 
+        // Console não tem tenant no contexto: percorre tenant a tenant (modo estrito).
+        $this->forEachTenant(function () use ($limite, &$reqsLembradas, &$emailsEnviados) {
+            $this->lembrarNoTenant($limite, $reqsLembradas, $emailsEnviados);
+        });
+
+        $this->info("{$reqsLembradas} requisição(ões) pendente(s) há +48h — {$emailsEnviados} lembrete(s) enviado(s).");
+
+        return self::SUCCESS;
+    }
+
+    /** Lembra as pendências do tenant do contexto. */
+    private function lembrarNoTenant(DateTimeInterface $limite, int &$reqsLembradas, int &$emailsEnviados): void
+    {
         $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade'])
             ->where('status', StatusRequisicao::AguardandoAprovacao->value)
             ->where('aprovacao_iniciada_em', '<', $limite)
             ->get();
-
-        $reqsLembradas = 0;
-        $emailsEnviados = 0;
 
         foreach ($requisicoes as $requisicao) {
             // Etapa pendente atual: menor ordem ainda Pendente no ciclo de aprovação vigente.
@@ -56,10 +72,6 @@ class LembrarAprovacoesPendentes extends Command
                 $reqsLembradas++;
             }
         }
-
-        $this->info("{$reqsLembradas} requisição(ões) pendente(s) há +48h — {$emailsEnviados} lembrete(s) enviado(s).");
-
-        return self::SUCCESS;
     }
 
     /**

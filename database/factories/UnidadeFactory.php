@@ -6,6 +6,7 @@ use App\Enums\StatusUnidade;
 use App\Enums\TipoUnidade;
 use App\Models\Unidade;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -29,10 +30,15 @@ class UnidadeFactory extends Factory
         ];
     }
 
-    /** Reusa o tenant existente (em teste = o primeiro criado) ou cria um. */
+    /**
+     * Tenant do contexto (runFor/usuário autenticado) — o mesmo que o BelongsToTenant
+     * carimbaria. Sem contexto (seed/console), reusa o tenant existente (em teste = o
+     * primeiro criado) ou cria um.
+     */
     private function resolveTenantId(): string
     {
-        return Tenant::query()->orderBy('created_at')->value('id')
+        return TenantContext::id()
+            ?? Tenant::query()->orderBy('created_at')->value('id')
             ?? Tenant::create(['slug' => 'comendador', 'name' => 'Comendador', 'status' => 'active'])->id;
     }
 

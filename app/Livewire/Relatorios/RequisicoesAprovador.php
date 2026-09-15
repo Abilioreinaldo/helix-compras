@@ -10,12 +10,12 @@ class RequisicoesAprovador extends Component
 {
     public function mount(): void
     {
-        abort_unless(auth()->user()->can('relatorio.ver'), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
     }
 
     public function render(): View
     {
-        abort_unless(auth()->user()->can('relatorio.ver'), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Somente aprovações pendentes do ciclo atual de cada requisição.
         $resultados = DB::table('aprovacoes as a')

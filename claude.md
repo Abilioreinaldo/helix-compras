@@ -15,6 +15,19 @@
 - Edição: arquivo novo ou reescrita grande = Write INTEIRO, nunca patch. Se usar make:test e for popular, reescrever inteiro (patch sobre stub corrompe). Nunca escrever via python3 -c ou heredoc (cat>/tee) — trunca. Preview do diff pode estar desatualizado: a verdade é php84 artisan test.
 - Início de fatia nova: rodar git status + git log --oneline -3 antes de criar/editar — não confiar na memória da sessão.
 
+## Padrão multitenant Helix (obrigatório — auditoria 2026-09-15)
+
+Toda linha de negócio/módulo novo NASCE com estes requisitos; código existente não pode regredir. Fonte de verdade: `comendador-platform/docs/PADRAO-NOVA-LINHA-DE-NEGOCIO.md`.
+
+- **Isolamento por arquitetura:** toda model com `tenant_id` usa `BelongsToTenant`. Proibido `withoutGlobalScopes()`; bypass só com `Model::withoutTenantScope()` + filtro explícito (superadmin/relatório global). Jobs, comandos e webhooks estabelecem o tenant com `TenantContext::runFor($tenantId, ...)`. Modo estrito (`HELIX_TENANCY_STRICT=true`) ligado desde o dia 1.
+- **Nunca confiar em id/tenant vindo do cliente:** `tenant_id` nunca vem do request; ids de domínio validados com `Rule::existsInTenant('tabela')` (não `exists:`); propriedades Livewire de id são `#[Locked]` ou revalidadas no tenant a cada action.
+- **Autorização:** toda action pública chama `authorize`/policy por **permissão do catálogo** (`Permission::catalogByFeature`/`Role::catalogByFeature` na fundação), nunca por nome de papel livre. `Gate::before` só para superadmin. Papéis/permissões são governados pelo admin da empresa em `/admin/papeis`.
+- **Auditoria:** ação relevante passa por `ActivityRecorder` (evento + audit com actor, tenant, before/after, IP/UA, `correlation_id`). Downloads/exports sensíveis auditados.
+- **Integração entre apps:** inbound com HMAC, tenant obrigatório/ativo, allowlist por emissor e anti-replay (ADR-015).
+- **Operação:** `retry_after` > maior `$timeout` de job; toda tarefa agendada com `withoutOverlapping()->onOneServer()`; `throttle:web` por tenant+usuário; `trustProxies` via `config/trustedproxy.php`; `.env.example` seguro com prefixos próprios (APP_NAME/SESSION_COOKIE/CACHE_PREFIX/REDIS_PREFIX).
+- **CI bloqueante:** Pint + Pest + leg MySQL 8 + `composer audit` + gitleaks, sem `continue-on-error`; `tests/Feature/HelixConformanceTest.php` (kit `Helix\Foundation\Testing\Conformance`) verde.
+- **Produto novo:** gerar com `php artisan helix:make-product {Produto} --feature=slug`; registrar feature no `EntitlementService`, permissões/papéis no catálogo e menu. Off-boarding via `platform:tenant-export`/`platform:tenant-purge`; limites via `EntitlementService::assertWithinLimit`.
+
 ===
 
 <laravel-boost-guidelines>

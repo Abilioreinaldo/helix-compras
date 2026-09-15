@@ -5,7 +5,6 @@ namespace App\Livewire\Compradora;
 use App\Actions\ConcluirCotacaoAction;
 use App\Actions\MarcarCotacaoVencedoraAction;
 use App\Actions\RegistrarCotacaoAction;
-use App\Enums\Perfil;
 use App\Mail\SolicitacaoCotacao;
 use App\Models\Cotacao;
 use App\Models\Fornecedor;
@@ -53,7 +52,7 @@ class GestaoCotacoes extends Component
 
     public function mount(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $this->requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['cotacoes.fornecedor', 'cotacoes.criador', 'faixaAlcada'])
@@ -64,7 +63,7 @@ class GestaoCotacoes extends Component
 
     public function registrarCotacao(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
@@ -126,7 +125,7 @@ class GestaoCotacoes extends Component
      */
     public function solicitarPorEmail(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
@@ -171,7 +170,7 @@ class GestaoCotacoes extends Component
     /** Confirma o valor oficial a partir da sugestão capturada por e-mail. */
     public function confirmarSugestao(int $cotacaoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
@@ -196,7 +195,7 @@ class GestaoCotacoes extends Component
 
     public function marcarVencedora(int $cotacaoId): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
@@ -218,7 +217,7 @@ class GestaoCotacoes extends Component
 
     public function concluirCotacao(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->requisicao->refresh();
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 

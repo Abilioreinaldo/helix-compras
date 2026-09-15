@@ -3,7 +3,6 @@
 namespace App\Livewire\Compradora;
 
 use App\Actions\CriarRascunhoPedidoAction;
-use App\Enums\Perfil;
 use App\Enums\StatusPedidoCompra;
 use App\Enums\StatusRequisicao;
 use App\Models\Cotacao;
@@ -22,12 +21,12 @@ class GestaoPedidosCompra extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
     }
 
     public function criarRascunho(int $fornecedorId, array $requisicaoIds): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $fornecedor = Fornecedor::findOrFail($fornecedorId);
         $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
@@ -52,7 +51,7 @@ class GestaoPedidosCompra extends Component
 
     public function render(): View
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Sugestões: requisições aprovadas sem PC emitido cobrindo todos os itens, agrupadas por fornecedor vencedor
         $sugestoes = Cotacao::query()

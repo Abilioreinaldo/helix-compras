@@ -111,28 +111,28 @@ it('triagem_alerta_vencido_true_quando_item_controla_lote_tem_lote_vencido', fun
     $s = av_setup(validades: ['2025-01-01', '2027-01-01']);
     $req = $s['requisicao']->load('itens');
 
-    expect((new TriagemRequisicoes)->temLoteVencido($req))->toBeTrue();
+    expect((fn () => $this->temLoteVencido($req))->call(new TriagemRequisicoes))->toBeTrue();
 });
 
 it('triagem_alerta_vencido_false_quando_lotes_sao_futuros', function () {
     $s = av_setup(validades: ['2027-01-01', '2028-01-01']);
     $req = $s['requisicao']->load('itens');
 
-    expect((new TriagemRequisicoes)->temLoteVencido($req))->toBeFalse();
+    expect((fn () => $this->temLoteVencido($req))->call(new TriagemRequisicoes))->toBeFalse();
 });
 
 it('triagem_alerta_vencido_false_quando_saldo_sem_lote', function () {
     $s = av_setup(validades: []);   // controla_lote true, mas nenhum lote
     $req = $s['requisicao']->load('itens');
 
-    expect((new TriagemRequisicoes)->temLoteVencido($req))->toBeFalse();
+    expect((fn () => $this->temLoteVencido($req))->call(new TriagemRequisicoes))->toBeFalse();
 });
 
 it('triagem_alerta_vencido_false_quando_item_nao_controla_lote', function () {
     $s = av_setup(validades: [], controlaLote: false);
     $req = $s['requisicao']->load('itens');
 
-    expect((new TriagemRequisicoes)->temLoteVencido($req))->toBeFalse();
+    expect((fn () => $this->temLoteVencido($req))->call(new TriagemRequisicoes))->toBeFalse();
 });
 
 it('triagem_render_mostra_badge_vencido', function () {

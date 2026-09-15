@@ -9,6 +9,7 @@ use Helix\Foundation\Models\Platform\Event\DomainEvent;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Event\Contracts\Subscriber;
 use Helix\Foundation\Services\Platform\Identity\EntitlementService;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -39,6 +40,13 @@ class IngerirPedidoLoja implements Subscriber
             return;
         }
 
+        // Contexto explícito do tenant DO EVENTO (modo estrito): não depende de quem
+        // chamou o subscriber ter estabelecido o TenantContext.
+        TenantContext::runFor((string) $event->tenant_id, fn () => $this->ingerir($event));
+    }
+
+    private function ingerir(DomainEvent $event): void
+    {
         $p = $event->payload;
 
         if (empty($p['request_code'])) {

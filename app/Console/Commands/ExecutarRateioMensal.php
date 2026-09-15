@@ -6,6 +6,7 @@ use App\Actions\CalcularRateioMensalAction;
 use App\Enums\Perfil;
 use App\Models\RateioCentral;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +44,13 @@ class ExecutarRateioMensal extends Command
             return self::FAILURE;
         }
 
+        // Console não tem tenant no contexto: o rateio roda no tenant do Admin executor
+        // (modo estrito — consulta/criação sem tenant lança).
+        return TenantContext::runFor((string) $admin->getAttributes()['tenant_id'], fn () => $this->executarNoTenant($admin));
+    }
+
+    private function executarNoTenant(User $admin): int
+    {
         // Default: mês anterior (subMonthNoOverflow trata a virada de ano corretamente).
         $ref = Carbon::now()->subMonthNoOverflow()->startOfMonth();
         $mes = $this->option('mes') !== null ? (int) $this->option('mes') : $ref->month;

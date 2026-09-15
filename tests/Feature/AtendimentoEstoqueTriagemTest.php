@@ -80,7 +80,7 @@ it('7c_todos_itens_tem_saldo_retorna_true_quando_ha_saldo', function () {
     $requisicao = $setup['requisicao']->load('itens');
 
     $component = new TriagemRequisicoes;
-    expect($component->todosItensTemSaldo($requisicao))->toBeTrue();
+    expect((fn () => $this->todosItensTemSaldo($requisicao))->call($component))->toBeTrue();
 });
 
 it('7c_todos_itens_tem_saldo_retorna_false_quando_saldo_insuficiente', function () {
@@ -88,7 +88,7 @@ it('7c_todos_itens_tem_saldo_retorna_false_quando_saldo_insuficiente', function 
     $requisicao = $setup['requisicao']->load('itens');
 
     $component = new TriagemRequisicoes;
-    expect($component->todosItensTemSaldo($requisicao))->toBeFalse();
+    expect((fn () => $this->todosItensTemSaldo($requisicao))->call($component))->toBeFalse();
 });
 
 it('7c_todos_itens_tem_saldo_retorna_false_para_item_avulso', function () {
@@ -96,7 +96,7 @@ it('7c_todos_itens_tem_saldo_retorna_false_para_item_avulso', function () {
     $requisicao = $setup['requisicao']->load('itens');
 
     $component = new TriagemRequisicoes;
-    expect($component->todosItensTemSaldo($requisicao))->toBeFalse();
+    expect((fn () => $this->todosItensTemSaldo($requisicao))->call($component))->toBeFalse();
 });
 
 // ─── atenderDoEstoque ────────────────────────────────────────────────────────

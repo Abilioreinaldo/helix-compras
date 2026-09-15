@@ -40,17 +40,20 @@ it('compradora e financeiro são graduados por permissão, não por slug', funct
         ->and($financeiro->isComprasStaff())->toBeTrue();
 
     // O admin tira compras.manage do papel → a compradora perde a visão global na hora.
-    $role = Role::where('tenant_id', $this->tenant->id)->where('slug', 'compras')->firstOrFail();
-    $manage = Permission::where('tenant_id', $this->tenant->id)->where('slug', 'compras.manage')->firstOrFail();
+    // Role/Permission são escopados (BelongsToTenant): no modo estrito o setup declara o tenant.
+    [$role, $manage] = TenantContext::runFor($this->tenant->id, fn () => [
+        Role::where('tenant_id', $this->tenant->id)->where('slug', 'compras')->firstOrFail(),
+        Permission::where('tenant_id', $this->tenant->id)->where('slug', 'compras.manage')->firstOrFail(),
+    ]);
     $role->permissions()->detach($manage->id);
 
     expect($compradora->fresh()->podeVerTodasUnidades())->toBeFalse()
-        ->and($compradora->fresh()->can('relatorio.ver'))->toBeFalse();
+        ->and($compradora->fresh()->can('compras.manage'))->toBeFalse();
 });
 
 it('tela de usuários atribui papéis do catálogo e passa pelo UserService', function () {
     User::factory()->compradora()->create(['tenant_id' => $this->tenant->id]); // semeia o RBAC do tenant
-    $financeiro = Role::where('tenant_id', $this->tenant->id)->where('slug', 'financeiro')->firstOrFail();
+    $financeiro = TenantContext::runFor($this->tenant->id, fn () => Role::where('tenant_id', $this->tenant->id)->where('slug', 'financeiro')->firstOrFail());
 
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)

@@ -22,8 +22,9 @@ beforeEach(function () {
 
     $this->tenantB = Tenant::create(['slug' => 'bravo', 'name' => 'Bravo', 'status' => 'active']);
 
-    $this->unidadeA = Unidade::factory()->create(['tenant_id' => $this->tenantA->id, 'nome' => 'Obra Alpha']);
-    $this->unidadeB = Unidade::factory()->create(['tenant_id' => $this->tenantB->id, 'nome' => 'Obra Bravo']);
+    // Modo estrito: gravar noutro tenant exige declarar o tenant-alvo (runFor).
+    $this->unidadeA = TenantContext::runFor($this->tenantA->id, fn () => Unidade::factory()->create(['nome' => 'Obra Alpha']));
+    $this->unidadeB = TenantContext::runFor($this->tenantB->id, fn () => Unidade::factory()->create(['nome' => 'Obra Bravo']));
 
     // Multi-tenant: opt-out do contexto canônico global — as leituras devem
     // resolver pelo tenant do usuário autenticado (auth), não pelo fixado.
@@ -40,10 +41,10 @@ it('o admin só enxerga unidades do próprio tenant', function () {
 });
 
 it('mesmo cnpj pode existir em tenants diferentes (unique por tenant)', function () {
-    Unidade::factory()->create(['tenant_id' => $this->tenantA->id, 'cnpj' => '12345678000199']);
+    TenantContext::runFor($this->tenantA->id, fn () => Unidade::factory()->create(['cnpj' => '12345678000199']));
 
     // mesmo CNPJ em outro tenant não colide
-    $outra = Unidade::factory()->create(['tenant_id' => $this->tenantB->id, 'cnpj' => '12345678000199']);
+    $outra = TenantContext::runFor($this->tenantB->id, fn () => Unidade::factory()->create(['cnpj' => '12345678000199']));
 
     expect($outra)->not->toBeNull();
 });

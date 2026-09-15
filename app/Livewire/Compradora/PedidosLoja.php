@@ -3,7 +3,6 @@
 namespace App\Livewire\Compradora;
 
 use App\Actions\PromoverPedidoLojaAction;
-use App\Enums\Perfil;
 use App\Models\CentroCusto;
 use App\Models\PedidoLojaRecebido;
 use App\Models\Unidade;
@@ -37,11 +36,12 @@ class PedidosLoja extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
     }
 
     public function abrirPromocao(int $id): void
     {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->promovendo = $id;
         $this->unidadeId = null;
         $this->centroCustoId = null;
@@ -50,6 +50,7 @@ class PedidosLoja extends Component
 
     public function cancelarPromocao(): void
     {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
         $this->promovendo = null;
     }
 
@@ -60,7 +61,7 @@ class PedidosLoja extends Component
 
     public function promover(): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // FKs validadas POR TENANT: unidade/centro de custo de outro tenant são "inexistentes".
         $tenantId = auth()->user()->getActiveTenantId();
@@ -91,7 +92,7 @@ class PedidosLoja extends Component
 
     public function descartar(int $id): void
     {
-        abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
+        abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = PedidoLojaRecebido::findOrFail($id);
 

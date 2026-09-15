@@ -6,8 +6,12 @@ use App\Enums\Perfil;
 use App\Models\User;
 
 /**
- * Autorização de ACESSO à administração (cadastros: unidades, usuários, fornecedores,
- * alçadas, centros de custo, catálogo, reconciliação; e a reversão de rateio central).
+ * Autorização de ACESSO à administração (cadastros: unidades, fornecedores, alçadas,
+ * centros de custo, catálogo, reconciliação; e a reversão de rateio central). A gestão
+ * de USUÁRIOS usa a permissão do catálogo `users.manage`.
+ *
+ * `admin.gerenciar` ainda não existe no catálogo da fundação (allowlist temporária no
+ * HelixConformanceTest, "aguardando catálogo").
  *
  * Gate `admin.gerenciar`. NÃO muda a regra: espelha temPerfil(Admin) (is_admin). As rotas
  * `/admin` já têm o middleware `admin`; este gate é a mesma checagem nos componentes
