@@ -51,11 +51,11 @@
                                     @if ($usuario->is_admin)
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-violet-500/15 text-violet-400">Admin</span>
                                     @endif
-                                    @if ($usuario->hasRole('compras'))
-                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-sky-500/15 text-sky-400">Compradora</span>
-                                    @endif
-                                    @if (! $usuario->is_admin && ! $usuario->hasRole('compras'))
-                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-500/15 text-slate-300">Padrão</span>
+                                    @foreach ($usuario->roles as $papel)
+                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-sky-500/15 text-sky-400">{{ $papel->name }}</span>
+                                    @endforeach
+                                    @if (! $usuario->is_admin && $usuario->roles->isEmpty())
+                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-500/15 text-slate-300" title="Sem papel: só vê o que os vínculos por unidade liberam">Sem papel</span>
                                     @endif
                                 </div>
                             </td>
@@ -117,15 +117,29 @@
                         </select>
                     </div>
 
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" wire:model="isAdmin" class="rounded border-slate-700 bg-slate-800">
-                            Administrador
-                        </label>
-                        <label class="flex items-center gap-2 text-sm text-slate-300">
-                            <input type="checkbox" wire:model="isCompradora" class="rounded border-slate-700 bg-slate-800">
-                            Compradora
-                        </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-300">
+                        <input type="checkbox" wire:model="isAdmin" class="rounded border-slate-700 bg-slate-800">
+                        Administrador <span class="text-xs text-slate-500">— tudo, inclusive esta tela</span>
+                    </label>
+
+                    <div>
+                        <p class="mb-1 text-sm font-medium text-slate-300">Papéis <span class="text-xs font-normal text-slate-500">— o que cada um pode fazer se ajusta em <a href="{{ route('admin.papeis') }}" wire:navigate class="underline hover:text-slate-300">Papéis &amp; Permissões</a></span></p>
+                        @if ($papeisDisponiveis->isEmpty())
+                            <p class="text-xs text-amber-300">Nenhum papel neste tenant — sincronize os papéis padrão em Papéis &amp; Permissões.</p>
+                        @else
+                            <div class="flex flex-wrap gap-x-4 gap-y-2">
+                                @foreach ($papeisDisponiveis as $papel)
+                                    <label class="flex items-center gap-2 text-sm text-slate-300">
+                                        <input type="checkbox" value="{{ $papel->id }}" wire:model="papeis" class="rounded border-slate-700 bg-slate-800">
+                                        {{ $papel->name }}
+                                        @unless ($papel->isCatalog())
+                                            <span class="rounded bg-slate-700/60 px-1.5 text-[10px] text-slate-400">personalizado</span>
+                                        @endunless
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                        @error('papeis.*') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                     </div>
 
                     @if (! $editandoId)
@@ -157,7 +171,7 @@
                     <div class="flex items-center justify-between py-2 border-b border-slate-800">
                         <div>
                             <span class="text-sm font-medium text-slate-200">{{ $unidade->nome }}</span>
-                            <span class="ml-2 text-xs text-slate-500">{{ $unidade->pivot->perfil }} / {{ $unidade->pivot->nivel_alcada ?? '—' }}</span>
+                            <span class="ml-2 text-xs text-slate-500">{{ \App\Enums\Perfil::tryFrom($unidade->pivot->perfil)?->label() ?? $unidade->pivot->perfil }} / {{ $unidade->pivot->nivel_alcada ?? '—' }}</span>
                         </div>
                         <button wire:click="removerVinculo({{ $unidade->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Remover</button>
                     </div>
@@ -180,7 +194,7 @@
                     <select wire:model="vincularPerfil" class="input-dark w-full @error('vincularPerfil') border-rose-500 @enderror">
                         <option value="">Selecione o perfil...</option>
                         @foreach ($perfis as $p)
-                            <option value="{{ $p->value }}">{{ $p->value }}</option>
+                            <option value="{{ $p->value }}">{{ $p->label() }}</option>
                         @endforeach
                     </select>
                     @error('vincularPerfil') <p class="text-sm text-rose-400">{{ $message }}</p> @enderror

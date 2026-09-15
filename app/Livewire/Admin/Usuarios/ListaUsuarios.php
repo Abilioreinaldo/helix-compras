@@ -7,12 +7,19 @@ use App\Enums\Perfil;
 use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
+use Helix\Foundation\Services\Platform\Identity\UserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * Usuários do tenant, pelo admin da empresa. Papéis são os do catálogo da
+ * fundação (o que cada um pode fazer se ajusta em Papéis & Permissões); o
+ * vínculo unidade × perfil operacional × alçada é domínio do Compras.
+ * Criação/edição passam pelo UserService (membership, papéis, evento + auditoria).
+ */
 class ListaUsuarios extends Component
 {
     use WithPagination;
@@ -32,7 +39,8 @@ class ListaUsuarios extends Component
 
     public bool $isAdmin = false;
 
-    public bool $isCompradora = false;
+    /** @var array<int, string> ids dos papéis (roles) atribuídos */
+    public array $papeis = [];
 
     public string $status = 'active';
 
@@ -54,7 +62,7 @@ class ListaUsuarios extends Component
         $this->name = '';
         $this->email = '';
         $this->isAdmin = false;
-        $this->isCompradora = false;
+        $this->papeis = [];
         $this->status = 'active';
         $this->mostrarModal = true;
     }
@@ -67,15 +75,16 @@ class ListaUsuarios extends Component
         $this->name = $usuario->name;
         $this->email = $usuario->email;
         $this->isAdmin = $usuario->is_admin;
-        $this->isCompradora = $usuario->hasRole('compras');
+        $this->papeis = $usuario->roles()->pluck('roles.id')->map(fn ($id) => (string) $id)->all();
         $this->status = $usuario->status;
         $this->mostrarModal = true;
     }
 
-    public function salvar(): void
+    public function salvar(UserService $users): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
+        $tenantId = auth()->user()->getActiveTenantId();
         $emailUnico = $this->editandoId
             ? Rule::unique('users', 'email')->ignore($this->editandoId)
             : Rule::unique('users', 'email');
@@ -84,7 +93,8 @@ class ListaUsuarios extends Component
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', $emailUnico],
             'isAdmin' => 'boolean',
-            'isCompradora' => 'boolean',
+            'papeis' => 'array',
+            'papeis.*' => [Rule::exists('roles', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
             'status' => 'required|in:active,inactive',
         ], [
             'name.required' => 'O nome é obrigatório.',
@@ -94,64 +104,41 @@ class ListaUsuarios extends Component
 
         if ($this->editandoId) {
             $usuario = $this->usuariosDoTenant()->findOrFail($this->editandoId);
-            $usuario->update([
+            $statusAntigo = $usuario->status;
+
+            $users->updateUser($usuario, [
                 'name' => $this->name,
                 'email' => $this->email,
                 'is_admin' => $this->isAdmin,
-                'status' => $this->status,
-            ]);
-            $this->aplicarPapelCompras($usuario);
-            $this->sincronizarMembership($usuario);
+            ], $this->papeis, auth()->user());
+
+            if ($statusAntigo !== $this->status) {
+                $users->changeStatus($usuario, $this->status, auth()->user());
+            }
+
             $this->mostrarModal = false;
             $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
         } else {
             $this->senhaProvisoria = Str::random(10);
-            $usuario = User::create([
+
+            $users->createUser([
                 'name' => $this->name,
                 'email' => $this->email,
-                'password' => bcrypt($this->senhaProvisoria),
-                'tenant_id' => auth()->user()->tenant_id,
+                'password' => $this->senhaProvisoria,
+                'tenant_id' => $tenantId,
                 'is_admin' => $this->isAdmin,
                 'status' => $this->status,
                 'precisa_trocar_senha' => true,
-            ]);
-            $this->aplicarPapelCompras($usuario);
-            $this->sincronizarMembership($usuario);
+            ], $this->papeis, auth()->user());
+
             $this->mostrarModal = false;
         }
     }
 
-    /**
-     * Sincroniza a membership tenant_user (com is_admin no pivot, que é o que a
-     * autorização lê). Sem ela o usuário nasce sem tenant ativo (403 no login);
-     * e editar is_admin só na coluna deixava o pivot dessincronizado.
-     */
-    private function sincronizarMembership(User $usuario): void
-    {
-        $usuario->memberships()->syncWithoutDetaching([
-            $usuario->tenant_id => ['is_admin' => $this->isAdmin, 'status' => 'active'],
-        ]);
-    }
-
-    /** Atribui ou remove o papel RBAC 'compras' conforme o checkbox do formulário. */
-    private function aplicarPapelCompras(User $usuario): void
-    {
-        $role = Role::firstOrCreate(
-            ['tenant_id' => $usuario->tenant_id, 'slug' => 'compras'],
-            ['name' => 'Compras'],
-        );
-
-        if ($this->isCompradora) {
-            $usuario->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $usuario->tenant_id]]);
-        } else {
-            $usuario->roles()->detach($role->id);
-        }
-    }
-
-    public function excluir(int $id): void
+    public function excluir(int $id, UserService $users): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        $this->usuariosDoTenant()->findOrFail($id)->delete();
+        $users->deleteUser($this->usuariosDoTenant()->findOrFail($id), auth()->user());
         $this->dispatch('notify', mensagem: 'Usuário removido.');
     }
 
@@ -170,7 +157,7 @@ class ListaUsuarios extends Component
 
         $this->validate([
             'vincularUnidadeId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')->where('tenant_id', auth()->user()->getActiveTenantId())],
-            'vincularPerfil' => ['required', 'in:'.implode(',', array_column(Perfil::cases(), 'value'))],
+            'vincularPerfil' => ['required', 'in:'.implode(',', array_map(fn (Perfil $p) => $p->value, Perfil::porUnidade()))],
             'vincularNivelAlcada' => 'nullable|in:'.implode(',', array_column(NivelAlcada::cases(), 'value')),
         ], [
             'vincularUnidadeId.required' => 'Selecione uma unidade.',
@@ -213,7 +200,10 @@ class ListaUsuarios extends Component
 
     public function render(): View
     {
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $usuarios = $this->usuariosDoTenant()
+            ->with('roles')
             ->when($this->busca, fn ($q) => $q->where(function ($inner) {
                 $inner->where('name', 'like', "%{$this->busca}%")
                     ->orWhere('email', 'like', "%{$this->busca}%");
@@ -221,20 +211,20 @@ class ListaUsuarios extends Component
             ->orderBy('name')
             ->paginate(15);
 
-        $tenantId = auth()->user()->getActiveTenantId();
-
         $usuarioVinculos = $this->usuarioVinculosId
             ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
             : null;
 
         $todasUnidades = Unidade::withoutGlobalScopes()->where('tenant_id', $tenantId)->orderBy('nome')->get();
-        $perfis = Perfil::cases();
+        $papeisDisponiveis = Role::where('tenant_id', $tenantId)->orderByDesc('is_system')->orderBy('name')->get();
+        $perfis = Perfil::porUnidade();
         $niveisAlcada = NivelAlcada::cases();
 
         return view('livewire.admin.usuarios.lista-usuarios', compact(
             'usuarios',
             'usuarioVinculos',
             'todasUnidades',
+            'papeisDisponiveis',
             'perfis',
             'niveisAlcada',
         ))->layout('components.layouts.app');

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * (tabela `users` + RBAC/tenant/2FA vindos da HELIX) e adiciona o domínio de
  * Compras via trait (unidades, perfis operacionais, papéis compras/financeiro).
  */
-#[Fillable(['name', 'email', 'phone', 'password', 'tenant_id', 'status', 'is_admin', 'precisa_trocar_senha'])]
+#[Fillable(['name', 'email', 'phone', 'password', 'tenant_id', 'status', 'is_admin', 'precisa_trocar_senha', 'created_by', 'updated_by'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends \Helix\Foundation\Models\User
 {

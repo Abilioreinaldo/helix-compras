@@ -14,6 +14,7 @@ use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Models\Platform\Identity\TenantFeature;
+use Helix\Foundation\Services\Platform\Identity\EntitlementService;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -155,14 +156,12 @@ class ComprasTesteEmpresaASeeder extends Seeder
 
     private function papel(User $user, string $slug, string $nome): void
     {
-        $tenantId = $user->getAttributes()['tenant_id'];
+        $tenant = Tenant::findOrFail($user->getAttributes()['tenant_id']);
+        app(EntitlementService::class)->seedRbac($tenant, 'compras');
 
-        $role = Role::firstOrCreate(
-            ['tenant_id' => $tenantId, 'slug' => $slug],
-            ['name' => $nome],
-        );
+        $role = Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail();
 
-        $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $tenantId]]);
+        $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $tenant->id]]);
     }
 
     private function alcadas(): void

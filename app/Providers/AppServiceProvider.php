@@ -17,6 +17,8 @@ use App\Policies\EstoquePolicy;
 use App\Policies\PagamentoPolicy;
 use App\Policies\RelatorioPolicy;
 use App\Policies\RequisicaoPolicy;
+use App\Subscribers\IngerirPedidoLoja;
+use Helix\Foundation\Services\Platform\Event\SubscriberRegistry;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -52,14 +54,19 @@ class AppServiceProvider extends ServiceProvider
         // ADR-015: consome o pedido de compra da loja (Store) e grava no inbox
         // pedidos_loja_recebidos. O evento chega pelo receptor inbound assinado da
         // foundation (/api/inbound/events) e roda aqui no ProcessDomainEvent.
-        app(\Helix\Foundation\Services\Platform\Event\SubscriberRegistry::class)->subscribe(
-            \App\Subscribers\IngerirPedidoLoja::EVENTO,
-            \App\Subscribers\IngerirPedidoLoja::class,
+        app(SubscriberRegistry::class)->subscribe(
+            IngerirPedidoLoja::EVENTO,
+            IngerirPedidoLoja::class,
         );
 
         Gate::policy(Pagamento::class, PagamentoPolicy::class);
         Gate::policy(Requisicao::class, RequisicaoPolicy::class);
 
+        // Gates nomeados de ACESSO. O Gate::before da fundação tenta primeiro
+        // hasPermission(ability): estes nomes (*.gerenciar/*.ver/*.acessar*) são
+        // deliberadamente distintos dos slugs do catálogo (*.manage/*.view), então
+        // sempre caem nas policies abaixo — que, por sua vez, decidem por permissão
+        // (temPerfil) ou por vínculo de unidade.
         // Aprovações: Gates nomeados (Requisicao já tem policy própria).
         Gate::define('aprovacao.acessar-fila', [AprovacaoPolicy::class, 'acessarFila']);
         Gate::define('aprovacao.acessar', [AprovacaoPolicy::class, 'acessar']);

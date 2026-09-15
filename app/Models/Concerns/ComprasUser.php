@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 /**
  * Capacidades do módulo de Compras sobre a base de identidade da fundação.
  *
- * Substitui as flags do app standalone (is_compradora/is_financeiro) por papéis
- * RBAC ('compras'/'financeiro'). Mantém o domínio existente do compras: o vínculo
- * usuário↔unidade continua no pivot `unidade_user` (perfil operacional + nível de
- * alçada) sobre `App\Models\Unidade`.
+ * Papéis GLOBAIS do módulo autorizam por PERMISSÃO (governada pelo admin da
+ * empresa em Papéis & Permissões): compras.manage = compradora sênior,
+ * pagamentos.manage = financeiro, compras.view = acesso ao módulo. Os papéis
+ * canônicos do catálogo ('compras', 'financeiro') trazem esse padrão. O vínculo
+ * usuário↔unidade (perfil operacional + nível de alçada) segue no pivot
+ * `unidade_user` — é escopo de dados, não RBAC.
  */
 trait ComprasUser
 {
@@ -25,15 +27,16 @@ trait ComprasUser
     }
 
     /**
-     * Possui o perfil informado em qualquer unidade, ou os papéis globais
-     * (Admin via flag da fundação; Compradora/Financeiro via role RBAC).
+     * Possui o perfil informado: os globais (Admin, Compradora sênior, Financeiro)
+     * via flag/permissão; os operacionais (Solicitante, Aprovador, Almoxarife)
+     * via vínculo com alguma unidade.
      */
     public function temPerfil(Perfil $perfil): bool
     {
         return match ($perfil) {
             Perfil::Admin => $this->isAdminForActiveTenant(),
-            Perfil::CompradoraSenior => $this->hasRole('compras'),
-            Perfil::Financeiro => $this->hasRole('financeiro'),
+            Perfil::CompradoraSenior => $this->hasPermission('compras.manage'),
+            Perfil::Financeiro => $this->hasPermission('pagamentos.manage'),
             default => $this->belongsToMany(Unidade::class, 'unidade_user')
                 ->withoutGlobalScopes()
                 ->withPivot('perfil')
@@ -45,24 +48,24 @@ trait ComprasUser
     /** Visualiza todas as unidades sem restrição (admin ou compradora sênior). */
     public function podeVerTodasUnidades(): bool
     {
-        return $this->isAdminForActiveTenant() || $this->hasRole('compras');
+        return $this->hasPermission('compras.manage');
     }
 
     /** Pode visualizar o módulo financeiro (contas a pagar). */
     public function podeVerPagamentos(): bool
     {
-        return $this->hasRole('financeiro') || $this->isAdminForActiveTenant();
+        return $this->hasPermission('pagamentos.manage');
     }
 
     /** Pode registrar/agendar/cancelar/reconciliar pagamentos. */
     public function podeGerenciarPagamentos(): bool
     {
-        return $this->hasRole('financeiro') || $this->isAdminForActiveTenant();
+        return $this->hasPermission('pagamentos.manage');
     }
 
     /** Staff de compras (papéis globais) — usado para 2FA obrigatório. */
     public function isComprasStaff(): bool
     {
-        return $this->hasAnyRole(['compras', 'financeiro']);
+        return $this->hasPermission('compras.view');
     }
 }

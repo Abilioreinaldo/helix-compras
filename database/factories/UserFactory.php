@@ -6,6 +6,7 @@ use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Models\Platform\Identity\TenantFeature;
+use Helix\Foundation\Services\Platform\Identity\EntitlementService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -115,14 +116,14 @@ class UserFactory extends Factory
         return $this->state(['precisa_trocar_senha' => true]);
     }
 
-    /** Cria (se preciso) o papel no tenant do usuário e o atribui. */
+    /** Semeia o RBAC canônico de Compras no tenant (papel + permissões padrão) e atribui o papel. */
     private function atribuirPapel(User $user, string $slug, string $name): void
     {
-        $role = Role::firstOrCreate(
-            ['tenant_id' => $user->tenant_id, 'slug' => $slug],
-            ['name' => $name],
-        );
+        $tenant = Tenant::findOrFail($user->getAttributes()['tenant_id']);
+        app(EntitlementService::class)->seedRbac($tenant, 'compras');
 
-        $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $user->tenant_id]]);
+        $role = Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail();
+
+        $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $tenant->id]]);
     }
 }
