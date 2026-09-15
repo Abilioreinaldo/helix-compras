@@ -68,19 +68,12 @@ jobs:
         working-directory: comendador-compras
         run: vendor/bin/pint --test
 
-      # Não-bloqueante: reporta advisories (visibilidade) sem reprovar o build por
-      # CVE de dependência sem patch disponível (ex.: PHPSpreadsheet SSRF).
+      # BLOQUEANTE (auditoria multitenant 2026-09-15): advisory reprova o build.
+      # Sem patch disponível? Use `composer audit --ignore=<ID>` com comentário
+      # do motivo/prazo — nunca continue-on-error.
       - name: Security audit (composer)
-        continue-on-error: true
         working-directory: comendador-compras
         run: composer audit --no-interaction
-
-      # Não-bloqueante: caça segredos commitados (cinto S11).
-      - name: Secret scan (gitleaks)
-        continue-on-error: true
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests (Pest)
         working-directory: comendador-compras
@@ -158,3 +151,21 @@ jobs:
       - name: Run tests (Pest em MySQL)
         working-directory: comendador-compras
         run: php artisan test
+
+  # BLOQUEANTE (auditoria multitenant 2026-09-15): caça segredos commitados
+  # (cinto S11). Job próprio com checkout na RAIZ do workspace e histórico
+  # completo (fetch-depth: 0) — o gitleaks-action exige ambos; no job de testes o
+  # checkout ia para um subdiretório/raso e o scan nunca rodava de fato.
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (histórico completo)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

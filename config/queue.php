@@ -40,7 +40,12 @@ return [
             'connection' => env('DB_QUEUE_CONNECTION'),
             'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => env('DB_QUEUE', 'default'),
-            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 90),
+            // INVARIANTE: retry_after > maior $timeout de job (e > --timeout do
+            // worker) — nenhum job do app declara $timeout (ProcessDomainEvent da fundação
+            // usa o timeout do worker, 60s por padrão). Se retry_after for menor, o job ainda em
+            // execução é liberado de novo e roda em DOBRO. Ao criar job com
+            // $timeout maior, suba este valor junto.
+            'retry_after' => (int) env('DB_QUEUE_RETRY_AFTER', 360),
             'after_commit' => true,
         ],
 
@@ -68,7 +73,10 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // Mesma invariante do database: retry_after > maior $timeout de job.
+            // Sob Redis multi-worker um retry_after baixo reprocessa job ainda
+            // em execução (duplicidade entre workers/tenants).
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 360),
             'block_for' => null,
             'after_commit' => true,
         ],
