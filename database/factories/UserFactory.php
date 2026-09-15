@@ -7,6 +7,7 @@ use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Helix\Foundation\Services\Platform\Identity\EntitlementService;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -122,7 +123,8 @@ class UserFactory extends Factory
         $tenant = Tenant::findOrFail($user->getAttributes()['tenant_id']);
         app(EntitlementService::class)->seedRbac($tenant, 'compras');
 
-        $role = Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail();
+        // Role usa BelongsToTenant: lê sob o tenant do usuário, não o do contexto.
+        $role = TenantContext::runFor((string) $tenant->id, fn () => Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail());
 
         $user->roles()->syncWithoutDetaching([$role->id => ['tenant_id' => $tenant->id]]);
     }

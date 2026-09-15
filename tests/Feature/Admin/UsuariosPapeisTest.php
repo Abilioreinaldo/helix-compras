@@ -7,6 +7,7 @@ use Helix\Foundation\Models\Platform\Identity\Permission;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Identity\EntitlementService;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -18,6 +19,10 @@ uses(RefreshDatabase::class);
  * catálogo — não mais um checkbox "Compradora" hardcoded.
  */
 beforeEach(function () {
+    // Teste multi-tenant (tenant próprio): opt-out do contexto canônico global —
+    // Role/Permission da fundação são escopados pelo BelongsToTenant.
+    TenantContext::forget();
+
     $this->tenant = Tenant::create(['slug' => 'alpha', 'name' => 'Alpha', 'status' => 'active']);
     app(EntitlementService::class)->enable($this->tenant, 'compras');
     $this->admin = User::factory()->admin()->create(['tenant_id' => $this->tenant->id]);
