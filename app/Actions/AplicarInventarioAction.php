@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\Perfil;
 use App\Enums\StatusInventario;
 use App\Enums\TipoMovimentacao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\SessaoInventario;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ class AplicarInventarioAction
         // Valida perfil: Admin (global) ou Almoxarife da unidade
         $autorizado = $aplicadoPor->temPerfil(Perfil::Admin)
             || $aplicadoPor->unidades()
-                ->withoutGlobalScopes()
+                ->withoutGlobalScope(UnidadeScope::class)
                 ->where('unidades.id', $sessao->unidade_id)
                 ->wherePivot('perfil', Perfil::Almoxarife->value)
                 ->exists();

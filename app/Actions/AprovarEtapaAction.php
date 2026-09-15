@@ -10,6 +10,7 @@ use App\Mail\RequisicaoAprovada;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Collection;
@@ -171,7 +172,7 @@ class AprovarEtapaAction
     private function validarPermissao(User $aprovador, Requisicao $requisicao, Aprovacao $etapa): void
     {
         $temPermissao = $aprovador->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->where('unidades.id', $requisicao->unidade_id)
             ->wherePivot('perfil', Perfil::Aprovador->value)
             ->wherePivot('nivel_alcada', $etapa->nivel_exigido->value)
@@ -189,6 +190,7 @@ class AprovarEtapaAction
         return User::whereIn('id', function ($q) use ($requisicao, $nivel) {
             $q->select('user_id')
                 ->from('unidade_user')
+                ->where('tenant_id', $requisicao->tenant_id)
                 ->where('unidade_id', $requisicao->unidade_id)
                 ->where('perfil', Perfil::Aprovador->value)
                 ->where('nivel_alcada', $nivel);

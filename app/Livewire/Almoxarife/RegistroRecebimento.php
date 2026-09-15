@@ -7,16 +7,20 @@ use App\Enums\Perfil;
 use App\Enums\StatusPedidoCompra;
 use App\Models\CatalogoItem;
 use App\Models\PedidoCompra;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class RegistroRecebimento extends Component
 {
     use AuthorizesRequests;
 
+    // Locked: identidade do pedido vem do servidor (mount); o cliente não reaponta.
+    #[Locked]
     public int $id;
 
     public string $observacoes = '';
@@ -140,7 +144,7 @@ class RegistroRecebimento extends Component
 
     private function carregarPedido(): PedidoCompra
     {
-        return PedidoCompra::withoutGlobalScopes()
+        return PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['itens', 'fornecedor', 'unidade', 'recebimentos.itens'])
             ->findOrFail($this->id);
     }
@@ -148,6 +152,7 @@ class RegistroRecebimento extends Component
     private function autorizarAcesso(PedidoCompra $pedido): void
     {
         $temAcesso = (bool) DB::table('unidade_user')
+            ->where('tenant_id', $pedido->tenant_id)
             ->where('user_id', auth()->id())
             ->where('unidade_id', $pedido->unidade_id)
             ->where('perfil', Perfil::Almoxarife->value)

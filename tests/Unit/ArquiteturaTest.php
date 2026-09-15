@@ -163,18 +163,17 @@ test('uploads não usam disco público (arquivos de negócio ficam em disco priv
     expect($violacoes)->toBe([]);
 });
 
-test('nº de withoutGlobalScopes() não cresce sem revisão (baseline 116)', function () {
-    // Cada withoutGlobalScopes() fura o isolamento por unidade — é uma decisão de
-    // segurança. Se este número subir, revise o novo call-site (precisa de guarda
-    // admin/role? escopo de unidade explícito?) e só então atualize o baseline.
-    // 116: +1 em RequisicaoPolicy::view (checagem de vínculo de unidade, padrão de
-    // FormularioRequisicao) ao centralizar a autorização de Requisições.
+test('nº de withoutGlobalScopes() não cresce sem revisão (baseline 0)', function () {
+    // withoutGlobalScopes() remove TODOS os global scopes — inclusive o de tenant
+    // (BelongsToTenant). Auditoria multitenant 2026-09-15: zerado; "ver todas as
+    // unidades" é withoutGlobalScope(UnidadeScope::class). Ver também
+    // tests/Feature/Security/SemWithoutGlobalScopesTest.php (mensagem por arquivo).
     $total = 0;
     foreach (arquivosDaApp() as $arquivo) {
         $total += substr_count(file_get_contents($arquivo), 'withoutGlobalScopes(');
     }
 
-    expect($total)->toBeLessThanOrEqual(116);
+    expect($total)->toBe(0);
 });
 
 test('e-mail transacional não promete fila sem ShouldQueue', function () {

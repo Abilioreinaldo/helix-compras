@@ -9,7 +9,9 @@ use App\Models\PedidoLojaRecebido;
 use App\Models\Unidade;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -25,7 +27,8 @@ class PedidosLoja extends Component
 
     public string $filtroStatus = PedidoLojaRecebido::STATUS_RECEBIDO;
 
-    /** Pedido com o painel de promoção aberto (null = nenhum). */
+    /** Pedido com o painel de promoção aberto (null = nenhum). Locked: só o servidor aponta. */
+    #[Locked]
     public ?int $promovendo = null;
 
     public ?int $unidadeId = null;
@@ -59,9 +62,12 @@ class PedidosLoja extends Component
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
+        // FKs validadas POR TENANT: unidade/centro de custo de outro tenant são "inexistentes".
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $this->validate([
-            'unidadeId' => 'required|exists:unidades,id',
-            'centroCustoId' => 'required|exists:centros_custo,id',
+            'unidadeId' => ['required', Rule::exists('unidades', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
+            'centroCustoId' => ['required', Rule::exists('centros_custo', 'id')->where('tenant_id', $tenantId)->where('unidade_id', $this->unidadeId)->whereNull('deleted_at')],
         ], [
             'unidadeId.required' => 'Escolha a unidade de destino.',
             'centroCustoId.required' => 'Escolha o centro de custo.',

@@ -9,6 +9,7 @@ use App\Models\CatalogoItem;
 use App\Models\CentroCusto;
 use App\Models\Obra;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -58,7 +59,7 @@ class FormularioRequisicao extends Component
     public function mount(?int $id = null): void
     {
         if ($id) {
-            $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($id);
+            $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
             $this->authorize('update', $requisicao);                    // visibilidade (admin bypassa via Gate::before)
             abort_unless($requisicao->status->permiteEdicao(), 403);    // status: regra de negócio (admin sujeito)
 
@@ -98,8 +99,8 @@ class FormularioRequisicao extends Component
         if ($unidadeIdQuery) {
             // Verifica se o usuário vê essa unidade
             $visivel = $usuario->podeVerTodasUnidades()
-                ? Unidade::withoutGlobalScopes()->where('id', $unidadeIdQuery)->whereNull('deleted_at')->exists()
-                : $usuario->unidades()->withoutGlobalScopes()->where('unidades.id', $unidadeIdQuery)->exists();
+                ? Unidade::withoutGlobalScope(UnidadeScope::class)->where('id', $unidadeIdQuery)->whereNull('deleted_at')->exists()
+                : $usuario->unidades()->withoutGlobalScope(UnidadeScope::class)->where('unidades.id', $unidadeIdQuery)->exists();
 
             if ($visivel) {
                 return $unidadeIdQuery;
@@ -107,7 +108,7 @@ class FormularioRequisicao extends Component
         }
 
         // Default: primeira unidade do usuário
-        return $usuario->unidades()->withoutGlobalScopes()->first()?->id;
+        return $usuario->unidades()->withoutGlobalScope(UnidadeScope::class)->first()?->id;
     }
 
     /**
@@ -242,7 +243,7 @@ class FormularioRequisicao extends Component
             return;
         }
 
-        $obra = Obra::withoutGlobalScopes()->find($this->obraId);
+        $obra = Obra::withoutGlobalScope(UnidadeScope::class)->find($this->obraId);
         if (! $obra || ! $obra->verba) {
             return;
         }
@@ -251,7 +252,7 @@ class FormularioRequisicao extends Component
         );
 
         $excludeId = $this->requisicaoId ?? 0;
-        $idsComprometidos = Requisicao::withoutGlobalScopes()
+        $idsComprometidos = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->where('obra_id', $this->obraId)
             ->whereNotIn('status', [StatusRequisicao::Rascunho->value, StatusRequisicao::Cancelada->value, StatusRequisicao::Devolvida->value])
             ->where('id', '!=', $excludeId)
@@ -268,10 +269,14 @@ class FormularioRequisicao extends Component
 
     private function regrasValidacao(): array
     {
+        // FKs validadas POR TENANT: unidade/centro de custo/obra/item de outro tenant são
+        // "inexistentes" aqui (o escopo de leitura já esconde; a validação fecha o write).
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $rules = [
-            'unidadeId' => 'required|exists:unidades,id',
-            'centroCustoId' => 'required|exists:centros_custo,id',
-            'obraId' => 'nullable|exists:obras,id',
+            'unidadeId' => ['required', Rule::exists('unidades', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
+            'centroCustoId' => ['required', Rule::exists('centros_custo', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
+            'obraId' => ['nullable', Rule::exists('obras', 'id')->where('tenant_id', $tenantId)],
             'urgente' => 'boolean',
             'isEmergencial' => 'boolean',
             'justificativa' => $this->isEmergencial ? 'required|string|min:10' : 'nullable|string',
@@ -283,7 +288,7 @@ class FormularioRequisicao extends Component
             'itens.*.avulso' => 'boolean',
             'itens.*.item_catalogo_id' => [
                 'nullable',
-                Rule::exists('catalogo_itens', 'id')->whereNull('deleted_at')->where('ativo', true),
+                Rule::exists('catalogo_itens', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')->where('ativo', true),
                 function (string $attribute, mixed $value, callable $fail) {
                     preg_match('/^itens\.(\d+)\./', $attribute, $matches);
                     $indice = (int) ($matches[1] ?? 0);
@@ -312,7 +317,7 @@ class FormularioRequisicao extends Component
         ]);
 
         if ($this->requisicaoId) {
-            $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($this->requisicaoId);
+            $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->requisicaoId);
             // Defesa em profundidade (além do #[Locked] e do mount): reautoriza a edição —
             // visibilidade (Policy) + status editável (regra de negócio, admin sujeito ao status).
             $this->authorize('update', $requisicao);
@@ -360,7 +365,7 @@ class FormularioRequisicao extends Component
 
         $this->salvar();
 
-        $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($this->requisicaoId);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->requisicaoId);
 
         try {
             $resultado = app(SubmeterRequisicaoAction::class)->execute($requisicao);
@@ -390,7 +395,7 @@ class FormularioRequisicao extends Component
             'motivoCancelamento.required' => 'Informe o motivo do cancelamento.',
         ]);
 
-        $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($this->requisicaoId);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->requisicaoId);
         $requisicao->update(['motivo_cancelamento' => $this->motivoCancelamento]);
 
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::Cancelada);
@@ -401,15 +406,15 @@ class FormularioRequisicao extends Component
     public function render(): View
     {
         $unidades = auth()->user()->podeVerTodasUnidades()
-            ? Unidade::withoutGlobalScopes()->where('status', 'ativa')->orderBy('nome')->get()
-            : auth()->user()->unidades()->withoutGlobalScopes()->where('status', 'ativa')->get();
+            ? Unidade::withoutGlobalScope(UnidadeScope::class)->where('status', 'ativa')->orderBy('nome')->get()
+            : auth()->user()->unidades()->withoutGlobalScope(UnidadeScope::class)->where('status', 'ativa')->get();
 
         $centrosCusto = $this->unidadeId
-            ? CentroCusto::withoutGlobalScopes()->where('unidade_id', $this->unidadeId)->where('ativo', true)->orderBy('nome')->get()
+            ? CentroCusto::withoutGlobalScope(UnidadeScope::class)->where('unidade_id', $this->unidadeId)->where('ativo', true)->orderBy('nome')->get()
             : collect();
 
         $obras = $this->unidadeId
-            ? Obra::withoutGlobalScopes()->where('unidade_id', $this->unidadeId)->where('status', 'ativa')->orderBy('id')->get()
+            ? Obra::withoutGlobalScope(UnidadeScope::class)->where('unidade_id', $this->unidadeId)->where('status', 'ativa')->orderBy('id')->get()
             : collect();
 
         // Sec P2-02: busca server-side paginada — carrega até 50 itens por vez, filtrando

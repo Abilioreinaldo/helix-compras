@@ -37,7 +37,7 @@ class FusaoSaldosAction
 
         return DB::transaction(function () use ($saldos, $executadoPor) {
             $ids = $saldos->pluck('id')->sort()->values();
-            $locked = SaldoEstoque::withoutGlobalScopes()
+            $locked = SaldoEstoque::query()
                 ->whereIn('id', $ids)
                 ->orderBy('id')
                 ->lockForUpdate()
@@ -70,7 +70,7 @@ class FusaoSaldosAction
 
             $jaFundidos = $locked->filter(fn (SaldoEstoque $s) => $s->fundido_para_id !== null);
             if ($jaFundidos->count() === $locked->count()) {
-                $destino = SaldoEstoque::withoutGlobalScopes()->find($locked->first()->fundido_para_id);
+                $destino = SaldoEstoque::query()->find($locked->first()->fundido_para_id);
 
                 return $destino ?? $locked->first();
             }

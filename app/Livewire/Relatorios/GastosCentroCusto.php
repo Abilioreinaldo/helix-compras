@@ -23,10 +23,17 @@ class GastosCentroCusto extends Component
     {
         abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $resultados = DB::table('itens_pedido_compra as ipc')
             ->join('pedidos_compra as pc', 'pc.id', '=', 'ipc.pedido_compra_id')
             ->join('requisicoes as r', 'r.id', '=', 'ipc.requisicao_id')
             ->join('centros_custo as cc', 'cc.id', '=', 'r.centro_custo_id')
+            ->where('pc.tenant_id', $tenantId)
+            ->where('ipc.tenant_id', $tenantId)
+            ->where('r.tenant_id', $tenantId)
+            ->where('cc.tenant_id', $tenantId)
             ->where('pc.status', StatusPedidoCompra::Emitido->value)
             ->whereNull('pc.deleted_at')
             ->whereNull('ipc.deleted_at')

@@ -8,9 +8,11 @@ use App\Enums\Perfil;
 use App\Enums\StatusRequisicaoMaterial;
 use App\Models\LoteEstoque;
 use App\Models\RequisicaoMaterial;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -18,6 +20,8 @@ class AtendimentoRequisicoesMaterial extends Component
 {
     use AuthorizesRequests, WithPagination;
 
+    // Locked: a RIM em recusa é apontada pelo servidor (abrirRecusa); o cliente não reaponta.
+    #[Locked]
     public ?int $recusandoId = null;
 
     public string $motivoRecusa = '';
@@ -34,7 +38,7 @@ class AtendimentoRequisicoesMaterial extends Component
         $this->authorize('estoque.gerenciar');
 
         $this->erroAtendimento = '';
-        $rim = RequisicaoMaterial::withoutGlobalScopes()->findOrFail($id);
+        $rim = RequisicaoMaterial::query()->findOrFail($id);
 
         try {
             app(AtenderRequisicaoMaterialAction::class)->execute($rim, auth()->user());
@@ -60,7 +64,7 @@ class AtendimentoRequisicoesMaterial extends Component
             'motivoRecusa.required' => 'Informe o motivo da recusa.',
         ]);
 
-        $rim = RequisicaoMaterial::withoutGlobalScopes()->findOrFail($this->recusandoId);
+        $rim = RequisicaoMaterial::query()->findOrFail($this->recusandoId);
 
         try {
             app(RecusarRequisicaoMaterialAction::class)->execute($rim, auth()->user(), $this->motivoRecusa);
@@ -85,7 +89,7 @@ class AtendimentoRequisicoesMaterial extends Component
         $usuario = auth()->user();
 
         $unidadeIds = $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->pluck('unidades.id');
 

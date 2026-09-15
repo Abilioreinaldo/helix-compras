@@ -6,6 +6,7 @@ use App\Enums\Perfil;
 use App\Enums\TipoMovimentacao;
 use App\Models\MovimentacaoEstoque;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -41,7 +42,7 @@ class AjusteEstoqueAction
         // Autorizado: Admin (irrestrito) ou Almoxarife da unidade do saldo.
         // ESCOPO: "Ajuste — inventário/correção, só Admin ou Almoxarife".
         $autorizado = $registradoPor->temPerfil(Perfil::Admin)
-            || $registradoPor->unidades()->withoutGlobalScopes()
+            || $registradoPor->unidades()->withoutGlobalScope(UnidadeScope::class)
                 ->where('unidades.id', $saldo->unidade_id)
                 ->wherePivot('perfil', Perfil::Almoxarife->value)
                 ->exists();
@@ -62,7 +63,7 @@ class AjusteEstoqueAction
 
         return DB::transaction(function () use ($saldo, $tipo, $quantidade, $motivo, $registradoPor) {
             // withoutGlobalScopes: relocking by id — unidade já foi verificada acima
-            $saldo = SaldoEstoque::withoutGlobalScopes()->where('id', $saldo->id)->lockForUpdate()->firstOrFail();
+            $saldo = SaldoEstoque::query()->where('id', $saldo->id)->lockForUpdate()->firstOrFail();
 
             $cmpVigente = (float) $saldo->custo_medio_ponderado;
             $qtdAtual = (float) $saldo->quantidade;

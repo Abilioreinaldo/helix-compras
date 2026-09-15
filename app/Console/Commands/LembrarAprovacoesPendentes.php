@@ -8,6 +8,7 @@ use App\Enums\StatusRequisicao;
 use App\Mail\LembreteAprovacaoPendente;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
@@ -23,7 +24,7 @@ class LembrarAprovacoesPendentes extends Command
     {
         $limite = now()->subHours(48);
 
-        $requisicoes = Requisicao::withoutGlobalScopes()
+        $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade'])
             ->where('status', StatusRequisicao::AguardandoAprovacao->value)
             ->where('aprovacao_iniciada_em', '<', $limite)
@@ -44,7 +45,7 @@ class LembrarAprovacoesPendentes extends Command
                 continue; // sem etapa pendente (estado inconsistente) — não lembra
             }
 
-            $aprovadores = $this->aprovadoresElegiveis($requisicao->unidade_id, $etapa->nivel_exigido->value);
+            $aprovadores = $this->aprovadoresElegiveis($requisicao, $etapa->nivel_exigido->value);
 
             foreach ($aprovadores as $aprovador) {
                 Mail::to($aprovador->email)->send(new LembreteAprovacaoPendente($requisicao, $aprovador));
@@ -66,12 +67,13 @@ class LembrarAprovacoesPendentes extends Command
      *
      * @return Collection<int, User>
      */
-    private function aprovadoresElegiveis(int $unidadeId, string $nivel): Collection
+    private function aprovadoresElegiveis(Requisicao $requisicao, string $nivel): Collection
     {
-        return User::whereIn('id', function ($q) use ($unidadeId, $nivel) {
+        return User::whereIn('id', function ($q) use ($requisicao, $nivel) {
             $q->select('user_id')
                 ->from('unidade_user')
-                ->where('unidade_id', $unidadeId)
+                ->where('tenant_id', $requisicao->tenant_id)
+                ->where('unidade_id', $requisicao->unidade_id)
                 ->where('perfil', Perfil::Aprovador->value)
                 ->where('nivel_alcada', $nivel);
         })->get();

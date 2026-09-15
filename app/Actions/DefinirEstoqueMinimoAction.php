@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\Perfil;
 use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -50,7 +51,7 @@ class DefinirEstoqueMinimoAction
     private function verificarAutorizacao(Unidade $unidade, User $usuario): void
     {
         $almoxarifeDaUnidade = $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->where('unidades.id', $unidade->id)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->exists();

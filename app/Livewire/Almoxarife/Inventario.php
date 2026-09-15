@@ -7,11 +7,13 @@ use App\Actions\AplicarInventarioAction;
 use App\Actions\CancelarSessaoInventarioAction;
 use App\Enums\Perfil;
 use App\Enums\StatusInventario;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\SessaoInventario;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class Inventario extends Component
@@ -23,7 +25,8 @@ class Inventario extends Component
 
     public bool $mostrarFormAbrir = false;
 
-    // ─── Sessão ativa ────────────────────────────────────────────────────────
+    // ─── Sessão ativa (Locked: apontada pelo servidor; o cliente não reaponta) ──
+    #[Locked]
     public ?int $sessaoAtivaId = null;
 
     // ─── Contagem ────────────────────────────────────────────────────────────
@@ -69,7 +72,7 @@ class Inventario extends Component
         $unidade = $usuario->temPerfil(Perfil::Admin)
             ? Unidade::first()
             : $usuario->unidades()
-                ->withoutGlobalScopes()
+                ->withoutGlobalScope(UnidadeScope::class)
                 ->wherePivot('perfil', Perfil::Almoxarife->value)
                 ->first();
 
@@ -183,7 +186,7 @@ class Inventario extends Component
         $usuario = auth()->user();
         $unidadeIds = $usuario->temPerfil(Perfil::Admin)
             ? null
-            : $usuario->unidades()->withoutGlobalScopes()
+            : $usuario->unidades()->withoutGlobalScope(UnidadeScope::class)
                 ->wherePivot('perfil', Perfil::Almoxarife->value)
                 ->pluck('unidades.id');
 

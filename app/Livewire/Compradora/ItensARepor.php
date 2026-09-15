@@ -3,6 +3,7 @@
 namespace App\Livewire\Compradora;
 
 use App\Models\EstoqueMinimo;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
@@ -69,7 +70,7 @@ class ItensARepor extends Component
         $itensPorUnidade = $todosItensARepor->groupBy('unidade_id');
 
         // Lista de unidades para o filtro (todas ativas sem soft-delete)
-        $unidades = Unidade::withoutGlobalScopes()
+        $unidades = Unidade::withoutGlobalScope(UnidadeScope::class)
             ->whereNull('deleted_at')
             ->orderBy('nome')
             ->pluck('nome', 'id');

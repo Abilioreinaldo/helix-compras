@@ -59,7 +59,9 @@ it('recebe o evento assinado no /api/inbound/events e materializa o inbox', func
     // QUEUE_CONNECTION=sync → o ProcessDomainEvent já rodou o subscriber.
     expect(PedidoLojaRecebido::where('request_code', 'PED-0002')->count())->toBe(1);
 
-    // reentrega assinada → mesma linha (idempotência do consumidor)
+    // reentrega assinada → mesma linha (idempotência do consumidor). O remetente
+    // reassina com timestamp novo (senão o anti-replay da foundation devolve 409).
+    test()->travel(2)->seconds();
     postAssinado($envelope, 'par-secreto')->assertStatus(202);
     expect(PedidoLojaRecebido::where('request_code', 'PED-0002')->count())->toBe(1);
 });

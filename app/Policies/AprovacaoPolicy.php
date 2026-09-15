@@ -5,6 +5,8 @@ namespace App\Policies;
 use App\Enums\Perfil;
 use App\Models\Requisicao;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -15,6 +17,9 @@ use Illuminate\Support\Facades\DB;
  * checks hoje espalhados em FilaAprovacoes e PainelAprovacao. O nível-por-etapa da
  * DECISÃO em si (aprovar/reprovar) segue validado nas Actions (ValidationException),
  * com mensagem amigável e modal aberto — não vira 403.
+ *
+ * Tenant: `acessar`/`decidir` comparam o tenant da requisição com o tenant ativo e
+ * só contam vínculos (unidade_user) do mesmo tenant — aprovador de A nunca decide em B.
  */
 class AprovacaoPolicy
 {
@@ -30,11 +35,11 @@ class AprovacaoPolicy
      */
     public function acessar(User $user, Requisicao $requisicao): bool
     {
-        return DB::table('unidade_user')
-            ->where('user_id', $user->getKey())
-            ->where('unidade_id', $requisicao->unidade_id)
-            ->where('perfil', Perfil::Aprovador->value)
-            ->exists();
+        if (! $this->mesmoTenant($user, $requisicao)) {
+            return false;
+        }
+
+        return $this->vinculoAprovador($user, $requisicao)->exists();
     }
 
     /**
@@ -44,16 +49,35 @@ class AprovacaoPolicy
      */
     public function decidir(User $user, Requisicao $requisicao): bool
     {
+        if (! $this->mesmoTenant($user, $requisicao)) {
+            return false;
+        }
+
         $etapa = $requisicao->etapaAprovacaoAtual();
         if (! $etapa) {
             return false;
         }
 
-        return DB::table('unidade_user')
-            ->where('user_id', $user->getKey())
-            ->where('unidade_id', $requisicao->unidade_id)
-            ->where('perfil', Perfil::Aprovador->value)
+        return $this->vinculoAprovador($user, $requisicao)
             ->where('nivel_alcada', $etapa->nivel_exigido->value)
             ->exists();
+    }
+
+    private function vinculoAprovador(User $user, Requisicao $requisicao): Builder
+    {
+        return DB::table('unidade_user')
+            ->where('tenant_id', $requisicao->tenant_id)
+            ->where('user_id', $user->getKey())
+            ->where('unidade_id', $requisicao->unidade_id)
+            ->where('perfil', Perfil::Aprovador->value);
+    }
+
+    private function mesmoTenant(User $user, Requisicao $requisicao): bool
+    {
+        $tenantAtivo = TenantContext::id() ?? $user->getActiveTenantId();
+
+        return $tenantAtivo !== null
+            && $requisicao->tenant_id !== null
+            && (string) $requisicao->tenant_id === (string) $tenantAtivo;
     }
 }

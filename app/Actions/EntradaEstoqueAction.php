@@ -9,6 +9,7 @@ use App\Models\ItemRecebimento;
 use App\Models\LoteEstoque;
 use App\Models\MovimentacaoEstoque;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Validation\ValidationException;
@@ -78,7 +79,7 @@ class EntradaEstoqueAction
             ]);
         }
 
-        $pedido = $itemPedidoCompra->pedidoCompra()->withoutGlobalScopes()->first();
+        $pedido = $itemPedidoCompra->pedidoCompra()->withoutGlobalScope(UnidadeScope::class)->first();
         $unidadeId = $pedido->unidade_id;
         $deposito = $itemPedidoCompra->destino;
         $descricaoItem = $itemPedidoCompra->descricao;

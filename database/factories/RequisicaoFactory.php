@@ -6,6 +6,7 @@ use App\Enums\StatusRequisicao;
 use App\Models\CentroCusto;
 use App\Models\Obra;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,9 +20,9 @@ class RequisicaoFactory extends Factory
 
     public function definition(): array
     {
-        $unidade = Unidade::withoutGlobalScopes()->first() ?? Unidade::factory()->create();
+        $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->first() ?? Unidade::factory()->create();
         $solicitante = User::first() ?? User::factory()->create();
-        $centroCusto = CentroCusto::withoutGlobalScopes()->first()
+        $centroCusto = CentroCusto::withoutGlobalScope(UnidadeScope::class)->first()
             ?? CentroCusto::factory()->create(['unidade_id' => $unidade->id]);
 
         return [

@@ -9,11 +9,13 @@ use App\Models\EstoqueMinimo;
 use App\Models\Fornecedor;
 use App\Models\PrecoHomologado;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -27,6 +29,7 @@ class ListaCatalogoItens extends Component
 
     public bool $mostrarModal = false;
 
+    #[Locked]
     public ?int $editandoId = null;
 
     // Campos do formulário de item
@@ -44,6 +47,7 @@ class ListaCatalogoItens extends Component
 
     public bool $mostrarModalMinimos = false;
 
+    #[Locked]
     public ?int $minimoItemId = null;
 
     public string $minimoItemDescricao = '';
@@ -57,6 +61,7 @@ class ListaCatalogoItens extends Component
 
     public bool $mostrarModalHomologacoes = false;
 
+    #[Locked]
     public ?int $homologacaoItemId = null;
 
     public string $homologacaoItemDescricao = '';
@@ -192,7 +197,7 @@ class ListaCatalogoItens extends Component
         $minimosExistentes = EstoqueMinimo::where('item_catalogo_id', $item->id)
             ->pluck('quantidade_minima', 'unidade_id');
 
-        $this->minimosPorUnidade = Unidade::withoutGlobalScopes()
+        $this->minimosPorUnidade = Unidade::withoutGlobalScope(UnidadeScope::class)
             ->whereNull('deleted_at')
             ->orderBy('nome')
             ->get()
@@ -233,7 +238,7 @@ class ListaCatalogoItens extends Component
 
         $quantidade = (float) ($this->minimosPorUnidade[$indice]['quantidade_minima'] ?? '0');
 
-        $unidade = Unidade::withoutGlobalScopes()->findOrFail($unidadeId);
+        $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail($unidadeId);
         $item = CatalogoItem::findOrFail($this->minimoItemId);
 
         try {
@@ -328,7 +333,7 @@ class ListaCatalogoItens extends Component
         }
 
         $validado = $this->validate([
-            'novoFornecedorId' => ['required', Rule::exists('fornecedores', 'id')->where('homologado', true)->where('ativo', true)],
+            'novoFornecedorId' => ['required', Rule::exists('fornecedores', 'id')->where('tenant_id', auth()->user()->getActiveTenantId())->whereNull('deleted_at')->where('homologado', true)->where('ativo', true)],
             'novoPreco' => 'required|numeric|gt:0',
             'novaValidadeInicio' => 'required|date',
             'novaValidadeFim' => 'required|date|after_or_equal:novaValidadeInicio',

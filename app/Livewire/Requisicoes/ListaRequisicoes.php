@@ -4,6 +4,7 @@ namespace App\Livewire\Requisicoes;
 
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -22,7 +23,7 @@ class ListaRequisicoes extends Component
     {
         $podeVerTudo = auth()->user()->podeVerTodasUnidades();
 
-        $requisicoes = ($podeVerTudo ? Requisicao::withoutGlobalScopes() : Requisicao::query())
+        $requisicoes = ($podeVerTudo ? Requisicao::withoutGlobalScope(UnidadeScope::class) : Requisicao::query())
             ->with(['solicitante', 'unidade', 'centroCusto'])
             ->when($this->filtroStatus, fn ($q) => $q->where('status', $this->filtroStatus))
             ->when($this->filtroUrgente, fn ($q) => $q->where('urgente', true))

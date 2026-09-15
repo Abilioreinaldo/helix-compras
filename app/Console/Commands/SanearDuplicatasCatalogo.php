@@ -87,7 +87,7 @@ class SanearDuplicatasCatalogo extends Command
      */
     private function saldosDoGrupo(\stdClass $grupo): Collection
     {
-        return SaldoEstoque::withoutGlobalScopes()
+        return SaldoEstoque::query()
             ->where('unidade_id', $grupo->unidade_id)
             ->where('deposito', $grupo->deposito)
             ->where('item_catalogo_id', $grupo->item_catalogo_id)

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Console\Command;
 
 class MarcarRequisicoesAtrasadas extends Command
@@ -15,7 +16,7 @@ class MarcarRequisicoesAtrasadas extends Command
 
     public function handle(): int
     {
-        $requisicoes = Requisicao::withoutGlobalScopes()
+        $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->where('status', StatusRequisicao::AguardandoTriagem->value)
             ->where('submetida_em', '<', now()->subHours(24))
             ->where('atrasada', false)

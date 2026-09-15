@@ -6,6 +6,7 @@ use App\Enums\Perfil;
 use App\Enums\TipoMovimentacao;
 use App\Models\MovimentacaoEstoque;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\TransferenciaEstoque;
 use App\Models\Unidade;
 use App\Models\User;
@@ -43,7 +44,7 @@ class TransferirEstoqueAction
         }
 
         $almoxarifeOrigem = $executadoPor->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->where('unidades.id', $origem->unidade_id)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->exists();
@@ -68,10 +69,10 @@ class TransferirEstoqueAction
             // Lock CANÔNICO (menor id primeiro) de origem + destino existente: ordem consistente
             // entre transferências concorrentes A↔B do mesmo item evita deadlock em MySQL.
             $idsLock = collect([$origem->id, $destinoExistenteId])->filter()->unique()->sort()->values()->all();
-            SaldoEstoque::withoutGlobalScopes()->whereIn('id', $idsLock)->lockForUpdate()->get();
+            SaldoEstoque::query()->whereIn('id', $idsLock)->lockForUpdate()->get();
 
             // Re-lê a origem travada e re-valida que não virou tombstone entre o guard e o lock.
-            $origem = SaldoEstoque::withoutGlobalScopes()
+            $origem = SaldoEstoque::query()
                 ->whereKey($origem->id)
                 ->whereNull('fundido_para_id')
                 ->lockForUpdate()
@@ -86,7 +87,7 @@ class TransferirEstoqueAction
             }
 
             $destinoSaldo = $destinoExistenteId !== null
-                ? SaldoEstoque::withoutGlobalScopes()->whereKey($destinoExistenteId)->lockForUpdate()->firstOrFail()
+                ? SaldoEstoque::query()->whereKey($destinoExistenteId)->lockForUpdate()->firstOrFail()
                 : $this->criarSaldoDestino($origem, $destino);
 
             // Guard defensivo: destino que controla lote também bloqueia (a identidade por catálogo

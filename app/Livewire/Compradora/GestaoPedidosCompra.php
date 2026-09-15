@@ -10,6 +10,7 @@ use App\Models\Cotacao;
 use App\Models\Fornecedor;
 use App\Models\PedidoCompra;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -29,7 +30,7 @@ class GestaoPedidosCompra extends Component
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
         $fornecedor = Fornecedor::findOrFail($fornecedorId);
-        $requisicoes = Requisicao::withoutGlobalScopes()
+        $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->whereIn('id', $requisicaoIds)
             ->get();
 
@@ -54,11 +55,11 @@ class GestaoPedidosCompra extends Component
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
         // Sugestões: requisições aprovadas sem PC emitido cobrindo todos os itens, agrupadas por fornecedor vencedor
-        $sugestoes = Cotacao::withoutGlobalScopes()
+        $sugestoes = Cotacao::query()
             ->with(['fornecedor', 'requisicao.unidade'])
             ->where('vencedora', true)
             ->whereNull('deleted_at')
-            ->whereHas('requisicao', fn ($q) => $q->withoutGlobalScopes()->where('status', StatusRequisicao::Aprovada->value))
+            ->whereHas('requisicao', fn ($q) => $q->withoutGlobalScope(UnidadeScope::class)->where('status', StatusRequisicao::Aprovada->value))
             ->get()
             ->groupBy('fornecedor_id')
             ->map(fn ($cotacoes, $fornecedorId) => [
@@ -68,13 +69,13 @@ class GestaoPedidosCompra extends Component
             ])
             ->values();
 
-        $rascunhos = PedidoCompra::withoutGlobalScopes()
+        $rascunhos = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['fornecedor', 'unidade'])
             ->where('status', StatusPedidoCompra::Rascunho->value)
             ->orderByDesc('updated_at')
             ->get();
 
-        $emitidos = PedidoCompra::withoutGlobalScopes()
+        $emitidos = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['fornecedor', 'unidade', 'emissor'])
             ->where('status', StatusPedidoCompra::Emitido->value)
             ->orderByDesc('emitido_em')

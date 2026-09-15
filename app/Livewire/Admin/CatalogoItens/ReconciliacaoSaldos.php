@@ -8,6 +8,7 @@ use App\Models\CatalogoItem;
 use App\Models\SaldoEstoque;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -17,6 +18,7 @@ class ReconciliacaoSaldos extends Component
 
     public string $buscaManual = '';
 
+    #[Locked]
     public ?int $saldoSelecionadoId = null;
 
     public function mount(): void

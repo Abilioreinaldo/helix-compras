@@ -9,6 +9,7 @@ use App\Models\EtapaAlcada;
 use App\Models\FaixaAlcada;
 use App\Models\Fornecedor;
 use App\Models\Obra;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
@@ -56,7 +57,7 @@ class ComprasTesteEmpresaASeeder extends Seeder
         $this->papel($financeiro, 'financeiro', 'Financeiro');
 
         TenantContext::runFor($tenant->id, function () use ($tenant, $admin, $joao, $diretor, $solicitante, $almoxarife) {
-            $obra = Unidade::withoutGlobalScopes()->updateOrCreate(
+            $obra = Unidade::withoutGlobalScope(UnidadeScope::class)->updateOrCreate(
                 ['tenant_id' => $tenant->id, 'nome' => 'Obra Expansão Norte'],
                 [
                     'tipo' => TipoUnidade::Obra->value,
@@ -67,7 +68,7 @@ class ComprasTesteEmpresaASeeder extends Seeder
                 ],
             );
 
-            Obra::withoutGlobalScopes()->updateOrCreate(
+            Obra::withoutGlobalScope(UnidadeScope::class)->updateOrCreate(
                 ['unidade_id' => $obra->id],
                 [
                     'iniciada_em' => '2024-01-15',
@@ -77,7 +78,7 @@ class ComprasTesteEmpresaASeeder extends Seeder
                 ],
             );
 
-            $posto = Unidade::withoutGlobalScopes()->updateOrCreate(
+            $posto = Unidade::withoutGlobalScope(UnidadeScope::class)->updateOrCreate(
                 ['tenant_id' => $tenant->id, 'nome' => 'Posto Comendador Centro'],
                 [
                     'tipo' => TipoUnidade::Posto->value,
@@ -88,7 +89,7 @@ class ComprasTesteEmpresaASeeder extends Seeder
                 ],
             );
 
-            Unidade::withoutGlobalScopes()->updateOrCreate(
+            Unidade::withoutGlobalScope(UnidadeScope::class)->updateOrCreate(
                 ['tenant_id' => $tenant->id, 'nome' => 'Central Administrativa'],
                 [
                     'tipo' => TipoUnidade::Central->value,
@@ -99,14 +100,15 @@ class ComprasTesteEmpresaASeeder extends Seeder
                 ],
             );
 
+            // Pivot com tenant_id (o UnidadeUser confere com o tenant da unidade).
             $obra->usuarios()->syncWithoutDetaching([
-                $joao->id => ['perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Gestor->value],
-                $diretor->id => ['perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Diretor->value],
-                $solicitante->id => ['perfil' => Perfil::Solicitante->value, 'nivel_alcada' => null],
+                $joao->id => ['tenant_id' => $tenant->id, 'perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Gestor->value],
+                $diretor->id => ['tenant_id' => $tenant->id, 'perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Diretor->value],
+                $solicitante->id => ['tenant_id' => $tenant->id, 'perfil' => Perfil::Solicitante->value, 'nivel_alcada' => null],
             ]);
             $posto->usuarios()->syncWithoutDetaching([
-                $diretor->id => ['perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Diretor->value],
-                $almoxarife->id => ['perfil' => Perfil::Almoxarife->value, 'nivel_alcada' => null],
+                $diretor->id => ['tenant_id' => $tenant->id, 'perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Diretor->value],
+                $almoxarife->id => ['tenant_id' => $tenant->id, 'perfil' => Perfil::Almoxarife->value, 'nivel_alcada' => null],
             ]);
 
             $this->alcadas();

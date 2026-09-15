@@ -7,13 +7,17 @@ use App\Actions\EmitirPedidoCompraAction;
 use App\Enums\ModalidadeEntrega;
 use App\Enums\Perfil;
 use App\Models\PedidoCompra;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class FormularioPedidoCompra extends Component
 {
+    // Locked: identidade do pedido vem do servidor (mount); o cliente não reaponta.
+    #[Locked]
     public int $id;
 
     public string $condicoesPagamento = '';
@@ -140,7 +144,7 @@ class FormularioPedidoCompra extends Component
 
     private function carregarPedido(): PedidoCompra
     {
-        return PedidoCompra::withoutGlobalScopes()
+        return PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['itens', 'fornecedor', 'unidade'])
             ->findOrFail($this->id);
     }

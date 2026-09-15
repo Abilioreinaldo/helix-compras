@@ -6,6 +6,7 @@ use App\Enums\NivelAlcada;
 use App\Enums\StatusAprovacao;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -17,7 +18,7 @@ class AprovacaoFactory extends Factory
 
     public function definition(): array
     {
-        $requisicao = Requisicao::withoutGlobalScopes()->first() ?? Requisicao::factory()->create();
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->first() ?? Requisicao::factory()->create();
 
         return [
             'requisicao_id' => $requisicao->id,

@@ -34,7 +34,9 @@ class PosicaoEstoque extends Component
             $posicao = $posicao->where('em_alerta', true)->values();
         }
 
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
         $unidades = DB::table('unidades')
+            ->where('tenant_id', auth()->user()->getActiveTenantId())
             ->whereNull('deleted_at')
             ->orderBy('nome')
             ->select('id', 'nome')

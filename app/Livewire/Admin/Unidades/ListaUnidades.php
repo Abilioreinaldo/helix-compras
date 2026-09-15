@@ -5,10 +5,12 @@ namespace App\Livewire\Admin\Unidades;
 use App\Enums\StatusUnidade;
 use App\Enums\TipoUnidade;
 use App\Models\Obra;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -24,6 +26,7 @@ class ListaUnidades extends Component
 
     public bool $mostrarModal = false;
 
+    #[Locked]
     public ?int $editandoId = null;
 
     // Campos da unidade
@@ -99,7 +102,7 @@ class ListaUnidades extends Component
             'tipo' => ['required', Rule::in(array_column(TipoUnidade::cases(), 'value'))],
             'cnpj' => 'nullable|string|max:14',
             'endereco' => 'nullable|string|max:500',
-            'gestorId' => 'nullable|exists:users,id',
+            'gestorId' => ['nullable', Rule::exists('users', 'id')->where('tenant_id', auth()->user()->getActiveTenantId())->whereNull('deleted_at')],
             'status' => ['required', Rule::in(array_column(StatusUnidade::cases(), 'value'))],
             'obraVerba' => 'nullable|numeric|min:0',
             'obraPrevisaoTermino' => 'nullable|date',
@@ -160,7 +163,7 @@ class ListaUnidades extends Component
     /** Unidades SEMPRE escopadas ao tenant ativo (a tela de admin não cruza tenants). */
     private function unidadesDoTenant()
     {
-        return Unidade::withoutGlobalScopes()
+        return Unidade::withoutGlobalScope(UnidadeScope::class)
             ->where('tenant_id', auth()->user()->getActiveTenantId());
     }
 

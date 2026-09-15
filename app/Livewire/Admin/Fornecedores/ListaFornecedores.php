@@ -3,8 +3,10 @@
 namespace App\Livewire\Admin\Fornecedores;
 
 use App\Models\Fornecedor;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,6 +22,7 @@ class ListaFornecedores extends Component
 
     public bool $mostrarModal = false;
 
+    #[Locked]
     public ?int $editandoId = null;
 
     // Campos do formulário
@@ -128,6 +131,14 @@ class ListaFornecedores extends Component
             'homologado' => true,
             'homologado_em' => now(),
             'homologado_por' => auth()->id(),
+        ]);
+
+        // ESCOPO (D10): homologar fornecedor é decisão relevante — evento + audit_log da foundation.
+        app(ActivityRecorder::class)->record('compras.fornecedor_homologado', $fornecedor, $fornecedor->tenant_id, [
+            'actor_id' => auth()->id(),
+            'old' => ['homologado' => false],
+            'new' => ['homologado' => true],
+            'metadata' => ['cnpj' => $fornecedor->cnpj, 'razao_social' => $fornecedor->razao_social],
         ]);
 
         $this->dispatch('notify', mensagem: 'Fornecedor homologado.');

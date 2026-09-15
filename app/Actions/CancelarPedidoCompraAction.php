@@ -7,6 +7,7 @@ use App\Enums\StatusRequisicao;
 use App\Models\ItemPedidoCompra;
 use App\Models\PedidoCompra;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +66,7 @@ class CancelarPedidoCompraAction
                         ->exists();
 
                     if (! $temOutroPC) {
-                        $requisicao = Requisicao::withoutGlobalScopes()->find($requisicaoId);
+                        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->find($requisicaoId);
                         if ($requisicao && $requisicao->status === StatusRequisicao::EmCompra) {
                             $this->transicionar->execute(
                                 $requisicao,

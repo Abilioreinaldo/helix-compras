@@ -6,6 +6,7 @@ use App\Actions\MarcarCotacaoVencedoraAction;
 use App\Enums\Perfil;
 use App\Models\Cotacao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -25,7 +26,7 @@ class MapaCotacao extends Component
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
-        $this->requisicao = Requisicao::withoutGlobalScopes()
+        $this->requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['unidade', 'itens'])
             ->findOrFail($requisicaoId);
     }

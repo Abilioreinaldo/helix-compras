@@ -8,7 +8,9 @@ use App\Mail\PedidoCompraEmitido;
 use App\Models\Cotacao;
 use App\Models\PedidoCompra;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
+use App\Support\SequenciaAnualPorTenant;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +31,7 @@ class EmitirPedidoCompraAction
         $pedido = DB::transaction(function () use ($pedido, $emissor) {
             // Lock pessimista: evita emissão dupla concorrente (e pagamento duplicado).
             // withoutGlobalScopes: o pedido já foi autorizado pelo chamador; o lock é por PK.
-            $pedido = PedidoCompra::withoutGlobalScopes()->lockForUpdate()->findOrFail($pedido->id);
+            $pedido = PedidoCompra::withoutGlobalScope(UnidadeScope::class)->lockForUpdate()->findOrFail($pedido->id);
 
             if ($pedido->status !== StatusPedidoCompra::Rascunho) {
                 throw ValidationException::withMessages([
@@ -59,7 +61,7 @@ class EmitirPedidoCompraAction
                 }
             }
 
-            $fornecedor = $pedido->fornecedor()->withoutGlobalScopes()->first();
+            $fornecedor = $pedido->fornecedor()->first();
             if (! $fornecedor || ! $fornecedor->homologado || ! $fornecedor->ativo) {
                 throw ValidationException::withMessages([
                     'fornecedor' => 'O fornecedor não está homologado ou ativo.',
@@ -72,25 +74,9 @@ class EmitirPedidoCompraAction
                 $this->validarLimiteDesmembramento($pedido, $requisicaoId, $itens);
             }
 
-            // Gerar número com lock na sequência anual
+            // Número: sequência anual POR TENANT (lock na linha do tenant — ver SequenciaAnualPorTenant).
             $ano = (int) now()->year;
-            $seq = DB::table('sequencias_pedido_compra')->where('ano', $ano)->lockForUpdate()->first();
-
-            if ($seq === null) {
-                DB::table('sequencias_pedido_compra')->insertOrIgnore([
-                    'ano' => $ano,
-                    'ultimo_numero' => 0,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                $seq = DB::table('sequencias_pedido_compra')->where('ano', $ano)->lockForUpdate()->first();
-            }
-
-            $proximo = $seq->ultimo_numero + 1;
-            DB::table('sequencias_pedido_compra')->where('ano', $ano)->update([
-                'ultimo_numero' => $proximo,
-                'updated_at' => now(),
-            ]);
+            $proximo = app(SequenciaAnualPorTenant::class)->proximo('sequencias_pedido_compra', (string) $pedido->tenant_id, $ano);
 
             $numero = sprintf('PC-%04d-%04d', $ano, $proximo);
 
@@ -108,7 +94,7 @@ class EmitirPedidoCompraAction
 
             // Transicionar cada requisição vinculada para EmCompra
             foreach ($requisicaoIds as $requisicaoId) {
-                $requisicao = Requisicao::withoutGlobalScopes()->find($requisicaoId);
+                $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->find($requisicaoId);
                 if ($requisicao && $requisicao->status === StatusRequisicao::Aprovada) {
                     $this->transicionar->execute(
                         $requisicao,
@@ -137,7 +123,7 @@ class EmitirPedidoCompraAction
     {
         $requisicaoIds = $pedido->itens->pluck('requisicao_id')->unique();
 
-        Requisicao::withoutGlobalScopes()
+        Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->whereIn('id', $requisicaoIds)
             ->with('solicitante')
             ->get()
@@ -178,7 +164,7 @@ class EmitirPedidoCompraAction
         $teto = (float) $cotacaoValor;
 
         if ($total > $teto + 0.005) {
-            $codigo = Requisicao::withoutGlobalScopes()->find($requisicaoId)?->codigo ?? "#$requisicaoId";
+            $codigo = Requisicao::withoutGlobalScope(UnidadeScope::class)->find($requisicaoId)?->codigo ?? "#$requisicaoId";
             throw ValidationException::withMessages([
                 'desmembramento' => "Valor total dos pedidos para {$codigo} (R$ ".number_format($total, 2, ',', '.').') excede o valor aprovado (R$ '.number_format($teto, 2, ',', '.').').', ]);
         }

@@ -36,8 +36,12 @@ class TempoAprovacao extends Component
             $duracaoHoras = '(julianday(r.aprovada_em) - julianday(r.aprovacao_iniciada_em)) * 24';
         }
 
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $resultados = DB::table('requisicoes as r')
             ->leftJoin('faixas_alcada as fa', 'fa.id', '=', 'r.faixa_alcada_id')
+            ->where('r.tenant_id', $tenantId)
             ->where('r.status', StatusRequisicao::Aprovada->value)
             ->whereNull('r.deleted_at')
             ->whereNotNull('r.aprovacao_iniciada_em')

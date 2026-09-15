@@ -5,11 +5,15 @@ namespace App\Livewire\Requisicoes;
 use App\Actions\TransicionarStatusRequisicaoAction;
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class DetalheRequisicao extends Component
 {
+    // Locked: identidade da requisição vem do servidor (mount); o cliente não reaponta.
+    #[Locked]
     public int $id;
 
     public string $motivoCancelamento = '';
@@ -43,7 +47,7 @@ class DetalheRequisicao extends Component
 
     private function carregarRequisicao(): Requisicao
     {
-        $requisicao = Requisicao::withoutGlobalScopes()
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade', 'centroCusto', 'obra', 'faixaAlcada.etapas', 'itens', 'logs.usuario'])
             ->findOrFail($this->id);
 

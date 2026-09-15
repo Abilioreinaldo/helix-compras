@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -35,9 +36,11 @@ class UnidadeScope implements Scope
             return;
         }
 
-        // Query direta na pivot para evitar recursão (a relação unidades() aplicaria este mesmo scope)
+        // Query direta na pivot para evitar recursão (a relação unidades() aplicaria este mesmo scope).
+        // Só vínculos do tenant ativo contam (defesa em profundidade além do escopo de tenant).
         $ids = DB::table('unidade_user')
             ->where('user_id', $user->getKey())
+            ->when(TenantContext::id(), fn ($q, $tenantId) => $q->where('tenant_id', $tenantId))
             ->pluck('unidade_id');
 
         if ($ids->isEmpty()) {

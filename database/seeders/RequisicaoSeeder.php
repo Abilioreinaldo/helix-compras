@@ -6,6 +6,7 @@ use App\Enums\StatusRequisicao;
 use App\Models\CentroCusto;
 use App\Models\FaixaAlcada;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -15,8 +16,8 @@ class RequisicaoSeeder extends Seeder
     public function run(): void
     {
         $admin = User::where('is_admin', true)->first();
-        $unidade = Unidade::withoutGlobalScopes()->first();
-        $centro = CentroCusto::withoutGlobalScopes()->first();
+        $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->first();
+        $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->first();
 
         if (! $admin || ! $unidade || ! $centro) {
             return;

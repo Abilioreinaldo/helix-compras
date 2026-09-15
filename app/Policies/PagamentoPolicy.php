@@ -11,8 +11,10 @@ use App\Models\User;
  * ...podeGerenciarPagamentos()) pelos componentes Livewire. NÃO muda a regra:
  * delega aos helpers de papel do User (papel global `financeiro` ou admin).
  *
- * Pagamentos são globais por papel — a tabela `pagamentos` não tem
- * unidade_id/tenant_id (ver PLANO.md, "Nota de revisão de plataforma").
+ * Pagamentos são globais por papel (a leitura é escopada por tenant pelo
+ * BelongsToTenant do model). O admin do tenant entra porque hasPermission()
+ * da fundação já o contempla — não depende mais do Gate::before (v0.1.9 não
+ * dá bypass em abilities sem ponto).
  */
 class PagamentoPolicy
 {

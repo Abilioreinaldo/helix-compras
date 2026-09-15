@@ -25,12 +25,18 @@ class ConsumoUnidade extends Component
 
         // Consumo = saídas de estoque (RIM). A unidade vem do saldo de origem.
         // Apenas tipo 'saida' entra — entrada/ajuste/fusão não são consumo.
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $resultados = DB::table('movimentacoes_estoque as m')
             ->join('saldos_estoque as s', 's.id', '=', 'm.saldo_estoque_id')
             ->join('unidades as u', function ($join) {
                 $join->on('u.id', '=', 's.unidade_id')
                     ->whereNull('u.deleted_at');
             })
+            ->where('m.tenant_id', $tenantId)
+            ->where('s.tenant_id', $tenantId)
+            ->where('u.tenant_id', $tenantId)
             ->where('m.tipo', TipoMovimentacao::Saida->value)
             ->whereYear('m.created_at', $this->ano)
             ->when($this->mes > 0, fn ($q) => $q->whereMonth('m.created_at', $this->mes))

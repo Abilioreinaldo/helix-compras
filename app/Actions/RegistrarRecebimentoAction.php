@@ -9,6 +9,7 @@ use App\Models\ItemRecebimento;
 use App\Models\PedidoCompra;
 use App\Models\Recebimento;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
@@ -138,7 +139,7 @@ class RegistrarRecebimentoAction
             return;
         }
 
-        $requisicao = Requisicao::withoutGlobalScopes()->find($requisicaoId);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->find($requisicaoId);
 
         if (! $requisicao || $requisicao->status !== StatusRequisicao::EmCompra) {
             return;
@@ -161,7 +162,7 @@ class RegistrarRecebimentoAction
 
     private function notificarSolicitantes(Recebimento $recebimento): void
     {
-        $pedido = PedidoCompra::withoutGlobalScopes()->with('itens')->find($recebimento->pedido_compra_id);
+        $pedido = PedidoCompra::withoutGlobalScope(UnidadeScope::class)->with('itens')->find($recebimento->pedido_compra_id);
 
         if (! $pedido) {
             return;
@@ -169,7 +170,7 @@ class RegistrarRecebimentoAction
 
         $requisicaoIds = $pedido->itens->pluck('requisicao_id')->unique();
 
-        Requisicao::withoutGlobalScopes()
+        Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->whereIn('id', $requisicaoIds)
             ->where('status', StatusRequisicao::Concluida->value)
             ->with('solicitante')

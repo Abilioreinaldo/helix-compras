@@ -4,9 +4,12 @@ namespace App\Models;
 
 use App\Enums\Perfil;
 use App\Models\Concerns\Auditavel;
+use App\Models\Scopes\UnidadeScope;
 use Database\Factories\EstoqueMinimoFactory;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -85,6 +88,8 @@ class EstoqueMinimo extends ComprasModel
             return [];
         }
 
+        $tenantId = TenantContext::id();
+
         return DB::table('estoque_minimos as em')
             ->join('unidades as u', function ($join) {
                 $join->on('u.id', '=', 'em.unidade_id')
@@ -96,17 +101,15 @@ class EstoqueMinimo extends ComprasModel
                     ->where('ci.ativo', 1);
             })
             ->leftJoinSub(
-                DB::table('saldos_estoque')
-                    ->select('unidade_id', 'item_catalogo_id', DB::raw('SUM(quantidade) as saldo_total'))
-                    ->whereNotNull('item_catalogo_id')
-                    ->whereNull('fundido_para_id')
-                    ->groupBy('unidade_id', 'item_catalogo_id'),
+                static::saldosPorUnidadeEItem($tenantId),
                 's',
                 function ($join) {
                     $join->on('s.unidade_id', '=', 'em.unidade_id')
                         ->on('s.item_catalogo_id', '=', 'em.item_catalogo_id');
                 }
             )
+            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+            ->when($tenantId !== null, fn ($q) => $q->where('em.tenant_id', $tenantId)->where('u.tenant_id', $tenantId))
             ->whereIn('em.unidade_id', $unidadeIds)
             ->whereRaw('COALESCE(s.saldo_total, 0) < em.quantidade_minima')
             ->pluck('em.item_catalogo_id')
@@ -139,6 +142,8 @@ class EstoqueMinimo extends ComprasModel
             return collect();
         }
 
+        $tenantId = TenantContext::id();
+
         $query = DB::table('saldos_estoque as s')
             ->join('unidades as u', function ($join) {
                 $join->on('u.id', '=', 's.unidade_id')
@@ -148,6 +153,8 @@ class EstoqueMinimo extends ComprasModel
                 $join->on('em.unidade_id', '=', 's.unidade_id')
                     ->on('em.item_catalogo_id', '=', 's.item_catalogo_id');
             })
+            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+            ->when($tenantId !== null, fn ($q) => $q->where('s.tenant_id', $tenantId)->where('u.tenant_id', $tenantId))
             ->whereNull('s.fundido_para_id')
             ->select([
                 's.id as saldo_id',
@@ -180,6 +187,17 @@ class EstoqueMinimo extends ComprasModel
 
     // â”€â”€â”€ Helpers privados â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+    /** Subquery de saldo agregado por (unidade, item), recortada pelo tenant quando há contexto. */
+    private static function saldosPorUnidadeEItem(?string $tenantId): Builder
+    {
+        return DB::table('saldos_estoque')
+            ->select('unidade_id', 'item_catalogo_id', DB::raw('SUM(quantidade) as saldo_total'))
+            ->when($tenantId !== null, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->whereNotNull('item_catalogo_id')
+            ->whereNull('fundido_para_id')
+            ->groupBy('unidade_id', 'item_catalogo_id');
+    }
+
     /**
      * Resolve os IDs de unidade para o usuÃ¡rio.
      * Retorna null quando podeVerTodasUnidades (sem filtro); Collection quando Almoxarife.
@@ -193,7 +211,7 @@ class EstoqueMinimo extends ComprasModel
         }
 
         return $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->pluck('unidades.id');
     }
@@ -206,6 +224,8 @@ class EstoqueMinimo extends ComprasModel
      */
     private static function queryItensARepor(?array $unidadeIds): Collection
     {
+        $tenantId = TenantContext::id();
+
         $query = DB::table('estoque_minimos as em')
             ->join('unidades as u', function ($join) {
                 $join->on('u.id', '=', 'em.unidade_id')
@@ -217,17 +237,15 @@ class EstoqueMinimo extends ComprasModel
                     ->where('ci.ativo', 1);
             })
             ->leftJoinSub(
-                DB::table('saldos_estoque')
-                    ->select('unidade_id', 'item_catalogo_id', DB::raw('SUM(quantidade) as saldo_total'))
-                    ->whereNotNull('item_catalogo_id')
-                    ->whereNull('fundido_para_id')
-                    ->groupBy('unidade_id', 'item_catalogo_id'),
+                static::saldosPorUnidadeEItem($tenantId),
                 's',
                 function ($join) {
                     $join->on('s.unidade_id', '=', 'em.unidade_id')
                         ->on('s.item_catalogo_id', '=', 'em.item_catalogo_id');
                 }
             )
+            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+            ->when($tenantId !== null, fn ($q) => $q->where('em.tenant_id', $tenantId)->where('u.tenant_id', $tenantId))
             ->select([
                 'em.unidade_id',
                 'u.nome as unidade_nome',

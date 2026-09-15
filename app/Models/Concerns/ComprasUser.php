@@ -3,7 +3,10 @@
 namespace App\Models\Concerns;
 
 use App\Enums\Perfil;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
+use App\Models\UnidadeUser;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
@@ -18,12 +21,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 trait ComprasUser
 {
-    /** Unidades às quais o usuário está vinculado, com perfil e nível de alçada. */
+    /**
+     * Unidades às quais o usuário está vinculado, com perfil e nível de alçada.
+     *
+     * O pivot (UnidadeUser) carimba `tenant_id` a partir da unidade; com tenant no
+     * contexto, só vínculos DESTE tenant contam (defesa em profundidade além do
+     * escopo de tenant da própria Unidade).
+     */
     public function unidades(): BelongsToMany
     {
-        return $this->belongsToMany(Unidade::class, 'unidade_user')
-            ->withPivot(['perfil', 'nivel_alcada'])
+        $relacao = $this->belongsToMany(Unidade::class, 'unidade_user')
+            ->using(UnidadeUser::class)
+            ->withPivot(['tenant_id', 'perfil', 'nivel_alcada'])
             ->withTimestamps();
+
+        if (($tenantId = TenantContext::id()) !== null) {
+            $relacao->wherePivot('tenant_id', $tenantId);
+        }
+
+        return $relacao;
     }
 
     /**
@@ -37,9 +53,8 @@ trait ComprasUser
             Perfil::Admin => $this->isAdminForActiveTenant(),
             Perfil::CompradoraSenior => $this->hasPermission('compras.manage'),
             Perfil::Financeiro => $this->hasPermission('pagamentos.manage'),
-            default => $this->belongsToMany(Unidade::class, 'unidade_user')
-                ->withoutGlobalScopes()
-                ->withPivot('perfil')
+            default => $this->unidades()
+                ->withoutGlobalScope(UnidadeScope::class)
                 ->wherePivot('perfil', $perfil->value)
                 ->exists(),
         };

@@ -5,6 +5,7 @@ namespace App\Actions;
 use App\Enums\Perfil;
 use App\Enums\StatusRequisicaoMaterial;
 use App\Models\RequisicaoMaterial;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -31,7 +32,7 @@ class RecusarRequisicaoMaterialAction
 
         // Valida que o almoxarife pertence à unidade da RIM
         $pertenceAUnidade = $almoxarife->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->where('unidades.id', $rim->unidade_id)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->exists();

@@ -5,7 +5,9 @@ namespace App\Livewire\Admin\Alcadas;
 use App\Enums\NivelAlcada;
 use App\Models\EtapaAlcada;
 use App\Models\FaixaAlcada;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -15,6 +17,7 @@ class ListaAlcadas extends Component
 
     public bool $mostrarModal = false;
 
+    #[Locked]
     public ?int $editandoId = null;
 
     // Campos da faixa
@@ -94,8 +97,11 @@ class ListaAlcadas extends Component
             'ativo' => true,
         ];
 
+        $anterior = null;
+
         if ($this->editandoId) {
-            $faixa = FaixaAlcada::findOrFail($this->editandoId);
+            $faixa = FaixaAlcada::with('etapas')->findOrFail($this->editandoId);
+            $anterior = $this->snapshot($faixa);
             $faixa->update($dadosFaixa);
             $faixa->etapas()->delete();
         } else {
@@ -110,6 +116,9 @@ class ListaAlcadas extends Component
             ]);
         }
 
+        // ESCOPO (D10): mudar alçada altera quem aprova o quê — evento + audit_log da foundation.
+        $this->registrarAlteracao($faixa->fresh('etapas'), $anterior, $anterior === null ? 'criada' : 'editada');
+
         $this->mostrarModal = false;
         $this->dispatch('notify', mensagem: 'Alçada salva com sucesso.');
     }
@@ -117,10 +126,37 @@ class ListaAlcadas extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        $faixa = FaixaAlcada::findOrFail($id);
+        $faixa = FaixaAlcada::with('etapas')->findOrFail($id);
+        $anterior = $this->snapshot($faixa);
         $faixa->etapas()->delete();
         $faixa->delete();
+
+        $this->registrarAlteracao($faixa, $anterior, 'removida');
+
         $this->dispatch('notify', mensagem: 'Alçada removida.');
+    }
+
+    /** Dual-write da foundation (evento `compras.alcada_alterada` + audit_log) com o diff da faixa. */
+    private function registrarAlteracao(FaixaAlcada $faixa, ?array $anterior, string $operacao): void
+    {
+        app(ActivityRecorder::class)->record('compras.alcada_alterada', $faixa, $faixa->tenant_id, [
+            'actor_id' => auth()->id(),
+            'old' => $anterior ?? [],
+            'new' => $operacao === 'removida' ? [] : $this->snapshot($faixa),
+            'metadata' => ['operacao' => $operacao, 'faixa_alcada_id' => $faixa->id],
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function snapshot(FaixaAlcada $faixa): array
+    {
+        return [
+            'nome' => $faixa->nome,
+            'valor_minimo' => (float) $faixa->valor_minimo,
+            'valor_maximo' => $faixa->valor_maximo !== null ? (float) $faixa->valor_maximo : null,
+            'is_emergencial' => (bool) $faixa->is_emergencial,
+            'etapas' => $faixa->etapas->map(fn ($e) => ['ordem' => $e->ordem, 'nivel_exigido' => $e->nivel_exigido->value])->values()->all(),
+        ];
     }
 
     public function render(): View

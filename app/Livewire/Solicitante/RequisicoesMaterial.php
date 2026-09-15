@@ -6,7 +6,9 @@ use App\Enums\Perfil;
 use App\Enums\StatusRequisicaoMaterial;
 use App\Models\RequisicaoMaterial;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -45,7 +47,7 @@ class RequisicoesMaterial extends Component
         abort_unless(auth()->user()->temPerfil(Perfil::Solicitante), 403);
 
         $this->validate([
-            'saldoEstoqueId' => ['required', 'integer', 'exists:saldos_estoque,id'],
+            'saldoEstoqueId' => ['required', 'integer', Rule::exists('saldos_estoque', 'id')->where('tenant_id', auth()->user()->getActiveTenantId())],
             'quantidadeSolicitada' => ['required', 'numeric', 'min:0.001'],
             'justificativa' => ['required', 'string', 'min:5'],
         ], [
@@ -60,7 +62,7 @@ class RequisicoesMaterial extends Component
 
         // Garante que o saldo pertence a uma unidade do solicitante
         $saldo = SaldoEstoque::whereNull('fundido_para_id')
-            ->whereIn('unidade_id', $usuario->unidades()->withoutGlobalScopes()->pluck('unidades.id'))
+            ->whereIn('unidade_id', $usuario->unidades()->withoutGlobalScope(UnidadeScope::class)->pluck('unidades.id'))
             ->findOrFail($this->saldoEstoqueId);
 
         RequisicaoMaterial::create([
@@ -97,7 +99,7 @@ class RequisicoesMaterial extends Component
             ->paginate(15);
 
         $unidadeIds = $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->pluck('unidades.id');
 
         $saldosDisponiveis = SaldoEstoque::whereIn('unidade_id', $unidadeIds)

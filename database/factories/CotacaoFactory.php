@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Cotacao;
 use App\Models\Fornecedor;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -18,7 +19,7 @@ class CotacaoFactory extends Factory
      */
     public function definition(): array
     {
-        $requisicao = Requisicao::withoutGlobalScopes()->first() ?? Requisicao::factory()->create();
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->first() ?? Requisicao::factory()->create();
         $fornecedor = Fornecedor::first() ?? Fornecedor::factory()->homologado()->create();
         $criador = User::first() ?? User::factory()->create();
 

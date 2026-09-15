@@ -3,10 +3,12 @@
 namespace App\Livewire\Admin\CentrosCusto;
 
 use App\Models\CentroCusto;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -20,6 +22,7 @@ class ListaCentrosCusto extends Component
 
     public bool $mostrarModal = false;
 
+    #[Locked]
     public ?int $editandoId = null;
 
     // Campos do formulário
@@ -48,7 +51,7 @@ class ListaCentrosCusto extends Component
     public function abrirEditar(int $id): void
     {
         $this->resetValidation();
-        $centro = CentroCusto::withoutGlobalScopes()->findOrFail($id);
+        $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
         $this->editandoId = $id;
         $this->unidadeId = $centro->unidade_id;
         $this->codigo = $centro->codigo;
@@ -67,11 +70,13 @@ class ListaCentrosCusto extends Component
             ->whereNull('deleted_at')
             ->when($this->editandoId, fn ($rule) => $rule->ignore($this->editandoId));
 
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $this->validate([
-            'unidadeId' => 'required|exists:unidades,id',
+            'unidadeId' => ['required', Rule::exists('unidades', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
             'codigo' => ['required', 'string', 'max:30', $regraCodigoUnico],
             'nome' => 'required|string|max:150',
-            'gestorId' => 'nullable|exists:users,id',
+            'gestorId' => ['nullable', Rule::exists('users', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
             'ativo' => 'boolean',
         ], [
             'unidadeId.required' => 'A unidade é obrigatória.',
@@ -89,9 +94,9 @@ class ListaCentrosCusto extends Component
         ];
 
         if ($this->editandoId) {
-            CentroCusto::withoutGlobalScopes()->findOrFail($this->editandoId)->update($dados);
+            CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->editandoId)->update($dados);
         } else {
-            CentroCusto::withoutGlobalScopes()->create($dados);
+            CentroCusto::withoutGlobalScope(UnidadeScope::class)->create($dados);
         }
 
         $this->mostrarModal = false;
@@ -101,13 +106,13 @@ class ListaCentrosCusto extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        CentroCusto::withoutGlobalScopes()->findOrFail($id)->delete();
+        CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($id)->delete();
         $this->dispatch('notify', mensagem: 'Centro de custo removido.');
     }
 
     public function render(): View
     {
-        $centros = CentroCusto::withoutGlobalScopes()
+        $centros = CentroCusto::withoutGlobalScope(UnidadeScope::class)
             ->when($this->busca, fn ($q) => $q->where(function ($inner) {
                 $inner->where('codigo', 'like', "%{$this->busca}%")
                     ->orWhere('nome', 'like', "%{$this->busca}%");
@@ -117,7 +122,7 @@ class ListaCentrosCusto extends Component
             ->orderBy('codigo')
             ->paginate(15);
 
-        $unidades = Unidade::withoutGlobalScopes()->orderBy('nome')->get();
+        $unidades = Unidade::withoutGlobalScope(UnidadeScope::class)->orderBy('nome')->get();
         $usuarios = User::orderBy('name')->get();
 
         return view('livewire.admin.centros-custo.lista-centros-custo', compact('centros', 'unidades', 'usuarios'))

@@ -5,6 +5,7 @@ namespace App\Livewire\Almoxarife;
 use App\Enums\Perfil;
 use App\Enums\StatusPedidoCompra;
 use App\Models\PedidoCompra;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Livewire\Component;
@@ -26,11 +27,11 @@ class GestaoPedidosRecebimento extends Component
         $usuario = auth()->user();
 
         $unidadeIds = $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->pluck('unidades.id');
 
-        $pedidos = PedidoCompra::withoutGlobalScopes()
+        $pedidos = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['fornecedor', 'unidade'])
             ->where('status', StatusPedidoCompra::Emitido->value)
             ->whereIn('unidade_id', $unidadeIds)

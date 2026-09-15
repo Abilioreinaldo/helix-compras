@@ -9,12 +9,14 @@ use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
 use App\Models\LoteEstoque;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -30,8 +32,11 @@ class SaldosEstoque extends Component
 
     public bool $mostrarModalMinimo = false;
 
+    // Locked: identidades de saldo/item vêm do servidor (abrirModalMinimo); o cliente não reaponta.
+    #[Locked]
     public ?int $minimoSaldoId = null;
 
+    #[Locked]
     public ?int $minimoItemCatalogoId = null;
 
     public string $minimoDescricaoItem = '';
@@ -42,6 +47,7 @@ class SaldosEstoque extends Component
 
     // ─── Modal transferência entre unidades ───────────────────────────────────
 
+    #[Locked]
     public ?int $transferindoSaldoId = null;
 
     public string $transferDescricaoItem = '';
@@ -73,7 +79,7 @@ class SaldosEstoque extends Component
 
         // Restringe o saldo às unidades onde o usuário é Almoxarife — não vazar dados de outra unidade.
         $unidadeIds = auth()->user()->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->pluck('unidades.id');
 
@@ -111,10 +117,13 @@ class SaldosEstoque extends Component
     {
         $this->authorize('estoque.gerenciar');
 
+        // FKs validadas POR TENANT: unidade/item de outro tenant são "inexistentes" aqui.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $this->validate([
             'minimoQuantidade' => 'required|numeric|min:0',
-            'minimoUnidadeId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')],
-            'minimoItemCatalogoId' => ['required', Rule::exists('catalogo_itens', 'id')->whereNull('deleted_at')],
+            'minimoUnidadeId' => ['required', Rule::exists('unidades', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
+            'minimoItemCatalogoId' => ['required', Rule::exists('catalogo_itens', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
         ], [
             'minimoQuantidade.required' => 'Informe a quantidade mínima (0 para remover).',
             'minimoQuantidade.numeric' => 'A quantidade deve ser um número.',
@@ -122,8 +131,8 @@ class SaldosEstoque extends Component
         ]);
 
         // withoutGlobalScopes: o guard de autorização na action valida o vínculo do usuário
-        $unidade = Unidade::withoutGlobalScopes()->findOrFail((int) $this->minimoUnidadeId);
-        $item = CatalogoItem::withoutGlobalScopes()->findOrFail($this->minimoItemCatalogoId);
+        $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail((int) $this->minimoUnidadeId);
+        $item = CatalogoItem::query()->findOrFail($this->minimoItemCatalogoId);
 
         try {
             app(DefinirEstoqueMinimoAction::class)->execute(
@@ -171,17 +180,19 @@ class SaldosEstoque extends Component
         $this->authorize('estoque.gerenciar');
 
         $this->validate([
-            'transferDestinoId' => ['required', Rule::exists('unidades', 'id')->whereNull('deleted_at')],
+            // Destino validado POR TENANT: transferir para unidade de outro tenant é "inexistente".
+            'transferDestinoId' => ['required', Rule::exists('unidades', 'id')->where('tenant_id', auth()->user()->getActiveTenantId())->whereNull('deleted_at')],
             'transferQuantidade' => 'required|numeric|min:0.001',
             'transferMotivo' => 'nullable|string|max:1000',
         ], [
             'transferDestinoId.required' => 'Selecione a unidade de destino.',
+            'transferDestinoId.exists' => 'Unidade de destino inválida.',
             'transferQuantidade.required' => 'Informe a quantidade a transferir.',
         ]);
 
         // O saldo precisa pertencer a uma unidade onde o usuário é Almoxarife.
         $saldo = SaldoEstoque::whereIn('unidade_id', $this->unidadesDoAlmoxarife())->findOrFail($this->transferindoSaldoId);
-        $destino = Unidade::withoutGlobalScopes()->findOrFail((int) $this->transferDestinoId);
+        $destino = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail((int) $this->transferDestinoId);
 
         try {
             app(TransferirEstoqueAction::class)->execute(
@@ -205,7 +216,7 @@ class SaldosEstoque extends Component
     private function unidadesDoAlmoxarife()
     {
         return auth()->user()->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->pluck('unidades.id');
     }
@@ -217,7 +228,7 @@ class SaldosEstoque extends Component
         $usuario = auth()->user();
 
         $unidadeIds = $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->pluck('unidades.id');
 
@@ -246,7 +257,7 @@ class SaldosEstoque extends Component
         $validades = LoteEstoque::validadesVivasPorSaldo($saldos->pluck('id'));
 
         // Unidades de destino para transferência (rede inteira; a action bloqueia a própria origem).
-        $unidadesDestino = Unidade::withoutGlobalScopes()
+        $unidadesDestino = Unidade::withoutGlobalScope(UnidadeScope::class)
             ->whereNull('deleted_at')
             ->orderBy('nome')
             ->get(['id', 'nome']);

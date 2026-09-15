@@ -10,9 +10,11 @@ use App\Enums\StatusRequisicao;
 use App\Models\LoteEstoque;
 use App\Models\Requisicao;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -22,6 +24,8 @@ class TriagemRequisicoes extends Component
 
     public string $observacaoDevolucao = '';
 
+    // Locked: a requisição em devolução é apontada pelo servidor (abrirDevolucao); o cliente não reaponta.
+    #[Locked]
     public ?int $devolvendo = null;
 
     public string $erroAtendimentoEstoque = '';
@@ -36,7 +40,7 @@ class TriagemRequisicoes extends Component
     public function iniciarTriagem(int $id): void
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
-        $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($id);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::EmTriagem);
         $this->dispatch('notify', mensagem: 'Triagem iniciada.');
     }
@@ -44,7 +48,7 @@ class TriagemRequisicoes extends Component
     public function enviarParaCotacao(int $id): void
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
-        $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($id);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::EmCotacao);
         $this->dispatch('notify', mensagem: 'Requisição enviada para cotação.');
     }
@@ -55,6 +59,13 @@ class TriagemRequisicoes extends Component
         $this->observacaoDevolucao = '';
     }
 
+    public function cancelarDevolucao(): void
+    {
+        $this->devolvendo = null;
+        $this->observacaoDevolucao = '';
+        $this->resetValidation();
+    }
+
     public function confirmarDevolucao(): void
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
@@ -63,7 +74,7 @@ class TriagemRequisicoes extends Component
             'observacaoDevolucao.required' => 'Informe o motivo da devolução.',
         ]);
 
-        $requisicao = Requisicao::withoutGlobalScopes()->findOrFail($this->devolvendo);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->devolvendo);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::Devolvida, $this->observacaoDevolucao);
 
         $this->devolvendo = null;
@@ -126,7 +137,7 @@ class TriagemRequisicoes extends Component
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
         $this->erroAtendimentoEstoque = '';
-        $requisicao = Requisicao::withoutGlobalScopes()->with('itens')->findOrFail($id);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->with('itens')->findOrFail($id);
         $compradora = auth()->user();
 
         // Validação prévia: nenhum item avulso
@@ -191,7 +202,7 @@ class TriagemRequisicoes extends Component
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
         $this->erroExpressa = '';
-        $requisicao = Requisicao::withoutGlobalScopes()->with('itens')->findOrFail($id);
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->with('itens')->findOrFail($id);
 
         try {
             app(AtenderViaExpressaAction::class)->execute($requisicao, auth()->user());
@@ -204,7 +215,7 @@ class TriagemRequisicoes extends Component
 
     public function render(): View
     {
-        $requisicoes = Requisicao::withoutGlobalScopes()
+        $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade', 'centroCusto', 'itens'])
             ->whereIn('status', [StatusRequisicao::AguardandoTriagem->value, StatusRequisicao::EmTriagem->value])
             ->orderByRaw('CASE WHEN atrasada = 1 THEN 0 ELSE 1 END')

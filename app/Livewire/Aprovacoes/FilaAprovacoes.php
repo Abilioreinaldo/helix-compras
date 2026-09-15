@@ -8,6 +8,7 @@ use App\Enums\StatusAprovacao;
 use App\Enums\StatusRequisicao;
 use App\Models\FaixaAlcada;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -53,7 +54,7 @@ class FilaAprovacoes extends Component
 
         // Pares (unidade_id, nivel_alcada) em que o usuário é Aprovador
         $pares = $usuario->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Aprovador->value)
             ->whereNotNull('unidade_user.nivel_alcada')
             ->get()
@@ -64,7 +65,7 @@ class FilaAprovacoes extends Component
                     : $u->pivot->nivel_alcada,
             ]);
 
-        $requisicoes = Requisicao::withoutGlobalScopes()
+        $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade', 'faixaAlcada'])
             ->where('status', StatusRequisicao::AguardandoAprovacao->value)
             ->where(function ($q) use ($pares) {
@@ -86,7 +87,7 @@ class FilaAprovacoes extends Component
             ->paginate(15);
 
         // Opções de filtro (apenas unidades em que o usuário aprova).
-        $unidadesFiltro = Unidade::withoutGlobalScopes()
+        $unidadesFiltro = Unidade::withoutGlobalScope(UnidadeScope::class)
             ->whereIn('id', $pares->pluck('unidade_id')->unique()->values())
             ->orderBy('nome')
             ->get(['id', 'nome']);

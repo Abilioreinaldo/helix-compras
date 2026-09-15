@@ -21,7 +21,7 @@ class ProcessarRespostaCotacaoAction
     public function execute(MensagemEmail $mensagem): ?Cotacao
     {
         // 1) Idempotência: o mesmo e-mail (Message-ID) nunca gera dois registros.
-        if (Cotacao::withoutGlobalScopes()->where('email_externo_id', $mensagem->messageId)->exists()) {
+        if (Cotacao::withTrashed()->where('email_externo_id', $mensagem->messageId)->exists()) {
             Log::info('Resposta IMAP ignorada (Message-ID já processado).', ['message_id' => $mensagem->messageId]);
 
             return null;
@@ -34,7 +34,7 @@ class ProcessarRespostaCotacaoAction
             return null;
         }
 
-        $cotacao = Cotacao::withoutGlobalScopes()->with(['fornecedor', 'criador'])->find((int) $m[1]);
+        $cotacao = Cotacao::query()->with(['fornecedor', 'criador'])->find((int) $m[1]);
         if (! $cotacao) {
             Log::info('Resposta IMAP para cotação inexistente.', ['cotacao_id' => $m[1]]);
 

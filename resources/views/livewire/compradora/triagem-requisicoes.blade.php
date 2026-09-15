@@ -109,7 +109,7 @@
                     @error('observacaoDevolucao') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-3 mt-4">
-                    <button wire:click="$set('devolvendo', null)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
+                    <button wire:click="cancelarDevolucao" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
                     <button wire:click="confirmarDevolucao" class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors">

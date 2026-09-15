@@ -8,6 +8,7 @@ use App\Enums\StatusRequisicao;
 use App\Mail\RequisicaoReprovada;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
@@ -95,7 +96,7 @@ class ReprovarRequisicaoAction
     private function validarPermissao(User $aprovador, Requisicao $requisicao, Aprovacao $etapa): void
     {
         $temPermissao = $aprovador->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->where('unidades.id', $requisicao->unidade_id)
             ->wherePivot('perfil', Perfil::Aprovador->value)
             ->wherePivot('nivel_alcada', $etapa->nivel_exigido->value)

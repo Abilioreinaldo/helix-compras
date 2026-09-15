@@ -63,6 +63,8 @@ class ComprasEmergenciais extends Component
                 '=',
                 'r.id'
             )
+            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+            ->where('r.tenant_id', auth()->user()->getActiveTenantId())
             ->where('r.is_emergencial', true)
             ->where('r.status', '!=', StatusRequisicao::Cancelada->value)
             ->whereNull('r.deleted_at')

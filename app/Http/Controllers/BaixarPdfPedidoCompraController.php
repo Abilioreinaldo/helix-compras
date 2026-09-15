@@ -6,6 +6,7 @@ use App\Enums\Perfil;
 use App\Enums\StatusPedidoCompra;
 use App\Models\Aprovacao;
 use App\Models\PedidoCompra;
+use App\Models\Scopes\UnidadeScope;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 
@@ -15,7 +16,7 @@ class BaixarPdfPedidoCompraController extends Controller
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
-        $pedido = PedidoCompra::withoutGlobalScopes()
+        $pedido = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with([
                 'itens.itemRequisicao',
                 'itens.requisicao.solicitante',

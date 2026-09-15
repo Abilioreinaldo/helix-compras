@@ -10,9 +10,12 @@ use App\Mail\SolicitacaoCotacao;
 use App\Models\Cotacao;
 use App\Models\Fornecedor;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -21,6 +24,8 @@ class GestaoCotacoes extends Component
 {
     use WithFileUploads;
 
+    // Locked: a requisição em cotação é fixada no mount; o cliente não a reaponta.
+    #[Locked]
     public Requisicao $requisicao;
 
     public ?int $fornecedorId = null;
@@ -50,7 +55,7 @@ class GestaoCotacoes extends Component
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
-        $this->requisicao = Requisicao::withoutGlobalScopes()
+        $this->requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['cotacoes.fornecedor', 'cotacoes.criador', 'faixaAlcada'])
             ->findOrFail($id);
 
@@ -71,7 +76,8 @@ class GestaoCotacoes extends Component
         $usaItens = $precosPorItem !== [];
 
         $regras = [
-            'fornecedorId' => 'required|exists:fornecedores,id',
+            // FK validada POR TENANT: fornecedor de outro tenant é "inexistente" aqui.
+            'fornecedorId' => ['required', Rule::exists('fornecedores', 'id')->where('tenant_id', $this->requisicao->tenant_id)->whereNull('deleted_at')],
             'prazoEntregaDias' => 'nullable|integer|min:1',
             'validadeProposta' => 'nullable|date',
             'observacoes' => 'nullable|string|max:1000',
@@ -126,7 +132,7 @@ class GestaoCotacoes extends Component
 
         $this->validate([
             'fornecedoresSolicitar' => 'required|array|min:1',
-            'fornecedoresSolicitar.*' => 'integer|exists:fornecedores,id',
+            'fornecedoresSolicitar.*' => ['integer', Rule::exists('fornecedores', 'id')->where('tenant_id', $this->requisicao->tenant_id)->whereNull('deleted_at')],
         ], [
             'fornecedoresSolicitar.required' => 'Selecione ao menos um fornecedor.',
         ]);

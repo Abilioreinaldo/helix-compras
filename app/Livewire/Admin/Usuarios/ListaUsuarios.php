@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Usuarios;
 
 use App\Enums\NivelAlcada;
 use App\Enums\Perfil;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
@@ -11,6 +12,7 @@ use Helix\Foundation\Services\Platform\Identity\UserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -28,6 +30,8 @@ class ListaUsuarios extends Component
 
     public bool $mostrarModal = false;
 
+    // Locked: identidades de usuário vêm do servidor (abrirEditar/abrirVinculos); o cliente não reaponta.
+    #[Locked]
     public ?int $editandoId = null;
 
     public string $senhaProvisoria = '';
@@ -47,6 +51,7 @@ class ListaUsuarios extends Component
     // Modal de vínculos
     public bool $mostrarModalVinculos = false;
 
+    #[Locked]
     public ?int $usuarioVinculosId = null;
 
     public ?int $vincularUnidadeId = null;
@@ -189,13 +194,11 @@ class ListaUsuarios extends Component
     /**
      * Base de usuários SEMPRE escopada ao tenant ativo do admin — a
      * administração de usuários nunca cruza tenants (achado C2 da revisão).
-     * Mantém o bypass dos demais global scopes (soft delete etc.), só amarra
-     * o tenant.
+     * User não tem UnidadeScope nem BelongsToTenant: o filtro é explícito.
      */
     private function usuariosDoTenant()
     {
-        return User::withoutGlobalScopes()
-            ->where('tenant_id', auth()->user()->getActiveTenantId());
+        return User::query()->where('tenant_id', auth()->user()->getActiveTenantId());
     }
 
     public function render(): View
@@ -212,10 +215,10 @@ class ListaUsuarios extends Component
             ->paginate(15);
 
         $usuarioVinculos = $this->usuarioVinculosId
-            ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
+            ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScope(UnidadeScope::class)->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
             : null;
 
-        $todasUnidades = Unidade::withoutGlobalScopes()->where('tenant_id', $tenantId)->orderBy('nome')->get();
+        $todasUnidades = Unidade::withoutGlobalScope(UnidadeScope::class)->where('tenant_id', $tenantId)->orderBy('nome')->get();
         $papeisDisponiveis = Role::where('tenant_id', $tenantId)->orderByDesc('is_system')->orderBy('name')->get();
         $perfis = Perfil::porUnidade();
         $niveisAlcada = NivelAlcada::cases();

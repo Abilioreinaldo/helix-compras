@@ -7,6 +7,7 @@ use App\Models\FaixaAlcada;
 use App\Models\Obra;
 use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
+use App\Support\SequenciaAnualPorTenant;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -74,7 +75,11 @@ class SubmeterRequisicaoAction
                 ]);
             }
 
-            $codigo = 'REQ-'.now()->year.'-'.str_pad((string) $requisicao->id, 6, '0', STR_PAD_LEFT);
+            // Código: sequência anual POR TENANT (antes derivava do id global — vazava o
+            // volume da rede inteira entre tenants). Formato preservado: REQ-AAAA-NNNNNN.
+            $ano = (int) now()->year;
+            $sequencia = app(SequenciaAnualPorTenant::class)->proximo('sequencias_requisicao', (string) $requisicao->tenant_id, $ano);
+            $codigo = sprintf('REQ-%04d-%06d', $ano, $sequencia);
 
             // Via expressa: todos os itens catalogados com preço homologado válido
             // do mesmo fornecedor → dispensa cotação ad-hoc (a aprovação por alçada

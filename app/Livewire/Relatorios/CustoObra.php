@@ -23,9 +23,14 @@ class CustoObra extends Component
     {
         abort_unless(auth()->user()->can('relatorio.ver'), 403);
 
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         // Lista de obras disponíveis para o filtro (unidade.nome como nome da obra).
         $obras = DB::table('obras as o')
             ->join('unidades as un', 'un.id', '=', 'o.unidade_id')
+            ->where('o.tenant_id', $tenantId)
+            ->where('un.tenant_id', $tenantId)
             ->whereNull('un.deleted_at')
             ->orderBy('un.nome')
             ->select('o.id', 'un.nome')
@@ -44,6 +49,10 @@ class CustoObra extends Component
             ->join('requisicoes as r', 'r.id', '=', 'ipc.requisicao_id')
             ->join('obras as o', 'o.id', '=', 'r.obra_id')
             ->join('unidades as un', 'un.id', '=', 'o.unidade_id')
+            ->where('pc.tenant_id', $tenantId)
+            ->where('ipc.tenant_id', $tenantId)
+            ->where('r.tenant_id', $tenantId)
+            ->where('o.tenant_id', $tenantId)
             ->where('pc.status', StatusPedidoCompra::Emitido->value)
             ->whereNotNull('r.obra_id')
             ->whereNull('pc.deleted_at')

@@ -28,6 +28,7 @@ use App\Models\Recebimento;
 use App\Models\Requisicao;
 use App\Models\RequisicaoMaterial;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\SessaoInventario;
 use App\Models\Unidade;
 use App\Models\User;
@@ -47,7 +48,7 @@ class CargaMediaSeeder extends Seeder
         $almoxarife = User::where('email', 'almoxarife@comendador.com.br')->firstOrFail();
         $solicitante = User::where('email', 'solicitante@comendador.com.br')->firstOrFail();
 
-        $unidades = Unidade::withoutGlobalScopes()->get();
+        $unidades = Unidade::withoutGlobalScope(UnidadeScope::class)->get();
 
         // Almoxarife nomeado em TODAS as unidades (para ver/transferir saldos em todas).
         foreach ($unidades as $u) {
@@ -179,7 +180,7 @@ class CargaMediaSeeder extends Seeder
         foreach (range(1, 32) as $i) {
             $status = $statuses[$i % count($statuses)];
             $unidade = $unidades->random();
-            $centro = CentroCusto::withoutGlobalScopes()->where('unidade_id', $unidade->id)->inRandomOrder()->first();
+            $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->where('unidade_id', $unidade->id)->inRandomOrder()->first();
 
             $req = Requisicao::create([
                 'solicitante_id' => $solicitante->id,
@@ -248,7 +249,7 @@ class CargaMediaSeeder extends Seeder
     private function pedidosERecebimentos($unidades, User $compradora, User $almoxarife, $fornecedores): void
     {
         // Alguns PCs com itens vinculados a requisições aprovadas + recebimentos parciais/totais.
-        $reqsAprovadas = Requisicao::withoutGlobalScopes()
+        $reqsAprovadas = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->whereIn('status', [StatusRequisicao::Aprovada->value, StatusRequisicao::EmCompra->value, StatusRequisicao::Recebida->value])
             ->with('itens', 'cotacoes')
             ->take(8)->get();
@@ -301,7 +302,7 @@ class CargaMediaSeeder extends Seeder
 
     private function rim($unidades, User $solicitante, User $almoxarife): void
     {
-        $saldos = SaldoEstoque::withoutGlobalScopes()->whereNull('fundido_para_id')->where('quantidade', '>', 0)->inRandomOrder()->take(10)->get();
+        $saldos = SaldoEstoque::query()->whereNull('fundido_para_id')->where('quantidade', '>', 0)->inRandomOrder()->take(10)->get();
         foreach ($saldos as $saldo) {
             RequisicaoMaterial::create([
                 'unidade_id' => $saldo->unidade_id,
@@ -327,7 +328,7 @@ class CargaMediaSeeder extends Seeder
                 'aberta_por' => $almoxarife->id,
                 'status' => StatusInventario::EmAndamento->value,
             ]);
-            $saldos = SaldoEstoque::withoutGlobalScopes()->where('unidade_id', $u->id)->whereNull('fundido_para_id')->take(5)->get();
+            $saldos = SaldoEstoque::query()->where('unidade_id', $u->id)->whereNull('fundido_para_id')->take(5)->get();
             foreach ($saldos as $saldo) {
                 ItemInventario::create([
                     'sessao_inventario_id' => $sessao->id,
@@ -387,13 +388,13 @@ class CargaMediaSeeder extends Seeder
         // Algumas transferências reais (via action) entre unidades, em saldos sem lote.
         $acao = app(TransferirEstoqueAction::class);
         for ($i = 0; $i < 4; $i++) {
-            $origem = SaldoEstoque::withoutGlobalScopes()
+            $origem = SaldoEstoque::query()
                 ->whereNull('fundido_para_id')->where('quantidade', '>', 10)
                 ->inRandomOrder()->first();
             if (! $origem || $origem->controlaLote()) {
                 continue;
             }
-            $destino = Unidade::withoutGlobalScopes()->where('id', '!=', $origem->unidade_id)->inRandomOrder()->first();
+            $destino = Unidade::withoutGlobalScope(UnidadeScope::class)->where('id', '!=', $origem->unidade_id)->inRandomOrder()->first();
             if (! $destino) {
                 continue;
             }

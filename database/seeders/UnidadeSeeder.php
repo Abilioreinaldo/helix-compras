@@ -8,6 +8,7 @@ use App\Enums\TipoUnidade;
 use App\Models\EtapaAlcada;
 use App\Models\FaixaAlcada;
 use App\Models\Obra;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -27,7 +28,7 @@ class UnidadeSeeder extends Seeder
         $tenantId = $gestor->getAttributes()['tenant_id'];
 
         // --- Unidade 1: Obra ---
-        $unidadeObra = Unidade::withoutGlobalScopes()->create([
+        $unidadeObra = Unidade::withoutGlobalScope(UnidadeScope::class)->create([
             'tenant_id' => $tenantId,
             'nome' => 'Obra Expansão Norte',
             'tipo' => TipoUnidade::Obra->value,
@@ -46,7 +47,7 @@ class UnidadeSeeder extends Seeder
         ]);
 
         // --- Unidade 2: Posto ---
-        $unidadePosto = Unidade::withoutGlobalScopes()->create([
+        $unidadePosto = Unidade::withoutGlobalScope(UnidadeScope::class)->create([
             'tenant_id' => $tenantId,
             'nome' => 'Posto Comendador Centro',
             'tipo' => TipoUnidade::Posto->value,
@@ -57,7 +58,7 @@ class UnidadeSeeder extends Seeder
         ]);
 
         // --- Unidade 3: Central ---
-        $unidadeCentral = Unidade::withoutGlobalScopes()->create([
+        $unidadeCentral = Unidade::withoutGlobalScope(UnidadeScope::class)->create([
             'tenant_id' => $tenantId,
             'nome' => 'Central Administrativa',
             'tipo' => TipoUnidade::Central->value,
@@ -67,31 +68,36 @@ class UnidadeSeeder extends Seeder
             'status' => 'ativa',
         ]);
 
-        // --- Vínculos de usuários ---
+        // --- Vínculos de usuários (pivot com tenant_id: o UnidadeUser confere com o tenant da unidade) ---
         // Gestor vinculado à obra
         $unidadeObra->usuarios()->attach($gestor->id, [
+            'tenant_id' => $tenantId,
             'perfil' => Perfil::Aprovador->value,
             'nivel_alcada' => NivelAlcada::Gestor->value,
         ]);
 
         // Diretor vinculado à obra e ao posto
         $unidadeObra->usuarios()->attach($diretor->id, [
+            'tenant_id' => $tenantId,
             'perfil' => Perfil::Aprovador->value,
             'nivel_alcada' => NivelAlcada::Diretor->value,
         ]);
         $unidadePosto->usuarios()->attach($diretor->id, [
+            'tenant_id' => $tenantId,
             'perfil' => Perfil::Aprovador->value,
             'nivel_alcada' => NivelAlcada::Diretor->value,
         ]);
 
         // Solicitante na obra
         $unidadeObra->usuarios()->attach($solicitante->id, [
+            'tenant_id' => $tenantId,
             'perfil' => Perfil::Solicitante->value,
             'nivel_alcada' => null,
         ]);
 
         // Almoxarife no posto
         $unidadePosto->usuarios()->attach($almoxarife->id, [
+            'tenant_id' => $tenantId,
             'perfil' => Perfil::Almoxarife->value,
             'nivel_alcada' => null,
         ]);

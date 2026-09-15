@@ -50,8 +50,10 @@ class Unidade extends ComprasModel
      */
     public function usuarios(): BelongsToMany
     {
+        // Pivot UnidadeUser: carimba tenant_id (= tenant desta unidade) em todo attach/sync.
         return $this->belongsToMany(User::class, 'unidade_user')
-            ->withPivot(['perfil', 'nivel_alcada'])
+            ->using(UnidadeUser::class)
+            ->withPivot(['tenant_id', 'perfil', 'nivel_alcada'])
             ->withTimestamps();
     }
 }

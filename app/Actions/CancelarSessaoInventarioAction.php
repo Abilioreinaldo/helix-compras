@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Enums\Perfil;
 use App\Enums\StatusInventario;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\SessaoInventario;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +27,7 @@ class CancelarSessaoInventarioAction
         // Valida perfil: Admin (global) ou Almoxarife da unidade
         $autorizado = $canceladoPor->temPerfil(Perfil::Admin)
             || $canceladoPor->unidades()
-                ->withoutGlobalScopes()
+                ->withoutGlobalScope(UnidadeScope::class)
                 ->where('unidades.id', $sessao->unidade_id)
                 ->wherePivot('perfil', Perfil::Almoxarife->value)
                 ->exists();

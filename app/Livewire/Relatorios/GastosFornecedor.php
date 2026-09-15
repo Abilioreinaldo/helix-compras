@@ -27,9 +27,15 @@ class GastosFornecedor extends Component
 
         $porCategoria = $this->agrupamento === 'categoria';
 
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $query = DB::table('itens_pedido_compra as ipc')
             ->join('pedidos_compra as pc', 'pc.id', '=', 'ipc.pedido_compra_id')
             ->join('fornecedores as f', 'f.id', '=', 'pc.fornecedor_id')
+            ->where('pc.tenant_id', $tenantId)
+            ->where('ipc.tenant_id', $tenantId)
+            ->where('f.tenant_id', $tenantId)
             ->where('pc.status', StatusPedidoCompra::Emitido->value)
             ->whereNull('pc.deleted_at')
             ->whereNull('ipc.deleted_at')

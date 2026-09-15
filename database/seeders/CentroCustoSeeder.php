@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\CentroCusto;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use Illuminate\Database\Seeder;
 
@@ -13,10 +14,10 @@ class CentroCustoSeeder extends Seeder
      */
     public function run(): void
     {
-        $unidades = Unidade::withoutGlobalScopes()->get();
+        $unidades = Unidade::withoutGlobalScope(UnidadeScope::class)->get();
 
         foreach ($unidades as $unidade) {
-            CentroCusto::withoutGlobalScopes()->create([
+            CentroCusto::withoutGlobalScope(UnidadeScope::class)->create([
                 'unidade_id' => $unidade->id,
                 'codigo' => 'CC-001',
                 'nome' => 'Operacional',
@@ -24,7 +25,7 @@ class CentroCustoSeeder extends Seeder
                 'ativo' => true,
             ]);
 
-            CentroCusto::withoutGlobalScopes()->create([
+            CentroCusto::withoutGlobalScope(UnidadeScope::class)->create([
                 'unidade_id' => $unidade->id,
                 'codigo' => 'CC-002',
                 'nome' => 'Administrativo',

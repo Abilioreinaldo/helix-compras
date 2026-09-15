@@ -6,6 +6,7 @@ use App\Enums\Perfil;
 use App\Enums\StatusInventario;
 use App\Models\ItemInventario;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\SessaoInventario;
 use App\Models\Unidade;
 use App\Models\User;
@@ -24,7 +25,7 @@ class AbrirSessaoInventarioAction
         // Valida perfil: Admin (global) ou Almoxarife da unidade
         $autorizado = $abertoPor->temPerfil(Perfil::Admin)
             || $abertoPor->unidades()
-                ->withoutGlobalScopes()
+                ->withoutGlobalScope(UnidadeScope::class)
                 ->where('unidades.id', $unidade->id)
                 ->wherePivot('perfil', Perfil::Almoxarife->value)
                 ->exists();
@@ -37,7 +38,7 @@ class AbrirSessaoInventarioAction
             // Serializa aberturas concorrentes para a mesma unidade (evita TOCTOU): sem índice
             // único parcial portável SQLite/MySQL, o lock na linha da unidade garante exclusão
             // mútua entre dois almoxarifes abrindo sessão ao mesmo tempo.
-            Unidade::withoutGlobalScopes()->where('id', $unidade->id)->lockForUpdate()->first();
+            Unidade::withoutGlobalScope(UnidadeScope::class)->where('id', $unidade->id)->lockForUpdate()->first();
 
             // Guarda: não pode haver sessão em_andamento para mesma unidade+depósito
             $sessaoAtiva = SessaoInventario::where('unidade_id', $unidade->id)

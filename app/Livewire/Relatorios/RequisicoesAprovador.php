@@ -24,6 +24,9 @@ class RequisicoesAprovador extends Component
                     ->whereColumn('a.ciclo', 'r.ciclo_aprovacao');
             })
             ->join('users as u', 'u.id', '=', 'a.aprovador_id')
+            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+            ->where('a.tenant_id', auth()->user()->getActiveTenantId())
+            ->where('r.tenant_id', auth()->user()->getActiveTenantId())
             ->where('a.status', 'pendente')
             ->whereNull('a.deleted_at')
             ->whereNull('r.deleted_at')

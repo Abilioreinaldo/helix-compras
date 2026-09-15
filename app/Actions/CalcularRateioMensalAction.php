@@ -7,6 +7,7 @@ use App\Enums\TipoMovimentacao;
 use App\Models\MovimentacaoEstoque;
 use App\Models\RateioCentral;
 use App\Models\RateioUnidade;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -137,7 +138,7 @@ class CalcularRateioMensalAction
             ]);
         }
 
-        $unidades = Unidade::withoutGlobalScopes()->whereNull('deleted_at')->orderBy('id')->pluck('id');
+        $unidades = Unidade::withoutGlobalScope(UnidadeScope::class)->whereNull('deleted_at')->orderBy('id')->pluck('id');
 
         return $this->alocarMaiorResto($unidades, $consumoPorUnidade, $total, $valorCentral);
     }

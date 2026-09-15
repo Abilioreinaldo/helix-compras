@@ -6,9 +6,11 @@ use App\Actions\DescontoRateioAction;
 use App\Enums\Perfil;
 use App\Models\RateioCentral;
 use App\Models\RateioUnidade;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class RelatorioRateioMensalCentral extends Component
@@ -17,8 +19,10 @@ class RelatorioRateioMensalCentral extends Component
 
     public string $filtroAno = '';
 
+    #[Locked]
     public ?int $expandidoId = null;
 
+    #[Locked]
     public ?int $revertendoItemId = null;
 
     public string $motivoReversao = '';
@@ -84,7 +88,7 @@ class RelatorioRateioMensalCentral extends Component
     {
         // withoutGlobalScopes: perfil é vínculo global do usuário, não filtrado pela unidade da sessão.
         return auth()->user()->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->wherePivot('perfil', Perfil::Aprovador->value)
             ->pluck('unidades.id');
     }

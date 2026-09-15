@@ -6,15 +6,19 @@ use App\Actions\AprovarEtapaAction;
 use App\Actions\ReprovarRequisicaoAction;
 use App\Models\Aprovacao;
 use App\Models\Requisicao;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class PainelAprovacao extends Component
 {
     use AuthorizesRequests;
 
+    // Locked: identidade da requisição vem do servidor (mount); o cliente não reaponta.
+    #[Locked]
     public int $id;
 
     public string $justificativa = '';
@@ -94,7 +98,7 @@ class PainelAprovacao extends Component
 
     private function carregarRequisicao(): Requisicao
     {
-        $requisicao = Requisicao::withoutGlobalScopes()
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with([
                 'solicitante',
                 'unidade',

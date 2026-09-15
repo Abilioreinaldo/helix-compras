@@ -84,7 +84,7 @@ class IniciarAprovacaoAction
     private function resolverEtapas(Requisicao $requisicao): array
     {
         // FaixaAlcada é configuração global do admin; bypass necessário pois não pertence a uma unidade específica.
-        $faixa = $requisicao->faixaAlcada()->withoutGlobalScopes()->with('etapas')->first();
+        $faixa = $requisicao->faixaAlcada()->with('etapas')->first();
 
         $etapas = $faixa?->etapas->map(fn ($e) => [
             'etapa_alcada_id' => $e->id,
@@ -126,6 +126,7 @@ class IniciarAprovacaoAction
         return User::whereIn('id', function ($q) use ($requisicao, $nivel) {
             $q->select('user_id')
                 ->from('unidade_user')
+                ->where('tenant_id', $requisicao->tenant_id)
                 ->where('unidade_id', $requisicao->unidade_id)
                 ->where('perfil', Perfil::Aprovador->value)
                 ->where('nivel_alcada', $nivel->value);

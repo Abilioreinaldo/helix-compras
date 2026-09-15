@@ -25,6 +25,9 @@ class ComparativoUnidades extends Component
 
         // Gasto atribuído à UNIDADE DA REQUISIÇÃO (r.unidade_id), não à do pedido de
         // compra (pc.unidade_id) — decisão R5. O join é via ipc.requisicao_id → r.
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $resultados = DB::table('itens_pedido_compra as ipc')
             ->join('pedidos_compra as pc', 'pc.id', '=', 'ipc.pedido_compra_id')
             ->join('requisicoes as r', 'r.id', '=', 'ipc.requisicao_id')
@@ -32,6 +35,10 @@ class ComparativoUnidades extends Component
                 $join->on('un.id', '=', 'r.unidade_id')
                     ->whereNull('un.deleted_at');
             })
+            ->where('pc.tenant_id', $tenantId)
+            ->where('ipc.tenant_id', $tenantId)
+            ->where('r.tenant_id', $tenantId)
+            ->where('un.tenant_id', $tenantId)
             ->where('pc.status', StatusPedidoCompra::Emitido->value)
             ->whereNull('pc.deleted_at')
             ->whereNull('ipc.deleted_at')

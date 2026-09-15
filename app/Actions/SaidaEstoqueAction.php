@@ -8,6 +8,7 @@ use App\Models\CatalogoItem;
 use App\Models\LoteEstoque;
 use App\Models\MovimentacaoEstoque;
 use App\Models\SaldoEstoque;
+use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -55,7 +56,7 @@ class SaidaEstoqueAction
         // - CompradoraSenior: SOMENTE no contexto de atendimento direto ($atendimentoDireto=true).
         //   Sem esse contexto ela NÃO baixa saldo avulso.
         $almoxarifeDaUnidade = $registradoPor->unidades()
-            ->withoutGlobalScopes()
+            ->withoutGlobalScope(UnidadeScope::class)
             ->where('unidades.id', $saldo->unidade_id)
             ->wherePivot('perfil', Perfil::Almoxarife->value)
             ->exists();
@@ -74,7 +75,7 @@ class SaidaEstoqueAction
             // INVARIANTE DE LOCK: adquirir SaldoEstoque ANTES de qualquer LoteEstoque (ordem
             // consistente evita deadlock em MySQL). Toda action que toque ambos deve respeitar.
             // withoutGlobalScopes: relocking by id — unidade já foi verificada acima
-            $saldo = SaldoEstoque::withoutGlobalScopes()->where('id', $saldo->id)->lockForUpdate()->firstOrFail();
+            $saldo = SaldoEstoque::query()->where('id', $saldo->id)->lockForUpdate()->firstOrFail();
 
             $qtdDisponivel = (float) $saldo->quantidade;
 

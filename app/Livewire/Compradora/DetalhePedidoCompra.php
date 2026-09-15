@@ -5,12 +5,16 @@ namespace App\Livewire\Compradora;
 use App\Actions\CancelarPedidoCompraAction;
 use App\Enums\Perfil;
 use App\Models\PedidoCompra;
+use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 class DetalhePedidoCompra extends Component
 {
+    // Locked: identidade do pedido vem do servidor (mount); o cliente não reaponta.
+    #[Locked]
     public int $id;
 
     public bool $mostrarModalCancelar = false;
@@ -44,7 +48,7 @@ class DetalhePedidoCompra extends Component
 
     private function carregarPedido(): PedidoCompra
     {
-        return PedidoCompra::withoutGlobalScopes()
+        return PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['itens.requisicao', 'fornecedor', 'unidade', 'emissor'])
             ->findOrFail($this->id);
     }

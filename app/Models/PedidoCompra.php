@@ -7,6 +7,7 @@ use App\Enums\StatusPedidoCompra;
 use App\Enums\StatusRecebimentoPedido;
 use App\Models\Concerns\Auditavel;
 use App\Models\Concerns\PertenceAUnidade;
+use App\Models\Scopes\UnidadeScope;
 use Database\Factories\PedidoCompraFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -141,7 +142,7 @@ class PedidoCompra extends ComprasModel
         // MySQL (ONLY_FULL_GROUP_BY). A ordem dos ids nÃ£o importa para o whereIn.
         $ids = $this->itens()->reorder()->distinct()->pluck('requisicao_id');
 
-        return Requisicao::withoutGlobalScopes()->whereIn('id', $ids)->get();
+        return Requisicao::withoutGlobalScope(UnidadeScope::class)->whereIn('id', $ids)->get();
     }
 
     /**

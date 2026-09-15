@@ -12,6 +12,7 @@ use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -145,16 +146,19 @@ it('saldos_estoque_almoxarife_outra_unidade_nao_ve_saldos_nem_define_minimo', fu
     $saldos = $component->viewData('saldos');
     expect($saldos->total())->toBe(0);
 
-    // Tenta salvar mínimo para unidade1 diretamente via state (simula request forjado)
-    // A ação deve barrar porque almoxarife2 não tem vínculo com unidade1
+    // Tenta apontar o item do modal diretamente via state (request forjado): a
+    // identidade do saldo/item é #[Locked] — o Livewire rejeita a escrita.
+    expect(fn () => $component->set('minimoItemCatalogoId', $item->id))
+        ->toThrow(CannotUpdateLockedPropertyException::class);
+
+    // E mesmo com a unidade forjada, a action barra: almoxarife2 não tem vínculo com unidade1.
     $component
         ->set('minimoUnidadeId', (string) $unidade1->id)
-        ->set('minimoItemCatalogoId', $item->id)
         ->set('minimoDescricaoItem', $item->descricao)
         ->set('mostrarModalMinimo', true)
         ->set('minimoQuantidade', '5')
         ->call('salvarMinimo')
-        ->assertHasErrors(['minimoQuantidade']);
+        ->assertHasErrors(['minimoItemCatalogoId']);
 });
 
 it('saldos_estoque_403_sem_perfil_almoxarife', function () {
