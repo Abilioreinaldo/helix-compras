@@ -86,6 +86,7 @@ class MenuLateral extends Component
             $grupos['Administração'] = [
                 $this->item('Unidades', 'admin.unidades', 'building'),
                 $this->item('Usuários', 'admin.usuarios', 'users'),
+                $this->item('Papéis & Permissões', 'admin.papeis', 'scale'),
                 $this->item('Fornecedores', 'admin.fornecedores', 'truck'),
                 $this->item('Alçadas', 'admin.alcadas', 'scale'),
                 $this->item('Centros de Custo', 'admin.centros-custo', 'tag'),
