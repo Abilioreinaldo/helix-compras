@@ -40,7 +40,12 @@ class TempoAprovacao extends Component
         $tenantId = auth()->user()->getActiveTenantId();
 
         $resultados = DB::table('requisicoes as r')
-            ->leftJoin('faixas_alcada as fa', 'fa.id', '=', 'r.faixa_alcada_id')
+            // Tenant TAMBÉM na tabela juntada: sem isso o nome da faixa viria de
+            // outro tenant se um id de faixa se repetisse entre bases.
+            ->leftJoin('faixas_alcada as fa', function ($join) use ($tenantId) {
+                $join->on('fa.id', '=', 'r.faixa_alcada_id')
+                    ->where('fa.tenant_id', '=', $tenantId);
+            })
             ->where('r.tenant_id', $tenantId)
             ->where('r.status', StatusRequisicao::Aprovada->value)
             ->whereNull('r.deleted_at')

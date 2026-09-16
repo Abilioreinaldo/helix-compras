@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\DB;
  * próximo número é obtido com lock pessimista na linha do tenant (deve rodar
  * dentro da transação do chamador) — dois tenants nunca disputam a mesma linha
  * nem enxergam o volume um do outro pela numeração.
+ *
+ * ORDEM IMPORTA: `insertOrIgnore` PRIMEIRO, `lockForUpdate` depois — sempre sobre
+ * uma linha que já existe. Travar uma linha INEXISTENTE faz o InnoDB tomar um gap
+ * lock na faixa do índice, que é compartilhada por tenants vizinhos: dois tenants
+ * estreando a sequência no mesmo ano bloqueiam um ao outro e deadlockam. Mesmo
+ * padrão do CRM (ProposalService::generateNumber).
  */
 class SequenciaAnualPorTenant
 {
@@ -19,16 +25,16 @@ class SequenciaAnualPorTenant
     {
         $chave = ['tenant_id' => $tenantId, 'ano' => $ano];
 
-        $seq = DB::table($tabela)->where($chave)->lockForUpdate()->first();
+        // Garante a existência da linha SEM travar faixa (no-op se já existe).
+        DB::table($tabela)->insertOrIgnore($chave + [
+            'ultimo_numero' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        if ($seq === null) {
-            DB::table($tabela)->insertOrIgnore($chave + [
-                'ultimo_numero' => 0,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-            $seq = DB::table($tabela)->where($chave)->lockForUpdate()->first();
-        }
+        // Só então o lock pessimista, agora sobre uma linha existente: o bloqueio
+        // é de REGISTRO (a linha deste tenant), nunca de gap entre tenants.
+        $seq = DB::table($tabela)->where($chave)->lockForUpdate()->first();
 
         $proximo = (int) $seq->ultimo_numero + 1;
 

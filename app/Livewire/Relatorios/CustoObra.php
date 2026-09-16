@@ -53,6 +53,9 @@ class CustoObra extends Component
             ->where('ipc.tenant_id', $tenantId)
             ->where('r.tenant_id', $tenantId)
             ->where('o.tenant_id', $tenantId)
+            // `unidades` entra só pelo nome da obra — mas é uma tabela juntada como
+            // as outras e leva o mesmo recorte (como já faz a query de filtro acima).
+            ->where('un.tenant_id', $tenantId)
             ->where('pc.status', StatusPedidoCompra::Emitido->value)
             ->whereNotNull('r.obra_id')
             ->whereNull('pc.deleted_at')

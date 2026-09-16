@@ -40,10 +40,15 @@ use Helix\Foundation\Testing\Conformance\HelixConformance;
 */
 
 // Unidade/Requisicao/PedidoCompra também carregam o UnidadeScope (recorte POR UNIDADE,
-// fail-closed sem usuário). Para o teste de isolamento provar só a dimensão TENANT, um
-// superadmin (vê todas as unidades) fica autenticado; o tenant vem do runFor do kit.
+// fail-closed sem usuário). Para o teste de isolamento provar só a dimensão TENANT é
+// preciso um usuário que enxergue todas as unidades — mas NÃO um superadmin: ele
+// desliga o Gate::before (libera qualquer permissão) e transcende tenants, e o kit
+// passaria a medir um mundo privilegiado em vez do mundo real. Usamos a compradora
+// sênior, que chega a "todas as unidades" pela permissão de verdade (compras.manage)
+// e continua sujeita a policies, permissões e escopo de tenant. O tenant de cada
+// asserção vem do runFor do próprio kit. Ver KitConformidadeAtorTest.
 beforeEach(function () {
-    $this->actingAs(User::factory()->create(['is_superadmin' => true]));
+    $this->actingAs(User::factory()->compradora()->create());
 });
 
 $revalidadoNoTenant = 'select do cliente; revalidado a cada uso com Rule::exists(...)->where(tenant_id) e/ou findOrFail escopado pelo BelongsToTenant';
@@ -56,7 +61,11 @@ HelixConformance::forProduct('Compras', feature: 'compras')
     ->migrations('database/migrations')
 
     // (a) models com tenant_id fora do BelongsToTenant
-    ->allowModelWithoutTenantScope(User::class, 'users.tenant_id é o tenant HOME da identidade da fundação (membership multi-tenant em tenant_user); a administração filtra o tenant explicitamente (ListaUsuarios::usuariosDoTenant)')
+    // ATENÇÃO: `users.tenant_id` é o tenant HOME da identidade, NÃO "o tenant do
+    // usuário" — quem participa de uma empresa é a MEMBERSHIP (pivot tenant_user).
+    // Filtrar a administração pelo home era o defeito (achado ALTO da auditoria
+    // adversarial), não a correção: ver UsuariosMembershipTest.
+    ->allowModelWithoutTenantScope(User::class, 'users é a identidade COMPARTILHADA da suíte e não tem um tenant dono: users.tenant_id é só o tenant HOME. O recorte por empresa é a membership ativa no pivot tenant_user — é assim que a administração filtra (ListaUsuarios::usuariosDoTenant, whereExists em tenant_user) e é o mesmo critério da autorização (User::belongsToTenant)')
     ->allowModelWithoutTenantScope(UnidadeUser::class, 'pivot do vínculo usuário×unidade: tenant_id derivado da unidade no creating (UnidadeUser::booted, recusa cruzar tenants); lido só via relação com wherePivot(tenant_id) ou DB::table com where tenant_id explícito')
 
     // (c) actions sem permissão: operam só sobre a conta do próprio usuário autenticado

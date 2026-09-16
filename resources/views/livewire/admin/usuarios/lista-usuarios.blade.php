@@ -47,14 +47,19 @@
                             <td class="px-4 py-3 text-slate-300">{{ $usuario->name }}</td>
                             <td class="px-4 py-3 text-slate-400">{{ $usuario->email }}</td>
                             <td class="px-4 py-3">
+                                @php($ehAdmin = in_array($usuario->id, $adminsDoTenant, true))
+                                @php($ehConvidado = in_array($usuario->id, $convidados, true))
                                 <div class="flex flex-wrap gap-1">
-                                    @if ($usuario->is_admin)
+                                    @if ($ehAdmin)
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-violet-500/15 text-violet-400">Admin</span>
+                                    @endif
+                                    @if ($ehConvidado)
+                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-400" title="Identidade de outra empresa: aqui só o vínculo é gerenciável">Convidado</span>
                                     @endif
                                     @foreach ($usuario->roles as $papel)
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-sky-500/15 text-sky-400">{{ $papel->name }}</span>
                                     @endforeach
-                                    @if (! $usuario->is_admin && $usuario->roles->isEmpty())
+                                    @if (! $ehAdmin && $usuario->roles->isEmpty())
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-500/15 text-slate-300" title="Sem papel: só vê o que os vínculos por unidade liberam">Sem papel</span>
                                     @endif
                                 </div>
@@ -66,8 +71,10 @@
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
                                 <button wire:click="abrirVinculos({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-slate-700 transition-colors">Vínculos</button>
-                                <button wire:click="abrirEditar({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
-                                <button wire:click="excluir({{ $usuario->id }})" wire:confirm="Confirma exclusão?" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Excluir</button>
+                                @unless (in_array($usuario->id, $convidados, true))
+                                    <button wire:click="abrirEditar({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
+                                @endunless
+                                <button wire:click="excluir({{ $usuario->id }})" wire:confirm="Confirma remover este usuário desta empresa?" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Excluir</button>
                             </td>
                         </tr>
                     @empty

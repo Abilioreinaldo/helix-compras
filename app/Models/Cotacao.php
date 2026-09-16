@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'requisicao_id',
@@ -40,6 +41,19 @@ class Cotacao extends ComprasModel
     use Auditavel, HasFactory, SoftDeletes;
 
     protected $table = 'cotacoes';
+
+    /**
+     * Token OPACO da cotação, usado no assunto do e-mail ao fornecedor. Não é
+     * fillable de propósito: é identificador de sistema, nunca vem de payload.
+     * Substitui o antigo `[COT-{id}]`, que expunha a PK sequencial global (volume
+     * da instalação inteira, e enumerável por quem recebe um e-mail).
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $cotacao) {
+            $cotacao->email_token ??= (string) Str::ulid();
+        });
+    }
 
     /**
      * @return array<string, string>

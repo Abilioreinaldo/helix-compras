@@ -17,6 +17,9 @@ class RequisicoesAprovador extends Component
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
+        $tenantId = auth()->user()->getActiveTenantId();
+
         // Somente aprovações pendentes do ciclo atual de cada requisição.
         $resultados = DB::table('aprovacoes as a')
             ->join('requisicoes as r', function ($join) {
@@ -24,9 +27,16 @@ class RequisicoesAprovador extends Component
                     ->whereColumn('a.ciclo', 'r.ciclo_aprovacao');
             })
             ->join('users as u', 'u.id', '=', 'a.aprovador_id')
-            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-            ->where('a.tenant_id', auth()->user()->getActiveTenantId())
-            ->where('r.tenant_id', auth()->user()->getActiveTenantId())
+            // `users` é a identidade compartilhada da suíte e não tem recorte de tenant
+            // próprio (users.tenant_id é só o tenant HOME). O recorte vem da MEMBERSHIP
+            // ativa no tenant corrente — o mesmo critério da tela de usuários.
+            ->join('tenant_user as tu', function ($join) use ($tenantId) {
+                $join->on('tu.user_id', '=', 'u.id')
+                    ->where('tu.tenant_id', '=', $tenantId)
+                    ->where('tu.status', '=', 'active');
+            })
+            ->where('a.tenant_id', $tenantId)
+            ->where('r.tenant_id', $tenantId)
             ->where('a.status', 'pendente')
             ->whereNull('a.deleted_at')
             ->whereNull('r.deleted_at')

@@ -10,8 +10,10 @@ use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * E-mail enviado ao fornecedor solicitando a cotação. O token [COT-{id}] no assunto
- * é o que permite casar a RESPOSTA do fornecedor com esta cotação na captura IMAP.
+ * E-mail enviado ao fornecedor solicitando a cotação. O token [COT-{token}] no
+ * assunto é o que permite casar a RESPOSTA do fornecedor com esta cotação na
+ * captura IMAP. O token é OPACO (ULID por cotação) — o antigo `[COT-{id}]` levava
+ * a PK sequencial global e entregava a cada fornecedor o volume da instalação.
  */
 class SolicitacaoCotacao extends Mailable
 {
@@ -26,7 +28,7 @@ class SolicitacaoCotacao extends Mailable
         $codigo = $this->cotacao->requisicao?->codigo ?? 'requisição';
 
         return new Envelope(
-            subject: "Solicitação de cotação [COT-{$this->cotacao->id}] — {$codigo}",
+            subject: "Solicitação de cotação [COT-{$this->cotacao->email_token}] — {$codigo}",
         );
     }
 

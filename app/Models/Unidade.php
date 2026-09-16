@@ -13,7 +13,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-#[Fillable(['tenant_id', 'nome', 'tipo', 'cnpj', 'endereco', 'gestor_id', 'status'])]
+// `tenant_id` NÃO é fillable: quem carimba é o BelongsToTenant (tenant do contexto).
+// Aceitá-lo em mass assignment deixaria um payload de tela escolher o tenant do registro.
+#[Fillable(['nome', 'tipo', 'cnpj', 'endereco', 'gestor_id', 'status'])]
 class Unidade extends ComprasModel
 {
     use Auditavel, HasFactory, PertenceAUnidade, SoftDeletes;

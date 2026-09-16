@@ -1,6 +1,9 @@
 <?php
 
+use App\Enums\StatusUnidade;
+use App\Enums\TipoUnidade;
 use App\Models\Fornecedor;
+use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
@@ -60,4 +63,29 @@ it('a mesma chave natural (cnpj) coexiste entre tenants — unique agora é por-
     Fornecedor::withoutTenantScope()->forceCreate(['tenant_id' => $tenantB->id, 'razao_social' => 'E Ltda', 'cnpj' => $cnpj]);
 
     expect(Fornecedor::withoutTenantScope()->where('cnpj', $cnpj)->count())->toBe(2);
+});
+
+it('não deixa um payload de tela escolher o tenant da unidade (tenant_id fora do fillable)', function () {
+    $tenantA = Tenant::create(['slug' => 'rede-f', 'name' => 'Rede F', 'status' => 'active']);
+    $tenantB = Tenant::create(['slug' => 'rede-g', 'name' => 'Rede G', 'status' => 'active']);
+
+    $this->actingAs(User::factory()->admin()->create(['tenant_id' => $tenantA->id]));
+
+    // Unidade era a única model de negócio com tenant_id em $fillable: um `tenant_id`
+    // injetado no payload de criação chegava ao mass assignment. Agora é descartado
+    // e quem manda é o carimbo do contexto.
+    $unidade = Unidade::create([
+        'tenant_id' => $tenantB->id,
+        'nome' => 'Obra Plantada',
+        'tipo' => TipoUnidade::Obra->value,
+        'status' => StatusUnidade::Ativa->value,
+    ]);
+
+    expect($unidade->tenant_id)->toBe($tenantA->id)
+        ->and(Unidade::withoutTenantScope()->where('tenant_id', $tenantB->id)->count())->toBe(0);
+
+    // E nem um fill() posterior migra o registro (imutabilidade do BelongsToTenant).
+    $unidade->fill(['tenant_id' => $tenantB->id])->save();
+
+    expect(Unidade::withoutTenantScope()->whereKey($unidade->id)->value('tenant_id'))->toBe($tenantA->id);
 });

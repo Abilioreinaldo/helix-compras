@@ -10,6 +10,7 @@ use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Services\Platform\Identity\UserService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
@@ -78,11 +79,19 @@ class ListaUsuarios extends Component
         abort_unless(auth()->user()->can('users.manage'), 403);
         $this->resetValidation();
         $usuario = $this->usuariosDoTenant()->findOrFail($id);
+        // Identidade é COMPARTILHADA na suíte: editar nome/e-mail/status/papéis de um
+        // convidado (home noutro tenant) escreveria no tenant DELE. Ver notaGuest().
+        abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
+        $tenantId = auth()->user()->getActiveTenantId();
+
         $this->editandoId = $id;
         $this->name = $usuario->name;
         $this->email = $usuario->email;
-        $this->isAdmin = $usuario->is_admin;
-        $this->papeis = $usuario->roles()->pluck('roles.id')->map(fn ($id) => (string) $id)->all();
+        // Admin é propriedade do TENANT (pivot tenant_user.is_admin), não a coluna global.
+        $this->isAdmin = $this->ehAdminNoTenant($usuario, $tenantId);
+        $this->papeis = $usuario->roles()
+            ->wherePivot('tenant_id', $tenantId)
+            ->pluck('roles.id')->map(fn ($id) => (string) $id)->all();
         $this->status = $usuario->status;
         $this->mostrarModal = true;
     }
@@ -111,6 +120,7 @@ class ListaUsuarios extends Component
 
         if ($this->editandoId) {
             $usuario = $this->usuariosDoTenant()->findOrFail($this->editandoId);
+            abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
             $statusAntigo = $usuario->status;
 
             $users->updateUser($usuario, [
@@ -119,7 +129,18 @@ class ListaUsuarios extends Component
                 'is_admin' => $this->isAdmin,
             ], $this->papeis, auth()->user());
 
+            // `status` mora na IDENTIDADE (users.status), não na membership: inativar
+            // aqui derrubaria o acesso do usuário em TODOS os tenants dele. Só é
+            // permitido quando este tenant é o único vínculo — caso contrário, o
+            // caminho correto é remover o vínculo (excluir). Falta na fundação um
+            // "suspender membership" (tenant_user.status) para permitir o resto.
             if ($statusAntigo !== $this->status) {
+                if ($this->temOutroVinculo($usuario)) {
+                    $this->addError('status', 'Este usuário também participa de outra empresa: inativá-lo aqui derrubaria o acesso dele lá. Remova o vínculo com esta empresa.');
+
+                    return;
+                }
+
                 $users->changeStatus($usuario, $this->status, auth()->user());
             }
 
@@ -142,10 +163,32 @@ class ListaUsuarios extends Component
         }
     }
 
+    /**
+     * Remove o usuário DESTA empresa. Se ele participa de outra, só o VÍNCULO com
+     * este tenant cai (identidade e acesso nos demais ficam intactos); se este é o
+     * único vínculo, a identidade é removida como antes.
+     */
     public function excluir(int $id, UserService $users): void
     {
         abort_unless(auth()->user()->can('users.manage'), 403);
-        $users->deleteUser($this->usuariosDoTenant()->findOrFail($id), auth()->user());
+
+        $usuario = $this->usuariosDoTenant()->findOrFail($id);
+        $tenantId = auth()->user()->getActiveTenantId();
+
+        if ($this->temOutroVinculo($usuario)) {
+            // Vínculos por unidade deste tenant caem junto (o pivot é escopado).
+            DB::table('unidade_user')
+                ->where('user_id', $usuario->getKey())
+                ->where('tenant_id', $tenantId)
+                ->delete();
+
+            $users->removeMembership($usuario, (string) $tenantId, auth()->user());
+            $this->dispatch('notify', mensagem: 'Usuário removido desta empresa (segue ativo nas demais).');
+
+            return;
+        }
+
+        $users->deleteUser($usuario, auth()->user());
         $this->dispatch('notify', mensagem: 'Usuário removido.');
     }
 
@@ -196,13 +239,52 @@ class ListaUsuarios extends Component
     }
 
     /**
-     * Base de usuários SEMPRE escopada ao tenant ativo do admin — a
-     * administração de usuários nunca cruza tenants (achado C2 da revisão).
-     * User não tem UnidadeScope nem BelongsToTenant: o filtro é explícito.
+     * Base de usuários do tenant ativo pela MEMBERSHIP (pivot `tenant_user`), não
+     * por `users.tenant_id` — que é só o tenant HOME da identidade compartilhada.
+     *
+     * Filtrar pelo home errava nas duas direções: quem tem home aqui mas já teve o
+     * vínculo revogado continuava administrável (e uma inativação derrubava o acesso
+     * dele nas outras empresas), e quem trabalha aqui com home noutra empresa ficava
+     * INVISÍVEL para o admin desta. Membership ativa é a única definição de "é gente
+     * desta empresa" — a mesma que a autorização usa (User::belongsToTenant).
      */
     private function usuariosDoTenant()
     {
-        return User::query()->where('tenant_id', auth()->user()->getActiveTenantId());
+        $tenantId = auth()->user()->getActiveTenantId();
+
+        return User::query()->whereExists(fn ($q) => $q
+            ->selectRaw('1')
+            ->from('tenant_user')
+            ->whereColumn('tenant_user.user_id', 'users.id')
+            ->where('tenant_user.tenant_id', $tenantId)
+            ->where('tenant_user.status', 'active'));
+    }
+
+    /** O usuário é CONVIDADO aqui? (participa deste tenant, mas sua identidade mora noutro). */
+    private function ehConvidado(User $usuario): bool
+    {
+        return (string) ($usuario->getAttributes()['tenant_id'] ?? '') !== (string) auth()->user()->getActiveTenantId();
+    }
+
+    /** O usuário participa de algum tenant ALÉM do ativo (vínculo ativo)? */
+    private function temOutroVinculo(User $usuario): bool
+    {
+        return DB::table('tenant_user')
+            ->where('user_id', $usuario->getKey())
+            ->where('tenant_id', '!=', auth()->user()->getActiveTenantId())
+            ->where('status', 'active')
+            ->exists();
+    }
+
+    /** Admin DESTE tenant (pivot), não a coluna global `users.is_admin`. */
+    private function ehAdminNoTenant(User $usuario, ?string $tenantId): bool
+    {
+        return DB::table('tenant_user')
+            ->where('user_id', $usuario->getKey())
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->where('is_admin', true)
+            ->exists();
     }
 
     public function render(): View
@@ -210,13 +292,25 @@ class ListaUsuarios extends Component
         $tenantId = auth()->user()->getActiveTenantId();
 
         $usuarios = $this->usuariosDoTenant()
-            ->with('roles')
+            // Papéis são POR TENANT (pivot user_role.tenant_id): sem o filtro, a tela
+            // mostraria a um admin daqui os papéis que o convidado tem na empresa dele.
+            ->with(['roles' => fn ($q) => $q->where('user_role.tenant_id', $tenantId)])
             ->when($this->busca, fn ($q) => $q->where(function ($inner) {
                 $inner->where('name', 'like', "%{$this->busca}%")
                     ->orWhere('email', 'like', "%{$this->busca}%");
             }))
             ->orderBy('name')
             ->paginate(15);
+
+        // Admin e "convidado" são propriedades do VÍNCULO com este tenant, lidas do pivot.
+        $idsPagina = $usuarios->pluck('id')->all();
+        $adminsDoTenant = DB::table('tenant_user')
+            ->whereIn('user_id', $idsPagina)
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->where('is_admin', true)
+            ->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        $convidados = $usuarios->filter(fn (User $u) => $this->ehConvidado($u))->pluck('id')->all();
 
         $usuarioVinculos = $this->usuarioVinculosId
             ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScope(UnidadeScope::class)->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
@@ -234,6 +328,8 @@ class ListaUsuarios extends Component
             'papeisDisponiveis',
             'perfis',
             'niveisAlcada',
+            'adminsDoTenant',
+            'convidados',
         ))->layout('components.layouts.app');
     }
 }
