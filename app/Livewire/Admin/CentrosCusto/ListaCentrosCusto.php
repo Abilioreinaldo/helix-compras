@@ -130,7 +130,9 @@ class ListaCentrosCusto extends Component
             ->paginate(15);
 
         $unidades = Unidade::withoutGlobalScope(UnidadeScope::class)->orderBy('nome')->get();
-        $usuarios = User::orderBy('name')->get();
+        // User não tem escopo automático (identidade é da plataforma): sem este
+        // recorte por membership o select listava TODA a base da suíte.
+        $usuarios = User::membersOfActiveTenant()->orderBy('name')->get();
 
         return view('livewire.admin.centros-custo.lista-centros-custo', compact('centros', 'unidades', 'usuarios'))
             ->layout('components.layouts.app');

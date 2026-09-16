@@ -183,7 +183,9 @@ class ListaUnidades extends Component
             ->orderBy('nome')
             ->paginate(15);
 
-        $usuarios = User::orderBy('name')->get();
+        // User não tem escopo automático (identidade é da plataforma): sem este
+        // recorte por membership o select listava TODA a base da suíte.
+        $usuarios = User::membersOfActiveTenant()->orderBy('name')->get();
         $tiposUnidade = TipoUnidade::cases();
         $statusUnidade = StatusUnidade::cases();
 
