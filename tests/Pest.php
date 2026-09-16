@@ -69,9 +69,9 @@ expect()->extend('toBeOne', function () {
 */
 
 /**
- * Harness do índice UNIQUE de catálogo (`saldos_estoque_catalogo_unique`) para os testes de
- * fusão/saneamento (FaseV11A/B), que simulam o estado legado dropando/recriando o índice NO
- * MEIO do teste.
+ * Harness do índice UNIQUE de catálogo (`saldos_estoque_tenant_catalogo_uq`) para os testes
+ * de fusão/saneamento (FaseV11A/B), que simulam o estado legado dropando/recriando o índice
+ * NO MEIO do teste.
  *
  * Esse padrão só isola em SQLite: no MySQL o DDL faz commit implícito e fura o
  * RefreshDatabase (vira espera de lock/hang). Por isso estes casos são **SQLite-only** — a
@@ -84,6 +84,10 @@ function harnessDropIndiceCatalogoSaldos(): void
         Assert::markTestSkipped('Muta índice no meio do teste — SQLite-only (A2 em MySQL: ver SaldoCatalogoUnicoTest).');
     }
 
+    // O índice ganhou `tenant_id` na 2ª auditoria adversarial (migration 2026_09_17_000004)
+    // e mudou de nome; o nome antigo fica no drop para o harness seguir servindo a uma base
+    // que ainda não rodou aquela migration.
+    DB::statement('DROP INDEX IF EXISTS saldos_estoque_tenant_catalogo_uq');
     DB::statement('DROP INDEX IF EXISTS saldos_estoque_catalogo_unique');
 }
 
@@ -98,8 +102,8 @@ function harnessCriaIndiceCatalogoSaldos(): void
     }
 
     DB::statement(
-        'CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque '
-        .'(unidade_id, deposito, item_catalogo_id) '
+        'CREATE UNIQUE INDEX saldos_estoque_tenant_catalogo_uq ON saldos_estoque '
+        .'(tenant_id, unidade_id, deposito, item_catalogo_id) '
         .'WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL'
     );
 }

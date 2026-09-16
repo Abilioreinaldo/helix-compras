@@ -36,6 +36,12 @@ beforeEach(function () {
     TenantContext::forget();
 });
 
+/** Header `Authentication-Results` de um servidor que aprovou SPF+DKIM do domínio. */
+function autenticadoPor(string $dominio): string
+{
+    return "mx.helix.test; spf=pass smtp.mailfrom=forn@{$dominio}; dkim=pass header.d={$dominio}; dmarc=pass";
+}
+
 /** Cria uma cotação aguardando resposta no tenant informado. */
 function cotacaoNoTenant(string $tenantId, string $emailFornecedor): Cotacao
 {
@@ -64,11 +70,13 @@ it('não descarta a resposta de um tenant porque o Message-ID já existe em outr
     $acao->execute(new MensagemEmail(
         id: 'uid-a', messageId: $messageId, de: 'forn@alfa.test',
         assunto: "Re: cotação [COT-{$cotA->email_token}]", corpo: 'Valor: R$ 100,00',
+        autenticacao: autenticadoPor('alfa.test'),
     ));
 
     $res = $acao->execute(new MensagemEmail(
         id: 'uid-b', messageId: $messageId, de: 'forn@bravo.test',
         assunto: "Re: cotação [COT-{$cotB->email_token}]", corpo: 'Valor: R$ 200,00',
+        autenticacao: autenticadoPor('bravo.test'),
     ));
 
     expect($res)->not->toBeNull()
@@ -82,6 +90,7 @@ it('segue sem duplicar quando o mesmo Message-ID chega duas vezes no mesmo tenan
     $msg = new MensagemEmail(
         id: 'uid-1', messageId: '<repetido@fornecedor>', de: 'forn@alfa.test',
         assunto: "Re: cotação [COT-{$cot->email_token}]", corpo: 'Valor: R$ 100,00',
+        autenticacao: autenticadoPor('alfa.test'),
     );
 
     app(ProcessarRespostaCotacaoAction::class)->execute($msg);
@@ -99,6 +108,7 @@ it('não casa a resposta pelo token de uma cotação de outro tenant', function 
     $res = app(ProcessarRespostaCotacaoAction::class)->execute(new MensagemEmail(
         id: 'uid-x', messageId: '<x@fornecedor>', de: 'forn@bravo.test',
         assunto: "Re: cotação [COT-{$cotA->email_token}]", corpo: 'Valor: R$ 999,00',
+        autenticacao: autenticadoPor('bravo.test'),
     ));
 
     // Remetente de B não confere com o fornecedor de A → recusado, e nada escrito.
@@ -144,14 +154,73 @@ it('a migration do índice por tenant é reversível e idempotente', function ()
         ->and(Schema::hasColumn('cotacoes', 'email_token'))->toBeTrue();
 });
 
-it('ainda aceita o formato antigo [COT-{id}] de e-mails já em trânsito', function () {
-    $cot = cotacaoNoTenant($this->tenantA->id, 'forn@alfa.test');
+it('não casa mais a resposta pela PK numérica [COT-{id}] (sequencial e global)', function () {
+    // 2ª auditoria adversarial: o fallback numérico era o furo. O id é sequencial e
+    // GLOBAL na instalação — `[COT-1]`, `[COT-2]`… são chutáveis, e alcançavam a
+    // cotação de QUALQUER empresa. Só o ULID opaco casa agora.
+    $cotA = cotacaoNoTenant($this->tenantA->id, 'forn@alfa.test');
 
     $res = app(ProcessarRespostaCotacaoAction::class)->execute(new MensagemEmail(
         id: 'uid-legado', messageId: '<legado@fornecedor>', de: 'forn@alfa.test',
-        assunto: "Re: Solicitação de cotação [COT-{$cot->id}]", corpo: 'Valor: R$ 50,00',
+        assunto: "Re: Solicitação de cotação [COT-{$cotA->id}]", corpo: 'Valor: R$ 50,00',
+        autenticacao: autenticadoPor('alfa.test'),
     ));
 
-    expect($res)->not->toBeNull()
-        ->and((float) $cot->fresh()->valor_respondido)->toBe(50.00);
+    expect($res)->toBeNull()
+        ->and($cotA->fresh()->resposta_recebida_em)->toBeNull()
+        ->and($cotA->fresh()->valor_respondido)->toBeNull();
+});
+
+it('enumerar a PK do outro tenant não alcança mais a cotação dele', function () {
+    // O atacante é fornecedor do tenant B e sabe (ou chuta) o id da cotação do A.
+    $cotA = cotacaoNoTenant($this->tenantA->id, 'forn@alfa.test');
+    cotacaoNoTenant($this->tenantB->id, 'forn@bravo.test');
+
+    $res = app(ProcessarRespostaCotacaoAction::class)->execute(new MensagemEmail(
+        id: 'uid-enum', messageId: '<enum@fornecedor>', de: 'forn@alfa.test',
+        assunto: "Re: [COT-{$cotA->id}]", corpo: 'Valor: R$ 1,00',
+        autenticacao: autenticadoPor('alfa.test'),
+    ));
+
+    expect($res)->toBeNull()
+        ->and($cotA->fresh()->valor_respondido)->toBeNull();
+});
+
+it('recusa a resposta cujo From confere mas sem SPF/DKIM aprovado', function () {
+    // O header `From` é texto livre: o passo que o compara não prova nada sozinho.
+    $cot = cotacaoNoTenant($this->tenantA->id, 'forn@alfa.test');
+
+    $forjada = fn (?string $auth) => app(ProcessarRespostaCotacaoAction::class)->execute(new MensagemEmail(
+        id: 'uid-forjado', messageId: '<forjado-'.uniqid().'@atacante>', de: 'forn@alfa.test',
+        assunto: "Re: [COT-{$cot->email_token}]", corpo: 'Valor: R$ 1,00',
+        autenticacao: $auth,
+    ));
+
+    // (a) sem header nenhum; (b) SPF/DKIM reprovados; (c) aprovados para OUTRO domínio.
+    expect($forjada(null))->toBeNull()
+        ->and($forjada('mx.helix.test; spf=fail smtp.mailfrom=forn@alfa.test; dkim=fail header.d=alfa.test'))->toBeNull()
+        ->and($forjada('mx.helix.test; spf=pass smtp.mailfrom=forn@atacante.test; dkim=pass header.d=atacante.test'))->toBeNull()
+        ->and($cot->fresh()->resposta_recebida_em)->toBeNull();
+
+    // E a legítima, com SPF/DKIM do domínio do fornecedor, passa.
+    expect($forjada(autenticadoPor('alfa.test')))->not->toBeNull()
+        ->and((float) $cot->fresh()->valor_respondido)->toBe(1.00);
+});
+
+it('aceita DKIM assinado pelo domínio PAI do remetente, mas não por um subdomínio', function () {
+    $cot = cotacaoNoTenant($this->tenantA->id, 'forn@cotacoes.alfa.test');
+
+    $comAuth = fn (string $auth) => app(ProcessarRespostaCotacaoAction::class)->execute(new MensagemEmail(
+        id: 'uid-align', messageId: '<align-'.uniqid().'@fornecedor>', de: 'forn@cotacoes.alfa.test',
+        assunto: "Re: [COT-{$cot->email_token}]", corpo: 'Valor: R$ 7,00',
+        autenticacao: $auth,
+    ));
+
+    // Subdomínio não fala pelo pai: quem assina por `outra.alfa.test` não autentica
+    // `cotacoes.alfa.test`.
+    expect($comAuth('mx; dkim=pass header.d=outra.alfa.test'))->toBeNull();
+
+    // O pai, sim (`alfa.test` assina pelo próprio subdomínio).
+    expect($comAuth('mx; dkim=pass header.d=alfa.test'))->not->toBeNull()
+        ->and((float) $cot->fresh()->valor_respondido)->toBe(7.00);
 });

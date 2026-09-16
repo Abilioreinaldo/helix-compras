@@ -38,10 +38,14 @@ class FormularioPedidoCompra extends Component
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
+        // `$this->id` PRIMEIRO: `carregarPedido()` lê `$this->id`, então chamá-lo antes
+        // da atribuição fazia o mount depender de uma propriedade tipada ainda não
+        // inicializada — o pedido carregado não era, por construção, o pedido pedido.
+        $this->id = $id;
+
         $pedido = $this->carregarPedido();
         abort_unless($pedido->status->ehEditavel(), 403);
 
-        $this->id = $id;
         $this->condicoesPagamento = $pedido->condicoes_pagamento ?? '';
         $this->observacoes = $pedido->observacoes ?? '';
         $this->prazoEntrega = $pedido->prazo_entrega?->format('Y-m-d') ?? '';
@@ -145,9 +149,14 @@ class FormularioPedidoCompra extends Component
 
     private function carregarPedido(): PedidoCompra
     {
-        return PedidoCompra::withoutGlobalScope(UnidadeScope::class)
+        $pedido = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['itens', 'fornecedor', 'unidade'])
             ->findOrFail($this->id);
+
+        // SEGUNDA TRANCA (2ª auditoria adversarial): ver DetalhePedidoCompra.
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
+
+        return $pedido;
     }
 
     public function render(): View

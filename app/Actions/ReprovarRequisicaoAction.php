@@ -85,7 +85,19 @@ class ReprovarRequisicaoAction
                 'metadata' => ['ciclo' => $requisicao->ciclo_aprovacao],
             ]);
 
-            $compradoras = User::whereHas('roles', fn ($q) => $q->where('slug', 'compras'))->get()->all();
+            // Destinatários do aviso de reprovação: compradoras DESTE tenant.
+            //
+            // 2ª auditoria adversarial: era `User::whereHas('roles', slug=compras)` sem
+            // filtro nenhum. `user_role` é pivot POR TENANT e `users` é a identidade
+            // COMPARTILHADA da suíte — a consulta varria a instalação inteira e mandava
+            // o e-mail (com código da requisição, justificativa e nome do aprovador) para
+            // as compradoras de TODAS as empresas. Agora: membership ativa no tenant da
+            // requisição + papel atribuído NESSE tenant.
+            $compradoras = User::ofTenant((string) $requisicao->tenant_id)
+                ->whereHas('roles', fn ($q) => $q
+                    ->where('slug', 'compras')
+                    ->where('user_role.tenant_id', $requisicao->tenant_id))
+                ->get()->all();
         });
 
         foreach ($compradoras as $compradora) {

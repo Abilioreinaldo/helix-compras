@@ -133,6 +133,23 @@ return [
         'password' => env('IMAP_PASSWORD'),
         'encryption' => env('IMAP_ENCRYPTION', 'ssl'),
         'mailbox' => env('IMAP_MAILBOX', 'INBOX'),
+
+        /*
+         * Exigir SPF/DKIM aprovado (header `Authentication-Results`) e ALINHADO com o
+         * domínio do fornecedor antes de gravar a resposta da cotação. LIGADO por
+         * padrão: sem isto, a única prova de origem é o header `From`, que é texto
+         * livre. Requisito de INFRA: o servidor IMAP de entrada precisa carimbar o
+         * `Authentication-Results` (postfix/rspamd, Google Workspace e Microsoft 365
+         * carimbam; Exchange on-prem sem filtro de borda, não).
+         *
+         * FILTER_NULL_ON_FAILURE + `?? true`: `IMAP_EXIGIR_AUTENTICACAO=` (declarada e
+         * VAZIA) NÃO desliga a verificação — só `false`/`0` explícitos desligam.
+         */
+        'exigir_autenticacao' => filter_var(
+            env('IMAP_EXIGIR_AUTENTICACAO', true),
+            FILTER_VALIDATE_BOOL,
+            FILTER_NULL_ON_FAILURE
+        ) ?? true,
     ],
 
 ];

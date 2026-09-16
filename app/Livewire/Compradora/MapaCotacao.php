@@ -32,6 +32,23 @@ class MapaCotacao extends Component
         $this->requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['unidade', 'itens'])
             ->findOrFail($requisicaoId);
+
+        $this->autorizarRequisicao();
+    }
+
+    /**
+     * SEGUNDA TRANCA (2ª auditoria adversarial): ver GestaoCotacoes. Model em
+     * propriedade Livewire é reidratado sem global scopes — a posse é decidida pela
+     * policy no mount E a cada requisição.
+     */
+    public function hydrate(): void
+    {
+        $this->autorizarRequisicao();
+    }
+
+    private function autorizarRequisicao(): void
+    {
+        abort_unless(auth()->user()?->can('operar', $this->requisicao), 403);
     }
 
     /** Cotações da requisição (colunas), da mais barata para a mais cara. */

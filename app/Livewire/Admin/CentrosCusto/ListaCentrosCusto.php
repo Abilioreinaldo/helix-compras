@@ -79,7 +79,11 @@ class ListaCentrosCusto extends Component
             'unidadeId' => ['required', Rule::exists('unidades', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
             'codigo' => ['required', 'string', 'max:30', $regraCodigoUnico],
             'nome' => 'required|string|max:150',
-            'gestorId' => ['nullable', Rule::exists('users', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
+            // Gestor por MEMBERSHIP, não por `users.tenant_id` (tenant home) — ver a nota
+            // em ListaUnidades::salvar (2ª auditoria adversarial).
+            'gestorId' => ['nullable', Rule::exists('tenant_user', 'user_id')
+                ->where('tenant_id', $tenantId)
+                ->where('status', 'active')],
             'ativo' => 'boolean',
         ], [
             'unidadeId.required' => 'A unidade é obrigatória.',

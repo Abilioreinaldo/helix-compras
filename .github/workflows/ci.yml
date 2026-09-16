@@ -75,6 +75,14 @@ jobs:
         working-directory: comendador-compras
         run: composer audit --no-interaction
 
+      # BLOQUEANTE (2ª auditoria adversarial): o doctor avalia a config COMO SE
+      # fosse produção (--strict-env=production) e reprova fail-closed desligado,
+      # segredo fraco, allowlist inbound curinga etc. Roda depois do .env do CI
+      # justamente para pegar env vazia/ausente derrubando o fail-closed.
+      - name: Helix doctor (config avaliada como produção)
+        working-directory: comendador-compras
+        run: php artisan helix:doctor --strict-env=production
+
       - name: Run tests (Pest)
         working-directory: comendador-compras
         run: php artisan test

@@ -18,7 +18,7 @@ class SanearDuplicatasCatalogo extends Command
 
     protected $signature = 'estoque:sanear-duplicatas-catalogo
         {--dry-run : Lista os grupos de saldos duplicados sem executar a fusão}
-        {--executado-por= : ID do usuário Admin que autoriza e executa a fusão}';
+        {--executado-por= : ID do usuário Admin que autoriza a operação — OBRIGATÓRIO, define o tenant (inclusive no dry-run)}';
 
     protected $description = 'Funde saldos de estoque duplicados (mesma unidade/depósito/item de catálogo) num único saldo';
 
@@ -32,28 +32,30 @@ class SanearDuplicatasCatalogo extends Command
         $dryRun = (bool) $this->option('dry-run');
         $adminId = $this->option('executado-por');
 
-        if (! $dryRun && $adminId === null) {
-            $this->error('Informe --dry-run para simular ou --executado-por=<id> para executar a fusão.');
+        // `--executado-por` é obrigatório TAMBÉM no dry-run (2ª auditoria adversarial):
+        // sem ele, `$tenantAlvo` ficava null, o forEachTenant varria a instalação inteira
+        // e a tabela impressa misturava as duplicatas de TODOS os clientes — um dump
+        // cross-tenant de unidade/depósito/item à disposição de quem tem shell. O dry-run
+        // não escreve, mas lê; e ler o estoque do outro cliente é o mesmo vazamento.
+        if ($adminId === null) {
+            $this->error('Informe --executado-por=<id do Admin>: o comando roda no tenant desse usuário (obrigatório inclusive com --dry-run).');
 
             return self::INVALID;
         }
 
-        // Autorização ANTES de qualquer trabalho: valida o Admin executor no modo de
-        // execução, antes mesmo de calcular grupos — não processa nada sem permissão.
-        $admin = null;
-        if (! $dryRun) {
-            $admin = User::find($adminId);
+        // Autorização ANTES de qualquer trabalho: valida o Admin executor antes mesmo
+        // de calcular grupos — não lê nem processa nada sem permissão.
+        $admin = User::find($adminId);
 
-            if ($admin === null || ! $admin->temPerfil(Perfil::Admin)) {
-                $this->error("Usuário #{$adminId} não encontrado ou não possui perfil Admin. Fusão abortada.");
+        if ($admin === null || ! $admin->temPerfil(Perfil::Admin)) {
+            $this->error("Usuário #{$adminId} não encontrado ou não possui perfil Admin. Fusão abortada.");
 
-                return self::FAILURE;
-            }
+            return self::FAILURE;
         }
 
         // Console não tem tenant no contexto (modo estrito): tenant a tenant. A execução
         // fica restrita ao tenant do Admin executor — ele não tem autoridade sobre os demais.
-        $tenantAlvo = $admin !== null ? (string) $admin->getAttributes()['tenant_id'] : null;
+        $tenantAlvo = (string) $admin->getAttributes()['tenant_id'];
         $encontrou = false;
         $codigo = self::SUCCESS;
 

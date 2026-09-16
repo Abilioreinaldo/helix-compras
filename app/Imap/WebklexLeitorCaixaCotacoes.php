@@ -53,10 +53,36 @@ class WebklexLeitorCaixaCotacoes implements LeitorCaixaCotacoes
                 de: (string) ($de->mail ?? ''),
                 assunto: (string) $mensagem->getSubject(),
                 corpo: (string) ($mensagem->getTextBody() ?: $mensagem->getHTMLBody()),
+                autenticacao: $this->autenticacao($mensagem),
             );
         }
 
         return $resultado;
+    }
+
+    /**
+     * Header `Authentication-Results` cru (SPF/DKIM/DMARC apurados pelo servidor de
+     * entrada). Pode haver mais de um (relay encadeado) — concatenamos todos; o
+     * consumidor exige alinhamento com o domínio do fornecedor, então um carimbo de
+     * relay intermediário não "aprova" ninguém sozinho. Ausente = null (fail-closed
+     * do lado de quem consome).
+     */
+    private function autenticacao(Message $mensagem): ?string
+    {
+        try {
+            $atributo = $mensagem->getHeader()->get('authentication_results');
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($atributo === null) {
+            return null;
+        }
+
+        $valores = method_exists($atributo, 'toArray') ? (array) $atributo->toArray() : [$atributo];
+        $texto = trim(implode('; ', array_map(fn ($v) => (string) $v, $valores)));
+
+        return $texto === '' ? null : $texto;
     }
 
     public function marcarComoLida(string $id): void

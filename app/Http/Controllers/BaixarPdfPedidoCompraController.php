@@ -26,6 +26,13 @@ class BaixarPdfPedidoCompraController extends Controller
             ])
             ->findOrFail($id);
 
+        // SEGUNDA TRANCA (2ª auditoria adversarial): o `withoutGlobalScope` dispensa o
+        // filtro de UNIDADE e o de tenant é filtro de CONSULTA. Quem recebe o registro e
+        // decide a posse é a policy — sem isto, `temPerfil(CompradoraSenior)` era a
+        // única barreira entre um id de URL e o PDF completo do pedido (fornecedor,
+        // preços, aprovadores) de outra empresa.
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
+
         abort_unless($pedido->status === StatusPedidoCompra::Emitido, 404);
 
         // Carregar aprovadores por requisição (última aprovação de cada requisição)

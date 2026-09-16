@@ -93,8 +93,9 @@ it('captura IMAP resolve o tenant pela cotação referenciada (sem contexto)', f
         id: 'uid-estrito',
         messageId: '<estrito@fornecedor>',
         de: 'fornecedor@estrito.test',
-        assunto: "Re: Solicitação de cotação [COT-{$cotacao->id}]",
+        assunto: "Re: Solicitação de cotação [COT-{$cotacao->email_token}]",
         corpo: 'Valor: R$ 150,00 | Prazo: 15 dias',
+        autenticacao: 'mx.helix.test; spf=pass smtp.mailfrom=fornecedor@estrito.test; dkim=pass header.d=estrito.test',
     ));
 
     expect($resultado)->not->toBeNull()

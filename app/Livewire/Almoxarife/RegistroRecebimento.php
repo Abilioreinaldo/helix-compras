@@ -36,11 +36,13 @@ class RegistroRecebimento extends Component
     {
         $this->authorize('estoque.gerenciar');
 
+        // `$this->id` PRIMEIRO: `carregarPedido()` lê `$this->id` (ver
+        // FormularioPedidoCompra::mount — mesmo defeito de ordem).
+        $this->id = $id;
+
         $pedido = $this->carregarPedido();
         abort_unless($pedido->status === StatusPedidoCompra::Emitido, 403);
         $this->autorizarAcesso($pedido);
-
-        $this->id = $id;
 
         $controlaLote = $this->controlaLotePorItem($pedido);
 
@@ -145,9 +147,15 @@ class RegistroRecebimento extends Component
 
     private function carregarPedido(): PedidoCompra
     {
-        return PedidoCompra::withoutGlobalScope(UnidadeScope::class)
+        $pedido = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['itens', 'fornecedor', 'unidade', 'recebimentos.itens'])
             ->findOrFail($this->id);
+
+        // SEGUNDA TRANCA (2ª auditoria adversarial): ver DetalhePedidoCompra. O
+        // `autorizarAcesso()` abaixo é a regra de PERFIL na unidade; esta é a de POSSE.
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
+
+        return $pedido;
     }
 
     private function autorizarAcesso(PedidoCompra $pedido): void

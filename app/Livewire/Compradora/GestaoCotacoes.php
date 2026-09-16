@@ -58,7 +58,27 @@ class GestaoCotacoes extends Component
             ->with(['cotacoes.fornecedor', 'cotacoes.criador', 'faixaAlcada'])
             ->findOrFail($id);
 
+        $this->autorizarRequisicao();
+
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
+    }
+
+    /**
+     * SEGUNDA TRANCA (2ª auditoria adversarial): a requisição é carregada com
+     * `withoutGlobalScope(UnidadeScope)` e depois VIVE como propriedade do componente.
+     * Model em propriedade Livewire é reidratado por `newQueryForRestoration()` →
+     * `newQueryWithoutScopes()`, que NÃO aplica o global scope de tenant: o snapshot é
+     * o caminho que dispensa a consulta escopada. A posse tem de ser checada na
+     * policy — no mount E em toda requisição subsequente (hydrate).
+     */
+    public function hydrate(): void
+    {
+        $this->autorizarRequisicao();
+    }
+
+    private function autorizarRequisicao(): void
+    {
+        abort_unless(auth()->user()?->can('operar', $this->requisicao), 403);
     }
 
     public function registrarCotacao(): void

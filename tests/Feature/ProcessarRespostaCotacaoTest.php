@@ -32,12 +32,19 @@ function cotacaoTeste(array $attrs = []): Cotacao
 /** @param array<string, mixed> $over */
 function mensagemTeste(Cotacao $c, string $corpo, array $over = []): MensagemEmail
 {
+    $de = $over['de'] ?? 'fornecedor@exemplo.com';
+    $dominio = substr((string) strrchr($de, '@'), 1);
+
     return new MensagemEmail(
         id: $over['id'] ?? 'uid-1',
         messageId: $over['messageId'] ?? '<msg-1@fornecedor>',
-        de: $over['de'] ?? 'fornecedor@exemplo.com',
-        assunto: $over['assunto'] ?? "Re: Solicitação de cotação [COT-{$c->id}]",
+        de: $de,
+        // Token ULID opaco: o `[COT-{id}]` numérico deixou de casar (enumerável e global).
+        assunto: $over['assunto'] ?? "Re: Solicitação de cotação [COT-{$c->email_token}]",
         corpo: $corpo,
+        // SPF/DKIM aprovados para o domínio de quem envia — o caminho legítimo.
+        autenticacao: $over['autenticacao']
+            ?? "mx.helix.test; spf=pass smtp.mailfrom={$de}; dkim=pass header.d={$dominio}",
     );
 }
 

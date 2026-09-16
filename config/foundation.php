@@ -4,15 +4,18 @@ return [
     /*
      * Tenancy fail-closed (helix/foundation v0.2.0).
      *
-     * Os dois ficam FIXADOS em true aqui, no config do app em disco: o env só
-     * consegue AFROUXAR de forma explícita e revisável (janela de migração),
-     * nunca por omissão.
+     * Os dois são LITERAIS `true` — sem env. Ler de env aqui era um risco real:
+     * `HELIX_TENANCY_STRICT=` (declarada e VAZIA, coisa que acontece em .env
+     * copiado/gerado por pipeline) faz env() devolver string vazia, que
+     * filter_var(..., FILTER_VALIDATE_BOOL) converte para FALSE — ou seja, uma
+     * env vazia DESLIGAVA o fail-closed silenciosamente. Afrouxar passa a exigir
+     * edição do código, que é revisável em PR.
      *  - strict:        consultar/criar sem tenant no contexto lança.
      *  - enforce_stamp: carimbo obrigatório e tenant_id imutável (lança).
      */
     'tenancy' => [
-        'strict' => filter_var(env('HELIX_TENANCY_STRICT', true), FILTER_VALIDATE_BOOL),
-        'enforce_stamp' => filter_var(env('HELIX_TENANCY_ENFORCE_STAMP', true), FILTER_VALIDATE_BOOL),
+        'strict' => true,
+        'enforce_stamp' => true,
 
         // mergeConfigFrom é RASO: declarar 'tenancy' aqui substitui o bloco
         // inteiro do pacote, então o off-boarding precisa vir junto.

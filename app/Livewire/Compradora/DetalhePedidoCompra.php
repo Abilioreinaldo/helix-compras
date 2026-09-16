@@ -47,9 +47,17 @@ class DetalhePedidoCompra extends Component
 
     private function carregarPedido(): PedidoCompra
     {
-        return PedidoCompra::withoutGlobalScope(UnidadeScope::class)
+        $pedido = PedidoCompra::withoutGlobalScope(UnidadeScope::class)
             ->with(['itens.requisicao', 'fornecedor', 'unidade', 'emissor'])
             ->findOrFail($this->id);
+
+        // SEGUNDA TRANCA (2ª auditoria adversarial): o `withoutGlobalScope` acima
+        // dispensa o filtro de UNIDADE, e o de tenant é filtro de CONSULTA — a posse do
+        // registro tem de ser decidida pela policy, que é a única que recebe o registro.
+        // Aqui, e não no mount: assim vale para o mount, para as actions e para o render.
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
+
+        return $pedido;
     }
 
     public function render(): View

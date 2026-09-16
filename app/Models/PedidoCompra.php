@@ -108,13 +108,22 @@ class PedidoCompra extends ComprasModel
     /** Status de recebimento derivado da soma de quantidades recebidas vs. ordenadas. */
     public function statusRecebimento(): StatusRecebimentoPedido
     {
+        $tenantId = TenantContext::requireId('status de recebimento do pedido');
+
+        // A derivada `ir` somava os recebimentos da INSTALAÇÃO INTEIRA antes de juntar
+        // (2ª auditoria adversarial): o resultado saía certo — o join pende de `ipc.id`,
+        // já recortado — mas o custo era do maior tenant da base, pago por todos. O
+        // filtro entra DENTRO da derivada.
+        $recebidoPorItem = DB::table('itens_recebimento')
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->groupBy('item_pedido_compra_id')
+            ->select('item_pedido_compra_id', DB::raw('SUM(quantidade_recebida) as rec'));
+
         $totais = DB::table('itens_pedido_compra as ipc')
             // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
-            ->where('ipc.tenant_id', TenantContext::requireId('status de recebimento do pedido'))
-            ->leftJoin(
-                DB::raw('(SELECT item_pedido_compra_id, SUM(quantidade_recebida) as rec FROM itens_recebimento WHERE deleted_at IS NULL GROUP BY item_pedido_compra_id) as ir'),
-                'ir.item_pedido_compra_id', '=', 'ipc.id'
-            )
+            ->where('ipc.tenant_id', $tenantId)
+            ->leftJoinSub($recebidoPorItem, 'ir', 'ir.item_pedido_compra_id', '=', 'ipc.id')
             ->where('ipc.pedido_compra_id', $this->id)
             ->whereNull('ipc.deleted_at')
             ->selectRaw('SUM(ipc.quantidade) as total_ordenado, COALESCE(SUM(ir.rec), 0) as total_recebido')

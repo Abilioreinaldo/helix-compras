@@ -218,16 +218,19 @@ class EntradaEstoqueAction
 
     /**
      * Indica se a exceção é uma violação do UNIQUE de identidade de catálogo
-     * (saldos_estoque_catalogo_unique), e não outra constraint que deve propagar.
+     * (saldos_estoque_tenant_catalogo_uq), e não outra constraint que deve propagar.
      */
     private function ehViolacaoUnicidadeCatalogo(QueryException $e): bool
     {
         $codigo = $e->errorInfo[1] ?? null;
         $mensagem = $e->getMessage();
 
-        // MySQL/MariaDB: ER_DUP_ENTRY (1062) cita o nome do índice na mensagem.
+        // MySQL/MariaDB: ER_DUP_ENTRY (1062) cita o nome do índice na mensagem. O nome
+        // antigo (pré 2026_09_17_000004, sem tenant_id na chave) segue reconhecido para
+        // que uma base ainda não migrada não perca a conversão em ValidationException.
         if ($codigo === 1062) {
-            return str_contains($mensagem, 'saldos_estoque_catalogo_unique');
+            return str_contains($mensagem, 'saldos_estoque_tenant_catalogo_uq')
+                || str_contains($mensagem, 'saldos_estoque_catalogo_unique');
         }
 
         // SQLite: SQLITE_CONSTRAINT (19). A mensagem de UNIQUE lista as colunas do índice

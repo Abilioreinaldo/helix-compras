@@ -13,6 +13,9 @@ use App\Models\SaldoEstoque;
 use App\Models\SaldoFusaoLog;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Models\Platform\Identity\TenantFeature;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -311,7 +314,29 @@ it('sanear_sem_opcao_falha_pedindo_dry_run_ou_executado_por', function () {
         ->assertExitCode(2);
 });
 
+it('sanear_dry_run_sem_executado_por_e_recusado_e_nao_varre_outros_tenants', function () {
+    // 2ª auditoria adversarial: `--dry-run` sozinho não tinha tenant alvo, o
+    // forEachTenant varria a INSTALAÇÃO INTEIRA e a tabela impressa misturava as
+    // duplicatas de todos os clientes (unidade, depósito, item de catálogo).
+    $outro = Tenant::create(['slug' => 'bravo-sanear', 'name' => 'Bravo', 'status' => 'active']);
+    TenantFeature::firstOrCreate(['tenant_id' => $outro->id, 'feature' => 'compras'], ['enabled' => true]);
+
+    // Duplicata plantada no OUTRO tenant — é o que não pode vazar no relatório.
+    TenantContext::runFor($outro->id, function () {
+        $unidade = Unidade::factory()->create();
+        $catalogo = CatalogoItem::factory()->create();
+        v11b_semConstraintCatalogo();
+        v11b_criarSaldo($unidade, 'Segredo A', 'Almox do Bravo', 10.0, 5.0, $catalogo->id);
+        v11b_criarSaldo($unidade, 'Segredo B', 'Almox do Bravo', 30.0, 9.0, $catalogo->id);
+    });
+
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--dry-run' => true])
+        ->doesntExpectOutputToContain('Almox do Bravo')
+        ->assertExitCode(2);
+});
+
 it('sanear_dry_run_lista_grupos_sem_executar_fusao', function () {
+    $admin = User::factory()->admin()->create();
     $unidade = Unidade::factory()->create();
     $catalogo = CatalogoItem::factory()->create();
     v11b_semConstraintCatalogo();
@@ -319,7 +344,7 @@ it('sanear_dry_run_lista_grupos_sem_executar_fusao', function () {
     $saldoA = v11b_criarSaldo($unidade, 'Item A', 'Almox', 10.0, 5.0, $catalogo->id);
     $saldoB = v11b_criarSaldo($unidade, 'Item B', 'Almox', 30.0, 9.0, $catalogo->id);
 
-    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--dry-run' => true])
+    $this->artisan('estoque:sanear-duplicatas-catalogo', ['--dry-run' => true, '--executado-por' => $admin->id])
         ->assertExitCode(0);
 
     // Nenhuma fusão: ambos saldos seguem ativos (não viraram tombstone)
@@ -502,7 +527,13 @@ it('vincular_em_corrida_de_unicidade_converte_para_validation_exception', functi
             return;
         }
         $competidorCriado = true;
-        SaldoEstoque::withoutEvents(fn () => SaldoEstoque::create([
+        // `withoutEvents` desliga TAMBÉM o `creating` do BelongsToTenant, que é quem
+        // carimba o tenant. Sem o carimbo explícito o concorrente nascia com tenant_id
+        // NULL e, desde que a chave passou a incluir tenant_id (migration
+        // 2026_09_17_000004), NULL não colide com nada — a corrida deixava de existir.
+        // O outro Admin da corrida é do MESMO tenant; é isso que o forceCreate diz.
+        SaldoEstoque::withoutEvents(fn () => SaldoEstoque::forceCreate([
+            'tenant_id' => $s->getAttribute('tenant_id'),
             'unidade_id' => $unidade->id,
             'deposito' => 'Almox',
             'descricao_item' => 'Concorrente',

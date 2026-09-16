@@ -125,14 +125,23 @@ class RegistrarRecebimentoAction
     private function verificarConclusaoRequisicao(int $requisicaoId): void
     {
         // Item com saldo pendente: quantidade > já recebido (usando subquery para evitar fan-out)
+        $tenantId = TenantContext::requireId('conclusão da requisição');
+
+        // Mesma correção do PedidoCompra::statusRecebimento (2ª auditoria adversarial):
+        // a derivada agregava `itens_recebimento` da instalação inteira antes do join.
+        $recebidoPorItem = DB::table('itens_recebimento')
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->groupBy('item_pedido_compra_id')
+            ->select('item_pedido_compra_id', DB::raw('SUM(quantidade_recebida) as rec'));
+
         $pendente = DB::table('itens_pedido_compra as ipc')
             // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
-            ->where('ipc.tenant_id', TenantContext::requireId('conclusão da requisição'))
-            ->join('pedidos_compra as pc', 'ipc.pedido_compra_id', '=', 'pc.id')
-            ->leftJoin(
-                DB::raw('(SELECT item_pedido_compra_id, SUM(quantidade_recebida) as rec FROM itens_recebimento WHERE deleted_at IS NULL GROUP BY item_pedido_compra_id) as ir'),
-                'ir.item_pedido_compra_id', '=', 'ipc.id'
-            )
+            ->where('ipc.tenant_id', $tenantId)
+            ->join('pedidos_compra as pc', fn ($join) => $join
+                ->on('ipc.pedido_compra_id', '=', 'pc.id')
+                ->where('pc.tenant_id', $tenantId))
+            ->leftJoinSub($recebidoPorItem, 'ir', 'ir.item_pedido_compra_id', '=', 'ipc.id')
             ->where('ipc.requisicao_id', $requisicaoId)
             ->whereIn('pc.status', [StatusPedidoCompra::Emitido->value])
             ->whereNull('ipc.deleted_at')

@@ -53,19 +53,28 @@ class ProcessarRespostaCotacaoAction
     }
 
     /**
-     * Id da cotação a partir do token do assunto: o formato atual é o ULID opaco
-     * (`email_token`); o antigo `[COT-{id}]` numérico segue aceito por compatibilidade
-     * com e-mails já em trânsito nas caixas dos fornecedores.
+     * Id da cotação a partir do token do assunto. SÓ pelo ULID opaco (`email_token`).
+     *
+     * O fallback pelo `[COT-{id}]` numérico foi REMOVIDO (2ª auditoria adversarial):
+     * a PK é sequencial e GLOBAL na instalação, então `[COT-4812]` é enumerável e
+     * alcançava a cotação de QUALQUER tenant — bastava chutar números. A migration
+     * 2026_09_15_000004 semeou `email_token` para 100% das linhas existentes, então
+     * não há legado sem token; o único e-mail que deixa de casar é o que saiu com o
+     * assunto antigo e ainda está na caixa do fornecedor — esse cai no fluxo manual.
      */
     private function resolverCotacaoId(string $token): ?int
     {
         $id = Cotacao::withoutTenantScope()->withTrashed()->where('email_token', $token)->value('id');
 
-        if ($id === null && ctype_digit($token)) {
-            $id = Cotacao::withoutTenantScope()->withTrashed()->whereKey((int) $token)->value('id');
-        }
-
         return $id !== null ? (int) $id : null;
+    }
+
+    /** Domínio de um endereço (`forn@alfa.test` → `alfa.test`). */
+    private function dominioDe(string $email): string
+    {
+        $arroba = strrchr($email, '@');
+
+        return $arroba === false ? '' : substr($arroba, 1);
     }
 
     /** Passos 2–7 sob o tenant da cotação (leitura/escrita/e-mail escopados). */
@@ -93,6 +102,22 @@ class ProcessarRespostaCotacaoAction
             Log::warning('Resposta IMAP de remetente que não confere com o fornecedor.', [
                 'cotacao_id' => $cotacao->id,
                 'remetente' => $remetente,
+            ]);
+
+            return null;
+        }
+
+        // 3b) AUTENTICIDADE do remetente (2ª auditoria adversarial): o passo 3 compara
+        //     o header `From`, que é texto livre — escrever `From: forn@alfa.test` custa
+        //     uma linha. Quem souber o token de uma cotação (ou o vazar de um reply
+        //     encaminhado) gravava a "resposta do fornecedor". Exigimos a evidência que
+        //     o servidor de entrada carimba: SPF/DKIM aprovado e ALINHADO com o domínio
+        //     do fornecedor. Fail-closed — sem header válido, nada é gravado.
+        if (config('mail.imap.exigir_autenticacao') && ! $mensagem->autenticadaPara($this->dominioDe($emailFornecedor))) {
+            Log::warning('Resposta IMAP sem SPF/DKIM aprovado para o domínio do fornecedor.', [
+                'cotacao_id' => $cotacao->id,
+                'remetente' => $remetente,
+                'authentication_results' => $mensagem->autenticacao,
             ]);
 
             return null;

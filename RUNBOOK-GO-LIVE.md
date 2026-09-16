@@ -110,9 +110,11 @@ saldos duplicados. Ordem mandatória (item A3 do PLANO):
    (ou aplique migrations seletivamente até esse ponto)
 2. Auditar e fundir duplicatas legadas:
    ```bash
-   php artisan estoque:sanear-duplicatas-catalogo --dry-run
+   php artisan estoque:sanear-duplicatas-catalogo --dry-run --executado-por=<ID do Admin>
    php artisan estoque:sanear-duplicatas-catalogo --executado-por=<ID do Admin>
    ```
+   `--executado-por` é obrigatório **também no dry-run**: é ele que define o tenant.
+   Numa instalação multi-cliente, repita o par de comandos com o Admin de cada tenant.
 3. **Só então** aplicar o resto (cria o UNIQUE + coluna gerada STORED):
    ```bash
    php artisan migrate --force

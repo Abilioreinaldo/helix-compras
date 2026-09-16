@@ -178,7 +178,14 @@ class ListaUsuarios extends Component
         abort_unless(auth()->user()->can('operar', $usuario), 403);
         $tenantId = auth()->user()->getActiveTenantId();
 
-        if ($this->temOutroVinculo($usuario)) {
+        // CONVIDADO (home noutro tenant) nunca tem a IDENTIDADE apagada por este admin —
+        // só o vínculo. `temOutroVinculo()` sozinho não bastava: bastava que o vínculo
+        // do convidado com a empresa DELE estivesse inativo (ou já removido) para o
+        // admin daqui cair no `deleteUser` e soft-deletar uma identidade que não é sua,
+        // com a trilha de auditoria nascendo no tenant home — a outra empresa perdia o
+        // usuário e via na sua própria auditoria um ator de fora. As demais escritas já
+        // tinham esta guarda (abrirEditar/salvar); a exclusão era a que faltava.
+        if ($this->ehConvidado($usuario) || $this->temOutroVinculo($usuario)) {
             // Vínculos por unidade deste tenant caem junto (o pivot é escopado).
             DB::table('unidade_user')
                 ->where('user_id', $usuario->getKey())

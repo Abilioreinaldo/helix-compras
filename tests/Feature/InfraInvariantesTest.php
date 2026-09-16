@@ -83,3 +83,73 @@ it('isola a cota do limiter web por tenant+usuário, com IP para visitante', fun
         ->and($keyFor('tenant-a', 2))->not->toBe($a)
         ->and($keyFor(null, null))->toBe('ip:10.0.0.9');
 });
+
+/*
+| 2ª auditoria adversarial (transversal aos três apps) — o fail-closed de tenancy
+| NÃO pode depender de env. `HELIX_TENANCY_STRICT=` (declarada e VAZIA, coisa
+| banal num .env gerado por pipeline ou copiado pela metade) fazia env() devolver
+| string vazia e filter_var(..., FILTER_VALIDATE_BOOL) devolver FALSE: o modo
+| estrito morria em silêncio, sem ninguém ter desligado nada.
+*/
+it('mantém strict/enforce_stamp ligados mesmo com HELIX_TENANCY_* declarada e VAZIA', function () {
+    $vars = ['HELIX_TENANCY_STRICT', 'HELIX_TENANCY_ENFORCE_STAMP'];
+    $antes = [];
+
+    foreach ($vars as $var) {
+        $antes[$var] = [$_ENV[$var] ?? null, $_SERVER[$var] ?? null, getenv($var)];
+
+        // O pior caso: declarada e vazia nos TRÊS repositórios que o env() lê.
+        $_ENV[$var] = '';
+        $_SERVER[$var] = '';
+        putenv("{$var}=");
+    }
+
+    try {
+        $config = require config_path('foundation.php');
+    } finally {
+        foreach ($vars as $var) {
+            [$env, $server, $putenv] = $antes[$var];
+
+            if ($env === null) {
+                unset($_ENV[$var]);
+            } else {
+                $_ENV[$var] = $env;
+            }
+
+            if ($server === null) {
+                unset($_SERVER[$var]);
+            } else {
+                $_SERVER[$var] = $server;
+            }
+
+            if ($putenv === false) {
+                putenv($var);
+            } else {
+                putenv("{$var}={$putenv}");
+            }
+        }
+    }
+
+    expect($config['tenancy']['strict'])->toBeTrue()
+        ->and($config['tenancy']['enforce_stamp'])->toBeTrue();
+});
+
+it('não declara HELIX_TENANCY_STRICT/ENFORCE_STAMP no .env.example', function () {
+    $linhas = file(base_path('.env.example'), FILE_IGNORE_NEW_LINES);
+
+    expect(preg_grep('/^\s*HELIX_TENANCY_(STRICT|ENFORCE_STAMP)\s*=/', $linhas))->toBeEmpty();
+});
+
+it('preserva as subchaves de off-boarding do pacote (mergeConfigFrom é RASO)', function () {
+    expect(config('foundation.tenancy.offboarding.export_redact'))
+        ->toBeArray()
+        ->toContain('password');
+
+    expect(config('foundation.tenancy.offboarding.exclude_tables'))->toBeArray();
+});
+
+it('roda helix:doctor --strict-env=production como step obrigatório do CI', function () {
+    $ci = file_get_contents(base_path('.github/workflows/ci.yml'));
+
+    expect($ci)->toContain('helix:doctor --strict-env=production');
+});

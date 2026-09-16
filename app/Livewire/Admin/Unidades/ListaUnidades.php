@@ -105,7 +105,16 @@ class ListaUnidades extends Component
             'tipo' => ['required', Rule::in(array_column(TipoUnidade::cases(), 'value'))],
             'cnpj' => 'nullable|string|max:14',
             'endereco' => 'nullable|string|max:500',
-            'gestorId' => ['nullable', Rule::exists('users', 'id')->where('tenant_id', auth()->user()->getActiveTenantId())->whereNull('deleted_at')],
+            // Gestor validado por MEMBERSHIP (pivot `tenant_user`), não por `users.tenant_id`
+            // — que é só o tenant HOME da identidade compartilhada (2ª auditoria
+            // adversarial). Errava nas duas direções: o select lista
+            // `User::membersOfActiveTenant()`, então um convidado (home noutra empresa)
+            // aparecia na tela e era REPROVADO na validação; e um ex-funcionário com home
+            // aqui, já sem vínculo, passava. Membership ativa é a mesma definição que a
+            // listagem e a autorização usam.
+            'gestorId' => ['nullable', Rule::exists('tenant_user', 'user_id')
+                ->where('tenant_id', auth()->user()->getActiveTenantId())
+                ->where('status', 'active')],
             'status' => ['required', Rule::in(array_column(StatusUnidade::cases(), 'value'))],
             'obraVerba' => 'nullable|numeric|min:0',
             'obraPrevisaoTermino' => 'nullable|date',
@@ -141,7 +150,11 @@ class ListaUnidades extends Component
                     : $unidade->obra()->create(array_merge($dadosObra, ['status' => 'ativa']));
             }
         } else {
-            $unidade = $this->unidadesDoTenant()->create($dados + ['tenant_id' => auth()->user()->getActiveTenantId()]);
+            // `tenant_id` NÃO vai no mass assignment: saiu do $fillable na v0.2.1 (é
+            // estado de servidor) e, com preventSilentlyDiscardingAttributes ligado,
+            // passá-lo aqui lançava MassAssignmentException — criar unidade estava
+            // quebrado. Quem carimba é o BelongsToTenant, no evento `creating`.
+            $unidade = $this->unidadesDoTenant()->create($dados);
 
             if ($this->tipo === TipoUnidade::Obra->value) {
                 $unidade->obra()->create([
