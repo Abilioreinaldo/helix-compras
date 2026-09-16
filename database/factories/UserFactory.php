@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
-use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Helix\Foundation\Services\Platform\Identity\EntitlementService;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -50,8 +49,9 @@ class UserFactory extends Factory
         $tenant = Tenant::query()->orderBy('created_at')->first()
             ?? Tenant::create(['slug' => 'comendador', 'name' => 'Comendador', 'status' => 'active']);
 
-        TenantFeature::firstOrCreate(
-            ['tenant_id' => $tenant->id, 'feature' => 'compras'],
+        // v0.3.0: tenant_id saiu do $fillable do entitlement — cria pela relação.
+        $tenant->features()->firstOrCreate(
+            ['feature' => 'compras'],
             ['enabled' => true],
         );
 

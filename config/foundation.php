@@ -17,6 +17,15 @@ return [
         'strict' => true,
         'enforce_stamp' => true,
 
+        /*
+         * v0.3.0 — rampa de compatibilidade do superadmin na guarda de argumento
+         * de TenantContext::assertArgumentMatches(). O Compras não tem tela
+         * cross-tenant nem operador de plataforma: aqui a rampa nunca foi
+         * necessária, então já nasce DESLIGADA (o default do pacote é true, e
+         * sai na v0.4). Quem governa tenant alheio é o helix-admin.
+         */
+        'superadmin_cross_tenant_argument' => false,
+
         // mergeConfigFrom é RASO: declarar 'tenancy' aqui substitui o bloco
         // inteiro do pacote, então o off-boarding precisa vir junto.
         'offboarding' => [
@@ -26,6 +35,10 @@ return [
             //    compartilhada pela suíte. Quem revoga é o UserService (removeMembership/
             //    changeStatus/deleteUser), não o off-boarding do tenant.
             'exclude_tables' => ['bancos', 'personal_access_tokens'],
+            // v0.3.0 — desambiguação do off-boarding: tabela com DUAS FKs para
+            // tabelas escopadas exige a aresta declarada, senão o purge recusa.
+            // O Compras não tem nenhuma ambígua hoje (o doctor confere).
+            'edges' => [],
             'export_redact' => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
         ],
     ],

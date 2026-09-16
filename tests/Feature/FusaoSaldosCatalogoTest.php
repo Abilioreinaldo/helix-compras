@@ -14,7 +14,6 @@ use App\Models\SaldoFusaoLog;
 use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
-use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -319,7 +318,7 @@ it('sanear_dry_run_sem_executado_por_e_recusado_e_nao_varre_outros_tenants', fun
     // forEachTenant varria a INSTALAÇÃO INTEIRA e a tabela impressa misturava as
     // duplicatas de todos os clientes (unidade, depósito, item de catálogo).
     $outro = Tenant::create(['slug' => 'bravo-sanear', 'name' => 'Bravo', 'status' => 'active']);
-    TenantFeature::firstOrCreate(['tenant_id' => $outro->id, 'feature' => 'compras'], ['enabled' => true]);
+    $outro->features()->firstOrCreate(['feature' => 'compras'], ['enabled' => true]);
 
     // Duplicata plantada no OUTRO tenant — é o que não pode vazar no relatório.
     TenantContext::runFor($outro->id, function () {

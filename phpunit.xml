@@ -35,5 +35,9 @@
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <!-- Tenancy fail-closed (auditoria multitenant P2): consulta/criação sem tenant no contexto lança. -->
         <env name="HELIX_TENANCY_STRICT" value="true"/>
+        <!-- .env.example declara TWO_FACTOR_ENFORCE=true (postura de produção, exigida
+             pelo helix:doctor). Na suíte o 2FA obrigatório desviaria os testes de tela
+             para o setup (302); o comportamento testado é o de APP_ENV=testing. -->
+        <env name="TWO_FACTOR_ENFORCE" value="false"/>
     </php>
 </phpunit>

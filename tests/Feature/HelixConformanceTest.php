@@ -118,6 +118,7 @@ HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowRawDbTable('database/migrations/2026_09_15_000002_sequencias_por_tenant.php', 'migration de schema: cria as tabelas de sequência e semeia uma linha POR TENANT (itera tenants por definição)')
     ->allowRawDbTable('database/migrations/2026_09_15_000004_cotacoes_email_por_tenant_e_token_opaco.php', 'migration de dados: gera o email_token opaco das cotações existentes de TODOS os tenants, uma vez, no deploy')
     ->allowRawDbTable('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php', 'migration de schema: sanea tenant_id órfão e cria a FK para tenants em todas as tabelas de negócio; roda uma vez no deploy, fora de request')
+    ->allowRawDbTable('database/migrations/2026_06_16_150803_add_fusao_to_movimentacoes_estoque_tipo.php', 'migration de schema: no SQLite a ampliação do enum `tipo` é feita recriando a coluna (ADD/UPDATE/DROP/RENAME). Os dois UPDATEs flagrados COPIAM a coluna para si mesma (tipo → tipo_novo, e o inverso no down) — são parte indivisível do rebuild de coluna, cujos ALTER o próprio kit já ignora como DDL. Filtrar por tenant_id aqui deixaria as linhas dos demais tenants com a coluna nova vazia')
 
     // (l) update/insert em massa com tenant_id no payload
     ->allowMassTenantWrite('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php', 'backfill único: o UPDATE com tenant_id é o próprio objetivo da migration')
@@ -177,6 +178,9 @@ HelixConformance::forProduct('Compras', feature: 'compras')
 
     // (h) permissão do catálogo sem papel além do admin
     ->allowUnassignedPermission('users.manage', 'DECISÃO DE PRODUTO PENDENTE: gestão de usuários do Compras segue exclusiva do admin do tenant (rotas /admin com middleware admin); delegar a um papel é escolha da fundação/produto')
+
+    // (r) universo vazio declarado (v0.3.0: vazio = INCONCLUSIVO, não aprovado)
+    ->acceptEmpty('jobs_carry_tenant', 'o Compras não tem jobs próprios — o diretório app/Jobs não existe. O único processamento fora de request é o comando cotacoes:capturar-respostas, que roda síncrono e estabelece o tenant com runFor (ver allowTenantlessCommand acima). O primeiro job do app remove esta linha')
 
     // (i) isolamento cross-tenant dos transacionais principais
     ->isolate(Unidade::class)

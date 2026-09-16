@@ -6,7 +6,6 @@ use App\Models\PedidoCompra;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
-use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,7 +33,7 @@ beforeEach(function () {
     $this->tenantB = Tenant::create(['slug' => 'bravo-uq', 'name' => 'Bravo', 'status' => 'active']);
 
     foreach ([$this->tenantA, $this->tenantB] as $tenant) {
-        TenantFeature::firstOrCreate(['tenant_id' => $tenant->id, 'feature' => 'compras'], ['enabled' => true]);
+        $tenant->features()->firstOrCreate(['feature' => 'compras'], ['enabled' => true]);
     }
 
     TenantContext::forget();

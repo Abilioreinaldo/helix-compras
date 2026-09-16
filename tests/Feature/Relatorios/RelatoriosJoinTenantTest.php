@@ -16,7 +16,6 @@ use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
-use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +40,7 @@ beforeEach(function () {
     $this->tenantB = Tenant::create(['slug' => 'rel-bravo', 'name' => 'Bravo', 'status' => 'active']);
 
     foreach ([$this->tenantA, $this->tenantB] as $tenant) {
-        TenantFeature::firstOrCreate(['tenant_id' => $tenant->id, 'feature' => 'compras'], ['enabled' => true]);
+        $tenant->features()->firstOrCreate(['feature' => 'compras'], ['enabled' => true]);
     }
 
     TenantContext::forget();

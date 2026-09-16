@@ -14,7 +14,6 @@ use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
-use Helix\Foundation\Models\Platform\Identity\TenantFeature;
 use Helix\Foundation\Services\Platform\Identity\EntitlementService;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Seeder;
@@ -40,8 +39,11 @@ class ComprasTesteEmpresaASeeder extends Seeder
             return;
         }
 
-        TenantFeature::firstOrCreate(
-            ['tenant_id' => $tenant->id, 'feature' => 'compras'],
+        // v0.3.0: tenant_id saiu do $fillable do entitlement (model de plataforma,
+        // sem BelongsToTenant para carimbar). O caminho é a relação, que tira a FK
+        // do tenant-pai em vez do payload.
+        $tenant->features()->firstOrCreate(
+            ['feature' => 'compras'],
             ['enabled' => true],
         );
 
