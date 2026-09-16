@@ -8,6 +8,7 @@ use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -19,6 +20,9 @@ use Livewire\Component;
  */
 class MapaCotacao extends Component
 {
+    // Locked: o registro é resolvido no mount (findOrFail escopado); sem isto o
+    // cliente reaponta a propriedade no payload e a action opera noutra requisição.
+    #[Locked]
     public Requisicao $requisicao;
 
     public function mount(int $requisicaoId): void
@@ -63,6 +67,7 @@ class MapaCotacao extends Component
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
         $cotacao = Cotacao::with('fornecedor')->findOrFail($cotacaoId);
+        abort_unless(auth()->user()->can('operar', $cotacao), 403);
         abort_unless($cotacao->requisicao_id === $this->requisicao->id, 403);
 
         if ($cotacao->valor === null) {

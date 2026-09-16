@@ -8,6 +8,7 @@ use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Livewire\Almoxarife\MapaEstoque;
 use App\Livewire\Almoxarife\SaldosEstoque;
 use App\Livewire\Aprovacoes\FilaAprovacoes;
+use App\Livewire\Compradora\FormularioPedidoCompra;
 use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\PedidosLoja;
@@ -99,8 +100,65 @@ HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowUnlockedId(CustoObra::class.'::obraId', $filtroEscopado)
     ->allowUnlockedId(PosicaoEstoque::class.'::unidadeId', $filtroEscopado)
 
+    // (d2) propriedades públicas que o cliente edita por desenho (não são id de registro)
+    ->allowUnlockedId(ListaCatalogoItens::class.'::codigo', 'campo de FORMULÁRIO digitado pelo usuário (código interno do item), não referência a registro; unicidade é por tenant (catalogo_itens_tenant_codigo_uq) e o registro editado vem do $editandoId, que é #[Locked]')
+    ->allowUnlockedId(ListaCentrosCusto::class.'::codigo', 'campo de FORMULÁRIO digitado pelo usuário (código do centro de custo), não referência a registro; o registro editado vem do $editandoId, que é #[Locked]')
+    ->allowUnlockedId(FormularioPedidoCompra::class.'::itens', 'linhas do formulário editadas pelo cliente (quantidade/valor/destino); o `id` de cada linha só é usado dentro de $pedido->itens(), já escopado pelo pedido (tenant + unidade) — id alheio não casa nenhuma linha')
+    ->allowUnlockedId(FormularioRequisicao::class.'::itens', 'linhas do formulário editadas pelo cliente; `item_catalogo_id` é revalidado a cada submit com Rule::exists(catalogo_itens)->where(tenant_id) e autorizado com can(operar, $catalogoItem) em selecionarItemCatalogo; as linhas são recriadas sob $requisicao->itens()')
+
     // (e) exists: em tabela global
     ->allowPlainExists('bancos', 'catálogo COMPE de bancos é global (tabela bancos sem tenant_id, Banco fora do ComprasModel)')
+
+    // (c2) action cujo único findOrFail é de tabela GLOBAL (sem tenant a comparar)
+    ->allowUnauthorizedAction(Reconciliacao::class.'::processar', 'autoriza com manage/Pagamento antes de tudo; o único findOrFail é Banco (catálogo COMPE global, tabela sem tenant_id) — não há registro de tenant a passar para a policy. A ReconciliacaoBancaria nasce carimbada pelo contexto (BelongsToTenant)')
+
+    // (k) DB::table() cru — migrations de schema/backfill (rodam no deploy, fora de request)
+    ->allowRawDbTable('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php', 'migration de backfill: é ela que CARIMBA tenant_id em unidades a partir do 1º tenant; roda uma vez no deploy, fora de request, e por definição atravessa tenants')
+    ->allowRawDbTable('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php', 'migration de backfill: carimba tenant_id nas 33 tabelas de negócio a partir de unidades/pais; roda uma vez no deploy, fora de request')
+    ->allowRawDbTable('database/migrations/2026_09_15_000002_sequencias_por_tenant.php', 'migration de schema: cria as tabelas de sequência e semeia uma linha POR TENANT (itera tenants por definição)')
+    ->allowRawDbTable('database/migrations/2026_09_15_000004_cotacoes_email_por_tenant_e_token_opaco.php', 'migration de dados: gera o email_token opaco das cotações existentes de TODOS os tenants, uma vez, no deploy')
+    ->allowRawDbTable('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php', 'migration de schema: sanea tenant_id órfão e cria a FK para tenants em todas as tabelas de negócio; roda uma vez no deploy, fora de request')
+
+    // (l) update/insert em massa com tenant_id no payload
+    ->allowMassTenantWrite('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php', 'backfill único: o UPDATE com tenant_id é o próprio objetivo da migration')
+    ->allowMassTenantWrite('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php', 'backfill único: os UPDATEs com tenant_id são o próprio objetivo da migration')
+    ->allowMassTenantWrite('database/migrations/2026_09_15_000002_sequencias_por_tenant.php', 'semeadura da linha de sequência (tenant_id, ano): a coluna É a chave da linha, não um atributo migrável')
+    ->allowMassTenantWrite('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php', 'saneamento pré-FK: zera tenant_id ÓRFÃO (aponta para tenant inexistente) para a chave estrangeira poder ser criada')
+    ->allowMassTenantWrite('app/Support/SequenciaAnualPorTenant.php', 'tabelas de sequência (sequencias_pedido_compra/sequencias_requisicao) não têm model nem BelongsToTenant: a LINHA é o par (tenant_id, ano), então o insertOrIgnore precisa da coluna. Nenhum registro muda de tenant — o insert só cria a linha do próprio tenant e o update mexe só em ultimo_numero')
+
+    // (n) withoutTenantScope() sem filtro de tenant
+    ->allowUnfilteredBypass('app/Actions/ProcessarRespostaCotacaoAction.php', 'a caixa IMAP de cotações é única da instalação e roda no console, SEM tenant no contexto: o casamento pelo email_token opaco (único na base) é o lookup que DESCOBRE o tenant. Logo em seguida tudo — idempotência, leitura, escrita e e-mail — roda dentro de TenantContext::runFor($tenantId)')
+
+    // (o) consulta a User sem filtro de tenant
+    ->allowUnscopedUserQuery('app/Console/Commands/ExecutarRateioMensal.php', 'console: o --executado-por identifica o Admin operador ANTES de existir tenant no contexto; é dele que o tenant é derivado (runFor do tenant do Admin), e o comando recusa quem não tem perfil Admin')
+    ->allowUnscopedUserQuery('app/Console/Commands/SanearDuplicatasCatalogo.php', 'console: idem — o --executado-por resolve o Admin operador antes do tenant, e a fusão fica restrita ao tenant DELE')
+
+    // (q) comando agendado sem runFor/eachTenant
+    ->allowTenantlessCommand('cotacoes:capturar-respostas', 'o comando não escolhe tenant: ele lê a caixa IMAP única da instalação. O tenant de CADA mensagem é descoberto pelo email_token da cotação e todo o processamento roda dentro de TenantContext::runFor (ProcessarRespostaCotacaoAction::execute)')
+
+    // (j2) tabela de infraestrutura sem tenant_id (também fora do alcance do off-boarding)
+    ->allowTableWithoutTenant('personal_access_tokens', 'tabela do Sanctum: token de API da IDENTIDADE (tokenable = users), que é compartilhada pela suíte e não tem tenant dono. O expurgo do tenant não a alcança de propósito — quem revoga é o UserService (removeMembership/changeStatus/deleteUser revogam os tokens do usuário)')
+
+    // (p) unicidades sem tenant_id na coluna — TODAS já são por-tenant por transitividade
+    //     ou globais por desenho. A coluna-líder de cada uma é FK para uma tabela
+    //     escopada (e agora com FK para tenants): duas empresas não podem compartilhar
+    //     o mesmo pai, logo a colisão entre tenants é impossível por construção.
+    ->allowGlobalUnique('obras.unidade_id', 'unidade_id é FK para unidades, que tem tenant_id + FK para tenants: uma obra de outra empresa nunca aponta para a mesma unidade — o unique já é por-tenant por transitividade')
+    ->allowGlobalUnique('etapas_alcada.faixa_alcada_id+ordem', 'faixa_alcada_id é FK para faixas_alcada (escopada): a etapa herda o tenant da faixa')
+    ->allowGlobalUnique('centros_custo.unidade_id+codigo+deleted_at', 'unidade_id é FK para unidades (escopada): o código do centro de custo já é único POR UNIDADE, logo por tenant')
+    ->allowGlobalUnique('cotacoes.email_token', 'token OPACO e global por desenho: é ele que RESOLVE o tenant quando a resposta do fornecedor chega pela caixa IMAP única da instalação (ProcessarRespostaCotacaoAction), antes de existir tenant no contexto. Unicidade global é requisito, não descuido')
+    ->allowGlobalUnique('cotacoes.requisicao_id+fornecedor_id+deleted_at', 'requisicao_id é FK para requisicoes (escopada): a cotação herda o tenant da requisição')
+    ->allowGlobalUnique('aprovacoes.requisicao_id+ciclo+ordem+deleted_at', 'requisicao_id é FK para requisicoes (escopada)')
+    ->allowGlobalUnique('itens_pedido_compra.pedido_compra_id+item_requisicao_id', 'pedido_compra_id é FK para pedidos_compra (escopada)')
+    ->allowGlobalUnique('saldos_estoque.unidade_id+deposito+item_catalogo_id', 'unidade_id é FK para unidades (escopada). É um índice PARCIAL (SQLite) / sobre coluna gerada (MySQL) — ver add_unique_catalogo_to_saldos_estoque; reescrevê-lo em dois drivers não mudaria o isolamento')
+    ->allowGlobalUnique('saldos_estoque.unidade_id+deposito+descricao_normalizada', 'unidade_id é FK para unidades (escopada): a identidade do saldo já é única por unidade, logo por tenant')
+    ->allowGlobalUnique('catalogo_itens.uuid', 'UUID é identificador GLOBAL por desenho (chave estável do item entre apps da suíte); a chave de negócio do catálogo já é por tenant (catalogo_itens_tenant_codigo_uq)')
+    ->allowGlobalUnique('itens_inventario.sessao_inventario_id+saldo_estoque_id', 'sessao_inventario_id é FK para sessoes_inventario (escopada)')
+    ->allowGlobalUnique('lotes_estoque.saldo_estoque_id+numero_lote', 'saldo_estoque_id é FK para saldos_estoque (escopada). Índice PARCIAL (fundido_para_id IS NULL) no SQLite / coluna gerada no MySQL')
+    ->allowGlobalUnique('rateio_unidades.rateio_central_id+unidade_id', 'rateio_central_id é FK para rateios_centrais (escopada, unique por tenant+mês+ano)')
+    ->allowGlobalUnique('itens_cotacao.cotacao_id+item_requisicao_id', 'cotacao_id é FK para cotacoes (escopada)')
+    ->allowGlobalUnique('pagamentos.pedido_compra_id', 'pedido_compra_id é FK para pedidos_compra (escopada). Índice PARCIAL "1 pagamento ATIVO por pedido" (deleted_at IS NULL) no SQLite / coluna gerada no MySQL')
+    ->allowGlobalUnique('precos_homologados.uuid', 'UUID é identificador GLOBAL por desenho; a chave de negócio (item+fornecedor) é escopada pelo item de catálogo')
 
     // (j) tabelas sem tenant_id (database/migrations inteiro é varrido no layout flat)
     ->allowTableWithoutTenant('bancos', 'catálogo COMPE de bancos, registro público e global compartilhado por todos os tenants')

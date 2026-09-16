@@ -52,6 +52,30 @@ MAIL_FROM_ADDRESS="compras@suaempresa.com"
 QUEUE_CONNECTION=database
 ```
 
+### 1a. Integração Store → Compras (ADR-015) — OBRIGATÓRIA desde a fundação v0.2.0
+
+O receptor `POST /api/inbound/events` ficou **fail-closed**: sem allowlist de tenants
+para o remetente, todo envelope assinado passa a responder **403** (antes qualquer
+tenant ativo era aceito — o HMAC autentica o app, não o par app↔tenant).
+
+```dotenv
+# Segredo do par Store→Compras (igual ao RELAY_COMPRAS_SECRET do Store). Sem ele: 401.
+HELIX_INBOUND_SECRET_STORE=<openssl rand -hex 32>
+
+# Allowlist de tenants que o Store pode publicar AQUI (CSV de UUIDs de `tenants`).
+# Sem esta linha (ou com ela vazia): 403 em todo envelope do Store.
+HELIX_INBOUND_TENANTS_STORE=<uuid-do-tenant-a>,<uuid-do-tenant-b>
+
+# Opcional: restringe os nomes de evento aceitos.
+HELIX_INBOUND_ACCEPT=store.purchase_request.created
+```
+
+Como obter os UUIDs: `php artisan tinker --execute="Helix\Foundation\Models\Platform\Identity\Tenant::query()->get(['id','slug'])->each(fn(\$t) => print(\"{\$t->id}  {\$t->slug}\n\"));"`
+
+O curinga `*` existe para homologação e sai como **aviso** no `php artisan helix:doctor`.
+Ao ativar um tenant novo com loja integrada, **acrescente o UUID dele a esta lista** —
+senão os pedidos da loja param de chegar silenciosamente (403 no remetente).
+
 `php artisan key:generate` se ainda não houver `APP_KEY`.
 
 ---

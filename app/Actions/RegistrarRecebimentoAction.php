@@ -12,6 +12,7 @@ use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +61,8 @@ class RegistrarRecebimentoAction
                 }
 
                 $jaRecebido = (float) DB::table('itens_recebimento')
+                    // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+                    ->where('tenant_id', TenantContext::requireId('saldo a receber do item'))
                     ->where('item_pedido_compra_id', $itemId)
                     ->whereNull('deleted_at')
                     ->sum('quantidade_recebida');
@@ -123,6 +126,8 @@ class RegistrarRecebimentoAction
     {
         // Item com saldo pendente: quantidade > já recebido (usando subquery para evitar fan-out)
         $pendente = DB::table('itens_pedido_compra as ipc')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+            ->where('ipc.tenant_id', TenantContext::requireId('conclusão da requisição'))
             ->join('pedidos_compra as pc', 'ipc.pedido_compra_id', '=', 'pc.id')
             ->leftJoin(
                 DB::raw('(SELECT item_pedido_compra_id, SUM(quantidade_recebida) as rec FROM itens_recebimento WHERE deleted_at IS NULL GROUP BY item_pedido_compra_id) as ir'),

@@ -29,6 +29,7 @@ class GestaoPedidosCompra extends Component
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $fornecedor = Fornecedor::findOrFail($fornecedorId);
+        abort_unless(auth()->user()->can('operar', $fornecedor), 403);
         $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->whereIn('id', $requisicaoIds)
             ->get();

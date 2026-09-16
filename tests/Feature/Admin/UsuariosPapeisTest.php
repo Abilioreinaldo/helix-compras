@@ -85,7 +85,9 @@ it('tela de usuários atribui papéis do catálogo e passa pelo UserService', fu
 
 it('recusa papel de outro tenant', function () {
     $outro = Tenant::create(['slug' => 'bravo', 'name' => 'Bravo', 'status' => 'active']);
-    $alheio = Role::create(['tenant_id' => $outro->id, 'slug' => 'compras', 'name' => 'Compras']);
+    // v0.2.0: tenant_id saiu do $fillable — quem carimba é o BelongsToTenant, a
+    // partir do contexto. Criar "no outro tenant" é declarado com runFor.
+    $alheio = TenantContext::runFor((string) $outro->id, fn () => Role::create(['slug' => 'compras', 'name' => 'Compras']));
 
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)

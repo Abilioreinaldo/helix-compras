@@ -59,6 +59,20 @@ class UserFactory extends Factory
     }
 
     /**
+     * `tenant_id` e `is_admin` saíram do $fillable do User (estado de servidor, v0.2.1):
+     * o caminho de produção é o forceCreate do UserService da fundação. A factory é
+     * infraestrutura de teste/seed e também escreve como servidor — daí o forceFill,
+     * que mantém `User::factory()->create(['tenant_id' => $x])` funcionando sem
+     * reabrir o mass assignment no código da aplicação.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function newModel(array $attributes = []): User
+    {
+        return (new User)->forceFill($attributes);
+    }
+
+    /**
      * Indica que o e-mail do usuário não foi verificado.
      */
     public function unverified(): static

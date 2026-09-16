@@ -22,6 +22,7 @@ class RequisicoesAprovador extends Component
 
         // Somente aprovações pendentes do ciclo atual de cada requisição.
         $resultados = DB::table('aprovacoes as a')
+            ->where('a.tenant_id', $tenantId)
             ->join('requisicoes as r', function ($join) {
                 $join->on('r.id', '=', 'a.requisicao_id')
                     ->whereColumn('a.ciclo', 'r.ciclo_aprovacao');
@@ -35,7 +36,6 @@ class RequisicoesAprovador extends Component
                     ->where('tu.tenant_id', '=', $tenantId)
                     ->where('tu.status', '=', 'active');
             })
-            ->where('a.tenant_id', $tenantId)
             ->where('r.tenant_id', $tenantId)
             ->where('a.status', 'pendente')
             ->whereNull('a.deleted_at')

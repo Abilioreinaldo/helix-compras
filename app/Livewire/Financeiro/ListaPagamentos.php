@@ -97,6 +97,7 @@ class ListaPagamentos extends Component
     {
         $this->authorize('manage', Pagamento::class);
         $pag = Pagamento::findOrFail($id);
+        $this->authorize('operar', $pag);
 
         $this->pagamentoId = $id;
         $this->valorPago = (string) $pag->valor_total;
@@ -150,7 +151,11 @@ class ListaPagamentos extends Component
     public function abrirAgendar(int $id): void
     {
         $this->authorize('manage', Pagamento::class);
-        $this->pagamentoId = $id;
+        // Resolve e autoriza o registro AQUI (e não só no agendar): o modal não
+        // abre para um pagamento de outra empresa.
+        $pag = Pagamento::findOrFail($id);
+        $this->authorize('operar', $pag);
+        $this->pagamentoId = $pag->id;
         $this->dataAgendamento = now()->addDay()->toDateString();
         $this->resetValidation();
         $this->mostrarAgendar = true;
@@ -178,7 +183,11 @@ class ListaPagamentos extends Component
     public function abrirCancelar(int $id): void
     {
         $this->authorize('manage', Pagamento::class);
-        $this->pagamentoId = $id;
+        // Resolve e autoriza o registro AQUI (e não só no cancelar): o modal não
+        // abre para um pagamento de outra empresa.
+        $pag = Pagamento::findOrFail($id);
+        $this->authorize('operar', $pag);
+        $this->pagamentoId = $pag->id;
         $this->motivoCancelamento = '';
         $this->resetValidation();
         $this->mostrarCancelar = true;

@@ -93,6 +93,7 @@ class GestaoCotacoes extends Component
         ]);
 
         $fornecedor = Fornecedor::findOrFail($this->fornecedorId);
+        abort_unless(auth()->user()->can('operar', $fornecedor), 403);
 
         try {
             app(RegistrarCotacaoAction::class)->execute(
@@ -175,6 +176,7 @@ class GestaoCotacoes extends Component
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
         $cotacao = Cotacao::findOrFail($cotacaoId);
+        abort_unless(auth()->user()->can('operar', $cotacao), 403);
         abort_unless($cotacao->requisicao_id === $this->requisicao->id, 403);
 
         if ($cotacao->valor_respondido === null) {
@@ -200,6 +202,7 @@ class GestaoCotacoes extends Component
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 
         $cotacao = Cotacao::with('fornecedor')->findOrFail($cotacaoId);
+        abort_unless(auth()->user()->can('operar', $cotacao), 403);
         abort_unless($cotacao->requisicao_id === $this->requisicao->id, 403);
 
         if ($cotacao->valor === null) {

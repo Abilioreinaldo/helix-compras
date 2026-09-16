@@ -330,17 +330,19 @@ it('IngerirPedidoLoja não grava para tenant sem a feature compras nem para even
 
     $ingerir = app(IngerirPedidoLoja::class);
 
-    TenantContext::runFor($tenantSemCompras->id, fn () => $ingerir->handle(new DomainEvent([
-        'name' => IngerirPedidoLoja::EVENTO, 'tenant_id' => $tenantSemCompras->id, 'payload' => $payload,
-    ])));
-    $ingerir->handle(new DomainEvent(['name' => IngerirPedidoLoja::EVENTO, 'tenant_id' => null, 'payload' => $payload]));
+    // v0.2.0: tenant_id saiu do $fillable do DomainEvent — evento montado à mão
+    // (não persistido) recebe a coluna por forceFill.
+    $evento = fn (?string $tenantId) => (new DomainEvent([
+        'name' => IngerirPedidoLoja::EVENTO, 'payload' => $payload,
+    ]))->forceFill(['tenant_id' => $tenantId]);
+
+    TenantContext::runFor($tenantSemCompras->id, fn () => $ingerir->handle($evento($tenantSemCompras->id)));
+    $ingerir->handle($evento(null));
 
     expect(PedidoLojaRecebido::withoutTenantScope()->count())->toBe(0);
 
     // Controle positivo: tenant com a feature grava, carimbado com o tenant do evento.
-    TenantContext::runFor($this->tenantA->id, fn () => $ingerir->handle(new DomainEvent([
-        'name' => IngerirPedidoLoja::EVENTO, 'tenant_id' => $this->tenantA->id, 'payload' => $payload,
-    ])));
+    TenantContext::runFor($this->tenantA->id, fn () => $ingerir->handle($evento($this->tenantA->id)));
 
     expect(PedidoLojaRecebido::withoutTenantScope()->count())->toBe(1)
         ->and(PedidoLojaRecebido::withoutTenantScope()->first()->tenant_id)->toBe($this->tenantA->id);

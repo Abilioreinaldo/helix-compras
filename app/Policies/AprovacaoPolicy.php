@@ -20,6 +20,12 @@ use Illuminate\Support\Facades\DB;
  *
  * Tenant: `acessar`/`decidir` comparam o tenant da requisição com o tenant ativo e
  * só contam vínculos (unidade_user) do mesmo tenant — aprovador de A nunca decide em B.
+ *
+ * Admin do tenant: até a fundação v0.1.x ele passava pelo `Gate::before` ("admin passa
+ * por tudo"), inclusive com um registro como argumento. A v0.2.0 deixou de curto-circuitar
+ * quando há model — a decisão é da policy. O bypass do admin fica DECLARADO aqui (depois
+ * da comparação de tenant, portanto sempre confinado à empresa dele), preservando o
+ * comportamento anterior sem reabrir o furo cross-tenant.
  */
 class AprovacaoPolicy
 {
@@ -39,6 +45,10 @@ class AprovacaoPolicy
             return false;
         }
 
+        if ($user->isAdminForActiveTenant()) {
+            return true;
+        }
+
         return $this->vinculoAprovador($user, $requisicao)->exists();
     }
 
@@ -51,6 +61,10 @@ class AprovacaoPolicy
     {
         if (! $this->mesmoTenant($user, $requisicao)) {
             return false;
+        }
+
+        if ($user->isAdminForActiveTenant()) {
+            return true;
         }
 
         $etapa = $requisicao->etapaAprovacaoAtual();

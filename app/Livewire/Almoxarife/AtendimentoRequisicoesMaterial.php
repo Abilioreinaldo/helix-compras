@@ -39,6 +39,7 @@ class AtendimentoRequisicoesMaterial extends Component
 
         $this->erroAtendimento = '';
         $rim = RequisicaoMaterial::query()->findOrFail($id);
+        $this->authorize('operar', $rim);
 
         try {
             app(AtenderRequisicaoMaterialAction::class)->execute($rim, auth()->user());
@@ -51,7 +52,11 @@ class AtendimentoRequisicoesMaterial extends Component
     public function abrirRecusa(int $id): void
     {
         $this->authorize('estoque.gerenciar');
-        $this->recusandoId = $id;
+        // Resolve e autoriza o registro AQUI (e não só no confirmar): o modal não
+        // abre para uma RIM de outra empresa.
+        $rim = RequisicaoMaterial::query()->findOrFail($id);
+        $this->authorize('operar', $rim);
+        $this->recusandoId = $rim->id;
         $this->motivoRecusa = '';
         $this->erroAtendimento = '';
     }
@@ -65,6 +70,7 @@ class AtendimentoRequisicoesMaterial extends Component
         ]);
 
         $rim = RequisicaoMaterial::query()->findOrFail($this->recusandoId);
+        $this->authorize('operar', $rim);
 
         try {
             app(RecusarRequisicaoMaterialAction::class)->execute($rim, auth()->user(), $this->motivoRecusa);

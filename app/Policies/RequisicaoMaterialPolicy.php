@@ -3,7 +3,9 @@
 namespace App\Policies;
 
 use App\Enums\Perfil;
+use App\Models\RequisicaoMaterial;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 
 /**
  * Autorização da Requisição Interna de Material (RIM) do lado do solicitante.
@@ -20,5 +22,19 @@ class RequisicaoMaterialPolicy
     public function create(User $user): bool
     {
         return $user->temPerfil(Perfil::Solicitante);
+    }
+
+    /**
+     * Operar sobre ESTA RIM (atender/recusar pelo almoxarife, salvar pelo solicitante)
+     * numa tela cuja permissão de módulo já foi checada: a policy responde a posse do
+     * tenant. Desde a fundação v0.2.0 o Gate::before não curto-circuita com um model.
+     */
+    public function operar(User $user, RequisicaoMaterial $rim): bool
+    {
+        $ativo = TenantContext::id() ?? $user->getActiveTenantId();
+
+        return $ativo !== null
+            && $rim->tenant_id !== null
+            && (string) $rim->tenant_id === (string) $ativo;
     }
 }

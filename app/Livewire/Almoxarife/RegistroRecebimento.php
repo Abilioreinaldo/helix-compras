@@ -8,6 +8,7 @@ use App\Enums\StatusPedidoCompra;
 use App\Models\CatalogoItem;
 use App\Models\PedidoCompra;
 use App\Models\Scopes\UnidadeScope;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
@@ -174,6 +175,8 @@ class RegistroRecebimento extends Component
         // tenta ler a propriedade "quantidade_recebida" da linha (cuja coluna é "SUM(...)") e
         // estoura "Undefined property" quando há recebimentos.
         $jaRecebidoPorItem = DB::table('itens_recebimento')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+            ->where('itens_recebimento.tenant_id', TenantContext::requireId('recebimentos do pedido'))
             ->join('recebimentos', 'itens_recebimento.recebimento_id', '=', 'recebimentos.id')
             ->where('recebimentos.pedido_compra_id', $pedido->id)
             ->whereNull('itens_recebimento.deleted_at')

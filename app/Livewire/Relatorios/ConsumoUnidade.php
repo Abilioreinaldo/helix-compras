@@ -29,12 +29,12 @@ class ConsumoUnidade extends Component
         $tenantId = auth()->user()->getActiveTenantId();
 
         $resultados = DB::table('movimentacoes_estoque as m')
+            ->where('m.tenant_id', $tenantId)
             ->join('saldos_estoque as s', 's.id', '=', 'm.saldo_estoque_id')
             ->join('unidades as u', function ($join) {
                 $join->on('u.id', '=', 's.unidade_id')
                     ->whereNull('u.deleted_at');
             })
-            ->where('m.tenant_id', $tenantId)
             ->where('s.tenant_id', $tenantId)
             ->where('u.tenant_id', $tenantId)
             ->where('m.tipo', TipoMovimentacao::Saida->value)

@@ -40,6 +40,7 @@ class TriagemRequisicoes extends Component
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $requisicao), 403);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::EmTriagem);
         $this->dispatch('notify', mensagem: 'Triagem iniciada.');
     }
@@ -48,6 +49,7 @@ class TriagemRequisicoes extends Component
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $requisicao), 403);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::EmCotacao);
         $this->dispatch('notify', mensagem: 'Requisição enviada para cotação.');
     }
@@ -55,7 +57,11 @@ class TriagemRequisicoes extends Component
     public function abrirDevolucao(int $id): void
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
-        $this->devolvendo = $id;
+        // Resolve e autoriza o registro AQUI (e não só no confirmar): o modal não
+        // abre para uma requisição de outra empresa.
+        $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $requisicao), 403);
+        $this->devolvendo = $requisicao->id;
         $this->observacaoDevolucao = '';
     }
 
@@ -76,6 +82,7 @@ class TriagemRequisicoes extends Component
         ]);
 
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->devolvendo);
+        abort_unless(auth()->user()->can('operar', $requisicao), 403);
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::Devolvida, $this->observacaoDevolucao);
 
         $this->devolvendo = null;
@@ -140,6 +147,7 @@ class TriagemRequisicoes extends Component
 
         $this->erroAtendimentoEstoque = '';
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->with('itens')->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $requisicao), 403);
         $compradora = auth()->user();
 
         // Validação prévia: nenhum item avulso
@@ -206,6 +214,7 @@ class TriagemRequisicoes extends Component
 
         $this->erroExpressa = '';
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->with('itens')->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $requisicao), 403);
 
         try {
             app(AtenderViaExpressaAction::class)->execute($requisicao, auth()->user());

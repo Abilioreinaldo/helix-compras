@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Compradora;
 
+use App\Models\CatalogoItem;
 use App\Models\EstoqueMinimo;
 use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
@@ -33,6 +34,14 @@ class ItensARepor extends Component
                 && (int) $item->item_catalogo_id === $itemCatalogoId);
 
         abort_unless($emAlerta, 404);
+
+        // Posse dos registros que vão para a query string da nova requisição: a
+        // permissão diz "pode repor?", a policy diz "essa unidade/esse item são
+        // desta empresa?" (o Gate::before não decide mais quando há um model).
+        $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail($unidadeId);
+        abort_unless(auth()->user()->can('operar', $unidade), 403);
+        $catalogoItem = CatalogoItem::query()->findOrFail($itemCatalogoId);
+        abort_unless(auth()->user()->can('operar', $catalogoItem), 403);
 
         $this->redirect(
             route('requisicoes.criar', [

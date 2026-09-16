@@ -42,7 +42,11 @@ class PedidosLoja extends Component
     public function abrirPromocao(int $id): void
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
-        $this->promovendo = $id;
+        // Resolve e autoriza o registro AQUI (e não só no promover): o modal não
+        // abre para um pedido de outra empresa.
+        $pedido = PedidoLojaRecebido::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
+        $this->promovendo = $pedido->id;
         $this->unidadeId = null;
         $this->centroCustoId = null;
         $this->resetErrorBag();
@@ -75,6 +79,7 @@ class PedidosLoja extends Component
         ]);
 
         $pedido = PedidoLojaRecebido::findOrFail($this->promovendo);
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
 
         try {
             $requisicao = app(PromoverPedidoLojaAction::class)
@@ -95,6 +100,7 @@ class PedidosLoja extends Component
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
         $pedido = PedidoLojaRecebido::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $pedido), 403);
 
         if ($pedido->status !== PedidoLojaRecebido::STATUS_RECEBIDO) {
             $this->addError('promocao', 'Este pedido já foi promovido ou descartado.');

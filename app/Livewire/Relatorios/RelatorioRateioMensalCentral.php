@@ -35,13 +35,20 @@ class RelatorioRateioMensalCentral extends Component
     public function toggleExpandir(int $id): void
     {
         $this->authorizeAcesso();
+        // Só estado de UI, mas o id vem do cliente: confirma a posse do rateio.
+        $rateio = RateioCentral::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $rateio), 403);
         $this->expandidoId = $this->expandidoId === $id ? null : $id;
     }
 
     public function abrirReversao(int $itemId): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        $this->revertendoItemId = $itemId;
+        // Resolve e autoriza o registro AQUI (e não só no confirmar): o modal não
+        // abre para um rateio de outra empresa.
+        $item = RateioUnidade::findOrFail($itemId);
+        abort_unless(auth()->user()->can('operar', $item), 403);
+        $this->revertendoItemId = $item->id;
         $this->motivoReversao = '';
         $this->resetValidation();
     }
@@ -59,6 +66,7 @@ class RelatorioRateioMensalCentral extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $item = RateioUnidade::with('rateioCentral')->findOrFail($this->revertendoItemId);
+        abort_unless(auth()->user()->can('operar', $item), 403);
 
         try {
             app(DescontoRateioAction::class)->execute(

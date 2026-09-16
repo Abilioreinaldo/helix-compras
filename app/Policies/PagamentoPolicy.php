@@ -2,7 +2,9 @@
 
 namespace App\Policies;
 
+use App\Models\Pagamento;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 
 /**
  * Autorização do módulo Financeiro (contas a pagar).
@@ -28,5 +30,20 @@ class PagamentoPolicy
     public function manage(User $user): bool
     {
         return $user->podeGerenciarPagamentos();
+    }
+
+    /**
+     * Operar sobre ESTE pagamento: além do papel, o registro tem de ser do tenant ativo.
+     * Desde a fundação v0.2.0 o Gate::before não curto-circuita quando há um model no
+     * argumento — é aqui que o tenant do recurso é comparado.
+     */
+    public function operar(User $user, Pagamento $pagamento): bool
+    {
+        $ativo = TenantContext::id() ?? $user->getActiveTenantId();
+
+        return $ativo !== null
+            && $pagamento->tenant_id !== null
+            && (string) $pagamento->tenant_id === (string) $ativo
+            && $user->podeGerenciarPagamentos();
     }
 }

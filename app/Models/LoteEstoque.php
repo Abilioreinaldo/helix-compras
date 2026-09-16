@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditavel;
 use Database\Factories\LoteEstoqueFactory;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -74,6 +75,8 @@ class LoteEstoque extends ComprasModel
         }
 
         return DB::table('lotes_estoque')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+            ->where('tenant_id', TenantContext::requireId('validades de lote'))
             ->whereIn('saldo_estoque_id', $ids->all())
             ->whereNull('fundido_para_id')
             ->whereNotNull('validade')

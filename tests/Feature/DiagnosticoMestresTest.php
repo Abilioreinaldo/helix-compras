@@ -2,9 +2,9 @@
 
 use App\Models\Cotacao;
 use App\Models\Fornecedor;
+use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 uses(RefreshDatabase::class);
 
@@ -28,8 +28,14 @@ it('referência cross-tenant (cotação de um tenant, fornecedor de outro) falha
     $fornecedor = Fornecedor::factory()->create();
     $cotacao = Cotacao::factory()->create(['fornecedor_id' => $fornecedor->id]);
 
-    DB::table('fornecedores')->where('id', $fornecedor->id)->update(['tenant_id' => (string) Str::uuid()]);
-    DB::table('cotacoes')->where('id', $cotacao->id)->update(['tenant_id' => (string) Str::uuid()]);
+    // Tenants REAIS: desde a migration de FKs (2026_09_17_000003) um tenant_id que não
+    // existe em `tenants` é recusado pelo banco — o cenário a simular aqui é o de duas
+    // empresas existentes cruzadas, não o de um id órfão.
+    $outroA = Tenant::create(['slug' => 'diag-a', 'name' => 'Diag A', 'status' => 'active']);
+    $outroB = Tenant::create(['slug' => 'diag-b', 'name' => 'Diag B', 'status' => 'active']);
+
+    DB::table('fornecedores')->where('id', $fornecedor->id)->update(['tenant_id' => $outroA->id]);
+    DB::table('cotacoes')->where('id', $cotacao->id)->update(['tenant_id' => $outroB->id]);
 
     $this->artisan('compras:diagnostico-mestres', ['--strict' => true])->assertExitCode(1);
 });

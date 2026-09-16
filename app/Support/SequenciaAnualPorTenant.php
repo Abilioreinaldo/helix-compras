@@ -23,10 +23,13 @@ class SequenciaAnualPorTenant
     /** Reserva e devolve o próximo número da sequência (tenant, ano). */
     public function proximo(string $tabela, string $tenantId, int $ano): int
     {
-        $chave = ['tenant_id' => $tenantId, 'ano' => $ano];
-
         // Garante a existência da linha SEM travar faixa (no-op se já existe).
-        DB::table($tabela)->insertOrIgnore($chave + [
+        // `tenant_id` no payload é a própria CHAVE da sequência (a tabela não tem
+        // model nem BelongsToTenant: a linha É o par tenant+ano) — por isso este
+        // arquivo está na allowlist de `no_mass_tenant_writes` do kit.
+        DB::table($tabela)->insertOrIgnore([
+            'tenant_id' => $tenantId,
+            'ano' => $ano,
             'ultimo_numero' => 0,
             'created_at' => now(),
             'updated_at' => now(),
@@ -34,14 +37,21 @@ class SequenciaAnualPorTenant
 
         // Só então o lock pessimista, agora sobre uma linha existente: o bloqueio
         // é de REGISTRO (a linha deste tenant), nunca de gap entre tenants.
-        $seq = DB::table($tabela)->where($chave)->lockForUpdate()->first();
+        $seq = DB::table($tabela)
+            ->where('tenant_id', $tenantId)
+            ->where('ano', $ano)
+            ->lockForUpdate()
+            ->first();
 
         $proximo = (int) $seq->ultimo_numero + 1;
 
-        DB::table($tabela)->where($chave)->update([
-            'ultimo_numero' => $proximo,
-            'updated_at' => now(),
-        ]);
+        DB::table($tabela)
+            ->where('tenant_id', $tenantId)
+            ->where('ano', $ano)
+            ->update([
+                'ultimo_numero' => $proximo,
+                'updated_at' => now(),
+            ]);
 
         return $proximo;
     }

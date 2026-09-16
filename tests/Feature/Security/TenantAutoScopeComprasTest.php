@@ -5,8 +5,10 @@ use App\Enums\TipoUnidade;
 use App\Models\Fornecedor;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Exceptions\TenantMismatchException;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -72,10 +74,21 @@ it('não deixa um payload de tela escolher o tenant da unidade (tenant_id fora d
     $this->actingAs(User::factory()->admin()->create(['tenant_id' => $tenantA->id]));
 
     // Unidade era a única model de negócio com tenant_id em $fillable: um `tenant_id`
-    // injetado no payload de criação chegava ao mass assignment. Agora é descartado
-    // e quem manda é o carimbo do contexto.
-    $unidade = Unidade::create([
+    // injetado no payload de criação chegava ao mass assignment. Hoje a coluna está
+    // fora do fillable e, com Model::preventSilentlyDiscardingAttributes() ligado
+    // (exigência da fundação v0.2.0), o payload nem é descartado em silêncio: o
+    // mass assignment é RECUSADO.
+    expect(fn () => Unidade::create([
         'tenant_id' => $tenantB->id,
+        'nome' => 'Obra Plantada',
+        'tipo' => TipoUnidade::Obra->value,
+        'status' => StatusUnidade::Ativa->value,
+    ]))->toThrow(MassAssignmentException::class);
+
+    expect(Unidade::withoutTenantScope()->count())->toBe(0);
+
+    // Sem a coluna no payload, quem manda é o carimbo do contexto.
+    $unidade = Unidade::create([
         'nome' => 'Obra Plantada',
         'tipo' => TipoUnidade::Obra->value,
         'status' => StatusUnidade::Ativa->value,
@@ -84,8 +97,10 @@ it('não deixa um payload de tela escolher o tenant da unidade (tenant_id fora d
     expect($unidade->tenant_id)->toBe($tenantA->id)
         ->and(Unidade::withoutTenantScope()->where('tenant_id', $tenantB->id)->count())->toBe(0);
 
-    // E nem um fill() posterior migra o registro (imutabilidade do BelongsToTenant).
-    $unidade->fill(['tenant_id' => $tenantB->id])->save();
+    // E nem um fill() posterior migra o registro (o fill recusa a coluna; e mesmo
+    // forçando, a imutabilidade do BelongsToTenant lança no save).
+    expect(fn () => $unidade->fill(['tenant_id' => $tenantB->id]))->toThrow(MassAssignmentException::class);
+    expect(fn () => $unidade->forceFill(['tenant_id' => $tenantB->id])->save())->toThrow(TenantMismatchException::class);
 
     expect(Unidade::withoutTenantScope()->whereKey($unidade->id)->value('tenant_id'))->toBe($tenantA->id);
 });

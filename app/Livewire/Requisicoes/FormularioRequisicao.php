@@ -11,6 +11,7 @@ use App\Models\Obra;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Support\Facades\DB;
@@ -199,6 +200,8 @@ class FormularioRequisicao extends Component
             return;
         }
 
+        abort_unless(auth()->user()->can('operar', $catalogoItem), 403);
+
         $this->itens[$indice]['item_catalogo_id'] = $catalogoItem->id;
         $this->itens[$indice]['avulso'] = false;
         $this->itens[$indice]['descricao'] = $catalogoItem->descricao;
@@ -281,6 +284,8 @@ class FormularioRequisicao extends Component
             ->pluck('id');
 
         $verbaConsumida = DB::table('requisicao_itens')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+            ->where('tenant_id', TenantContext::requireId('consumo da verba da obra'))
             ->whereIn('requisicao_id', $idsComprometidos)
             ->sum(DB::raw('COALESCE(quantidade * valor_unitario_estimado, 0)'));
 
@@ -390,6 +395,7 @@ class FormularioRequisicao extends Component
         $this->salvar();
 
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->requisicaoId);
+        $this->authorize('update', $requisicao);
 
         try {
             $resultado = app(SubmeterRequisicaoAction::class)->execute($requisicao);
@@ -423,6 +429,7 @@ class FormularioRequisicao extends Component
         ]);
 
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->requisicaoId);
+        $this->authorize('update', $requisicao);
         $requisicao->update(['motivo_cancelamento' => $this->motivoCancelamento]);
 
         app(TransicionarStatusRequisicaoAction::class)->execute($requisicao, StatusRequisicao::Cancelada);

@@ -10,6 +10,7 @@ use App\Models\RateioUnidade;
 use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -121,6 +122,9 @@ class CalcularRateioMensalAction
         // e exclui soft-deletadas — simétrico ao fetch de unidades ativas abaixo. Intervalo de
         // datas é portável SQLite↔MySQL (sem MONTH()/strftime).
         $consumoPorUnidade = DB::table('movimentacoes_estoque as m')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito
+            // (fail-closed — o rateio roda sob TenantContext::runFor do Admin executor).
+            ->where('m.tenant_id', TenantContext::requireId('rateio mensal'))
             ->join('saldos_estoque as s', 's.id', '=', 'm.saldo_estoque_id')
             ->join('unidades as u', 'u.id', '=', 's.unidade_id')
             ->whereNull('u.deleted_at')

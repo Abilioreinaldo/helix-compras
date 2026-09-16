@@ -54,6 +54,7 @@ class ListaCentrosCusto extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $centro), 403);
         $this->editandoId = $id;
         $this->unidadeId = $centro->unidade_id;
         $this->codigo = $centro->codigo;
@@ -96,7 +97,9 @@ class ListaCentrosCusto extends Component
         ];
 
         if ($this->editandoId) {
-            CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->editandoId)->update($dados);
+            $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($this->editandoId);
+            abort_unless(auth()->user()->can('operar', $centro), 403);
+            $centro->update($dados);
         } else {
             CentroCusto::withoutGlobalScope(UnidadeScope::class)->create($dados);
         }
@@ -108,7 +111,9 @@ class ListaCentrosCusto extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($id)->delete();
+        $centro = CentroCusto::withoutGlobalScope(UnidadeScope::class)->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $centro), 403);
+        $centro->delete();
         $this->dispatch('notify', mensagem: 'Centro de custo removido.');
     }
 

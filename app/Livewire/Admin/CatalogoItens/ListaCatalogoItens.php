@@ -99,6 +99,7 @@ class ListaCatalogoItens extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $item = CatalogoItem::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $item), 403);
         $this->editandoId = $id;
         $this->descricao = $item->descricao;
         $this->codigo = $item->codigo ?? '';
@@ -136,7 +137,9 @@ class ListaCatalogoItens extends Component
         ];
 
         if ($this->editandoId) {
-            CatalogoItem::findOrFail($this->editandoId)->update($dados);
+            $item = CatalogoItem::findOrFail($this->editandoId);
+            abort_unless(auth()->user()->can('operar', $item), 403);
+            $item->update($dados);
         } else {
             CatalogoItem::create($dados);
         }
@@ -155,7 +158,9 @@ class ListaCatalogoItens extends Component
             return;
         }
 
-        CatalogoItem::findOrFail($id)->delete();
+        $item = CatalogoItem::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $item), 403);
+        $item->delete();
         $this->dispatch('notify', mensagem: 'Item de catálogo removido.');
     }
 
@@ -166,6 +171,7 @@ class ListaCatalogoItens extends Component
         $this->resetValidation();
 
         $item = CatalogoItem::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $item), 403);
 
         try {
             $atualizado = app(LigarControleLoteAction::class)->execute(
@@ -191,6 +197,7 @@ class ListaCatalogoItens extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $item = CatalogoItem::findOrFail($itemId);
+        abort_unless(auth()->user()->can('operar', $item), 403);
         $this->minimoItemId = $item->id;
         $this->minimoItemDescricao = $item->descricao;
 
@@ -241,7 +248,9 @@ class ListaCatalogoItens extends Component
         $quantidade = (float) ($this->minimosPorUnidade[$indice]['quantidade_minima'] ?? '0');
 
         $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail($unidadeId);
+        abort_unless(auth()->user()->can('operar', $unidade), 403);
         $item = CatalogoItem::findOrFail($this->minimoItemId);
+        abort_unless(auth()->user()->can('operar', $item), 403);
 
         try {
             app(DefinirEstoqueMinimoAction::class)->execute(
@@ -270,6 +279,7 @@ class ListaCatalogoItens extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $item = CatalogoItem::findOrFail($itemId);
+        abort_unless(auth()->user()->can('operar', $item), 403);
         $this->homologacaoItemId = $item->id;
         $this->homologacaoItemDescricao = $item->descricao;
         $this->resetCampoHomologacao();
@@ -376,6 +386,7 @@ class ListaCatalogoItens extends Component
 
         $homologacao = PrecoHomologado::where('item_catalogo_id', $this->homologacaoItemId)
             ->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $homologacao), 403);
         $homologacao->delete();
 
         $this->dispatch('notify', mensagem: 'Preço homologado removido.');

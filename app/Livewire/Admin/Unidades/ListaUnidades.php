@@ -71,6 +71,7 @@ class ListaUnidades extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $unidade = $this->unidadesDoTenant()->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $unidade), 403);
         $this->editandoId = $id;
         $this->nome = $unidade->nome;
         $this->tipo = $unidade->tipo->value;
@@ -126,6 +127,7 @@ class ListaUnidades extends Component
 
         if ($this->editandoId) {
             $unidade = $this->unidadesDoTenant()->findOrFail($this->editandoId);
+            abort_unless(auth()->user()->can('operar', $unidade), 403);
             $unidade->update($dados);
 
             if ($this->tipo === TipoUnidade::Obra->value) {
@@ -158,7 +160,9 @@ class ListaUnidades extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        $this->unidadesDoTenant()->findOrFail($id)->delete();
+        $unidade = $this->unidadesDoTenant()->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $unidade), 403);
+        $unidade->delete();
         $this->dispatch('notify', mensagem: 'Unidade removida.');
     }
 

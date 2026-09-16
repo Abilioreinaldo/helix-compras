@@ -85,6 +85,7 @@ class SaldosEstoque extends Component
             ->pluck('unidades.id');
 
         $saldo = SaldoEstoque::whereIn('unidade_id', $unidadeIds)->findOrFail($saldoId);
+        $this->authorize('operar', $saldo);
 
         if (! $saldo->item_catalogo_id) {
             return;
@@ -134,7 +135,9 @@ class SaldosEstoque extends Component
 
         // withoutGlobalScopes: o guard de autorização na action valida o vínculo do usuário
         $unidade = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail((int) $this->minimoUnidadeId);
+        $this->authorize('operar', $unidade);
         $item = CatalogoItem::query()->findOrFail($this->minimoItemCatalogoId);
+        $this->authorize('operar', $item);
 
         try {
             app(DefinirEstoqueMinimoAction::class)->execute(
@@ -158,6 +161,7 @@ class SaldosEstoque extends Component
         $this->authorize('estoque.gerenciar');
 
         $saldo = SaldoEstoque::whereIn('unidade_id', $this->unidadesDoAlmoxarife())->findOrFail($saldoId);
+        $this->authorize('operar', $saldo);
 
         $this->transferindoSaldoId = $saldo->id;
         $this->transferDescricaoItem = $saldo->descricao_item;
@@ -195,7 +199,9 @@ class SaldosEstoque extends Component
 
         // O saldo precisa pertencer a uma unidade onde o usuário é Almoxarife.
         $saldo = SaldoEstoque::whereIn('unidade_id', $this->unidadesDoAlmoxarife())->findOrFail($this->transferindoSaldoId);
+        $this->authorize('operar', $saldo);
         $destino = Unidade::withoutGlobalScope(UnidadeScope::class)->findOrFail((int) $this->transferDestinoId);
+        $this->authorize('operar', $destino);
 
         try {
             app(TransferirEstoqueAction::class)->execute(

@@ -61,6 +61,16 @@ class RequisicaoPolicy
         return $this->view($user, $requisicao);
     }
 
+    /**
+     * Operar sobre ESTA requisição numa tela cuja permissão de módulo já foi checada
+     * (triagem/cotação da compradora): a policy responde só a posse do tenant. Desde a
+     * fundação v0.2.0 o Gate::before não curto-circuita com um model no argumento.
+     */
+    public function operar(User $user, Requisicao $requisicao): bool
+    {
+        return $this->mesmoTenant($user, $requisicao);
+    }
+
     /** O recurso pertence ao tenant ativo (contexto explícito ou do usuário autenticado). */
     private function mesmoTenant(User $user, Requisicao $requisicao): bool
     {

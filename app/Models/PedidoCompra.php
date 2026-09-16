@@ -9,6 +9,7 @@ use App\Models\Concerns\Auditavel;
 use App\Models\Concerns\PertenceAUnidade;
 use App\Models\Scopes\UnidadeScope;
 use Database\Factories\PedidoCompraFactory;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -108,6 +109,8 @@ class PedidoCompra extends ComprasModel
     public function statusRecebimento(): StatusRecebimentoPedido
     {
         $totais = DB::table('itens_pedido_compra as ipc')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+            ->where('ipc.tenant_id', TenantContext::requireId('status de recebimento do pedido'))
             ->leftJoin(
                 DB::raw('(SELECT item_pedido_compra_id, SUM(quantidade_recebida) as rec FROM itens_recebimento WHERE deleted_at IS NULL GROUP BY item_pedido_compra_id) as ir'),
                 'ir.item_pedido_compra_id', '=', 'ipc.id'

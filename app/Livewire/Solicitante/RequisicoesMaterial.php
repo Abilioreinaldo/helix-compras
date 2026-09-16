@@ -64,6 +64,7 @@ class RequisicoesMaterial extends Component
         $saldo = SaldoEstoque::whereNull('fundido_para_id')
             ->whereIn('unidade_id', $usuario->unidades()->withoutGlobalScope(UnidadeScope::class)->pluck('unidades.id'))
             ->findOrFail($this->saldoEstoqueId);
+        abort_unless($usuario->can('operar', $saldo), 403);
 
         RequisicaoMaterial::create([
             'unidade_id' => $saldo->unidade_id,

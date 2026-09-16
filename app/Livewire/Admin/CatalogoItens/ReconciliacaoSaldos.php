@@ -29,7 +29,11 @@ class ReconciliacaoSaldos extends Component
     public function abrirVinculoManual(int $saldoId): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        $this->saldoSelecionadoId = $saldoId;
+        // Resolve e autoriza o registro AQUI (e não só no vincular): o modal não
+        // abre para um saldo de outra empresa.
+        $saldo = SaldoEstoque::findOrFail($saldoId);
+        abort_unless(auth()->user()->can('operar', $saldo), 403);
+        $this->saldoSelecionadoId = $saldo->id;
         $this->buscaManual = '';
     }
 
@@ -45,7 +49,9 @@ class ReconciliacaoSaldos extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $saldo = SaldoEstoque::findOrFail($saldoId);
+        abort_unless(auth()->user()->can('operar', $saldo), 403);
         $item = CatalogoItem::findOrFail($itemCatalogoId);
+        abort_unless(auth()->user()->can('operar', $item), 403);
 
         try {
             app(ConfirmarVinculoSaldoAction::class)->vincular($saldo, $item, auth()->user());
@@ -64,6 +70,7 @@ class ReconciliacaoSaldos extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
 
         $saldo = SaldoEstoque::findOrFail($saldoId);
+        abort_unless(auth()->user()->can('operar', $saldo), 403);
 
         app(ConfirmarVinculoSaldoAction::class)->desvincular($saldo, auth()->user());
 

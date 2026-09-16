@@ -54,6 +54,7 @@ class ListaAlcadas extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $faixa = FaixaAlcada::with('etapas')->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $faixa), 403);
         $this->editandoId = $id;
         $this->nome = $faixa->nome;
         $this->valorMinimo = (string) $faixa->valor_minimo;
@@ -105,6 +106,7 @@ class ListaAlcadas extends Component
 
         if ($this->editandoId) {
             $faixa = FaixaAlcada::with('etapas')->findOrFail($this->editandoId);
+            abort_unless(auth()->user()->can('operar', $faixa), 403);
             $anterior = $this->snapshot($faixa);
             $faixa->update($dadosFaixa);
             $faixa->etapas()->delete();
@@ -131,6 +133,7 @@ class ListaAlcadas extends Component
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $faixa = FaixaAlcada::with('etapas')->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $faixa), 403);
         $anterior = $this->snapshot($faixa);
         $faixa->etapas()->delete();
         $faixa->delete();

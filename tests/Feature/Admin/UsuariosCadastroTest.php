@@ -3,6 +3,7 @@
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -16,6 +17,14 @@ uses(RefreshDatabase::class);
  */
 beforeEach(function () {
     $this->tenant = Tenant::create(['slug' => 'alpha', 'name' => 'Alpha', 'status' => 'active']);
+
+    // O beforeEach global (tests/Pest.php) deixa no contexto o tenant canônico
+    // "comendador"; este arquivo trabalha em `alpha`. Desde a fundação v0.2.0 o
+    // UserService recusa um tenant_id divergente do contexto (o tenant nunca vem
+    // do chamador), então o contexto tem de ser o do admin — que é exatamente o
+    // que o SetActiveTenant faz no request real.
+    TenantContext::set($this->tenant->id);
+
     $this->admin = User::factory()->admin()->create([
         'tenant_id' => $this->tenant->id, 'email' => 'admin@alpha.test',
     ]);

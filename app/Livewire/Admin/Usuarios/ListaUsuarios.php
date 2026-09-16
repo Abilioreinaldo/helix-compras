@@ -79,6 +79,7 @@ class ListaUsuarios extends Component
         abort_unless(auth()->user()->can('users.manage'), 403);
         $this->resetValidation();
         $usuario = $this->usuariosDoTenant()->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $usuario), 403);
         // Identidade é COMPARTILHADA na suíte: editar nome/e-mail/status/papéis de um
         // convidado (home noutro tenant) escreveria no tenant DELE. Ver notaGuest().
         abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
@@ -120,6 +121,7 @@ class ListaUsuarios extends Component
 
         if ($this->editandoId) {
             $usuario = $this->usuariosDoTenant()->findOrFail($this->editandoId);
+            abort_unless(auth()->user()->can('operar', $usuario), 403);
             abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
             $statusAntigo = $usuario->status;
 
@@ -173,6 +175,7 @@ class ListaUsuarios extends Component
         abort_unless(auth()->user()->can('users.manage'), 403);
 
         $usuario = $this->usuariosDoTenant()->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $usuario), 403);
         $tenantId = auth()->user()->getActiveTenantId();
 
         if ($this->temOutroVinculo($usuario)) {
@@ -196,7 +199,9 @@ class ListaUsuarios extends Component
     {
         abort_unless(auth()->user()->can('users.manage'), 403);
         // Anti-IDOR: o usuário alvo precisa ser do tenant ativo.
-        $this->usuarioVinculosId = $this->usuariosDoTenant()->findOrFail($id)->id;
+        $usuario = $this->usuariosDoTenant()->findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $usuario), 403);
+        $this->usuarioVinculosId = $usuario->id;
         $this->vincularUnidadeId = null;
         $this->vincularPerfil = '';
         $this->vincularNivelAlcada = '';
@@ -217,6 +222,7 @@ class ListaUsuarios extends Component
         ]);
 
         $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
+        abort_unless(auth()->user()->can('operar', $usuario), 403);
         $usuario->unidades()->syncWithoutDetaching([
             $this->vincularUnidadeId => [
                 'perfil' => $this->vincularPerfil,
@@ -234,6 +240,7 @@ class ListaUsuarios extends Component
     {
         abort_unless(auth()->user()->can('users.manage'), 403);
         $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
+        abort_unless(auth()->user()->can('operar', $usuario), 403);
         $usuario->unidades()->detach($unidadeId);
         $this->dispatch('notify', mensagem: 'Vínculo removido.');
     }

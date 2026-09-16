@@ -63,6 +63,7 @@ class ListaFornecedores extends Component
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $this->resetValidation();
         $fornecedor = Fornecedor::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $fornecedor), 403);
         $this->editandoId = $id;
         $this->razaoSocial = $fornecedor->razao_social;
         $this->nomeFantasia = $fornecedor->nome_fantasia ?? '';
@@ -111,7 +112,9 @@ class ListaFornecedores extends Component
         ];
 
         if ($this->editandoId) {
-            Fornecedor::findOrFail($this->editandoId)->update($dados);
+            $fornecedor = Fornecedor::findOrFail($this->editandoId);
+            abort_unless(auth()->user()->can('operar', $fornecedor), 403);
+            $fornecedor->update($dados);
         } else {
             Fornecedor::create($dados);
         }
@@ -124,6 +127,7 @@ class ListaFornecedores extends Component
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $fornecedor = Fornecedor::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $fornecedor), 403);
 
         if ($fornecedor->homologado) {
             return;
@@ -149,7 +153,9 @@ class ListaFornecedores extends Component
     public function excluir(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
-        Fornecedor::findOrFail($id)->delete();
+        $fornecedor = Fornecedor::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $fornecedor), 403);
+        $fornecedor->delete();
         $this->dispatch('notify', mensagem: 'Fornecedor removido.');
     }
 

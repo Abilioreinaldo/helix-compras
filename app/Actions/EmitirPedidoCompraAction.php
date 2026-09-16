@@ -12,6 +12,7 @@ use App\Models\Scopes\UnidadeScope;
 use App\Models\User;
 use App\Support\SequenciaAnualPorTenant;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -150,6 +151,8 @@ class EmitirPedidoCompraAction
         }
 
         $jaEmitido = DB::table('itens_pedido_compra')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+            ->where('itens_pedido_compra.tenant_id', TenantContext::requireId('teto de emissão do pedido'))
             ->join('pedidos_compra', 'itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
             ->where('itens_pedido_compra.requisicao_id', $requisicaoId)
             ->where('pedidos_compra.status', StatusPedidoCompra::Emitido->value)

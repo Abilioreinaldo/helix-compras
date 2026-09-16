@@ -29,6 +29,7 @@ class ComparativoUnidades extends Component
         $tenantId = auth()->user()->getActiveTenantId();
 
         $resultados = DB::table('itens_pedido_compra as ipc')
+            ->where('ipc.tenant_id', $tenantId)
             ->join('pedidos_compra as pc', 'pc.id', '=', 'ipc.pedido_compra_id')
             ->join('requisicoes as r', 'r.id', '=', 'ipc.requisicao_id')
             ->join('unidades as un', function ($join) {
@@ -36,7 +37,6 @@ class ComparativoUnidades extends Component
                     ->whereNull('un.deleted_at');
             })
             ->where('pc.tenant_id', $tenantId)
-            ->where('ipc.tenant_id', $tenantId)
             ->where('r.tenant_id', $tenantId)
             ->where('un.tenant_id', $tenantId)
             ->where('pc.status', StatusPedidoCompra::Emitido->value)

@@ -25,7 +25,10 @@ class ComprasEmergenciais extends Component
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Valor por requisição usando cascata: PC emitido > cotação vencedora > estimativa.
+        // Query builder não passa pelo BelongsToTenant: o recorte de tenant é
+        // explícito e vem PRIMEIRO na cadeia (as subqueries pendem de r.id).
         $resultados = DB::table('requisicoes as r')
+            ->where('r.tenant_id', auth()->user()->getActiveTenantId())
             ->join('users as u', 'u.id', '=', 'r.solicitante_id')
             ->join('unidades as un', 'un.id', '=', 'r.unidade_id')
             ->leftJoin(
@@ -63,8 +66,6 @@ class ComprasEmergenciais extends Component
                 '=',
                 'r.id'
             )
-            // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-            ->where('r.tenant_id', auth()->user()->getActiveTenantId())
             ->where('r.is_emergencial', true)
             ->where('r.status', '!=', StatusRequisicao::Cancelada->value)
             ->whereNull('r.deleted_at')

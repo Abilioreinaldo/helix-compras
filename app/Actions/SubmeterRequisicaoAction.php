@@ -9,6 +9,7 @@ use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
 use App\Support\SequenciaAnualPorTenant;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,8 @@ class SubmeterRequisicaoAction
 
         return DB::transaction(function () use ($requisicao, $alerta) {
             $valorTotal = DB::table('requisicao_itens')
+                // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+                ->where('tenant_id', TenantContext::requireId('submissão da requisição'))
                 ->where('requisicao_id', $requisicao->id)
                 ->sum(DB::raw('COALESCE(quantidade * valor_unitario_estimado, 0)'));
 
@@ -41,6 +44,8 @@ class SubmeterRequisicaoAction
                     ->pluck('id');
 
                 $verbaConsumida = DB::table('requisicao_itens')
+                    // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
+                    ->where('tenant_id', TenantContext::requireId('verba da obra'))
                     ->whereIn('requisicao_id', $idsComprometidos)
                     ->sum(DB::raw('COALESCE(quantidade * valor_unitario_estimado, 0)'));
 
