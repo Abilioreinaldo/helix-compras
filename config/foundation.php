@@ -40,6 +40,12 @@ return [
             // O Compras não tem nenhuma ambígua hoje (o doctor confere).
             'edges' => [],
             'export_redact' => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
+            // v0.4.0 — colunas sensíveis POR TABELA omitidas do export do tenant, além
+            // do piso da fundação (nome `*_password|*_secret|*_token|*_private_key|
+            // *_api_key|senha` e cast encrypted*/hashed). O único segredo em coluna do
+            // Compras hoje é `cotacoes.email_token`, já coberto pelo piso por nome;
+            // tabela nova com certificado/segredo fora desse padrão entra aqui.
+            'export_redact_columns' => [],
         ],
     ],
 

@@ -10,6 +10,7 @@ use App\Models\Cotacao;
 use App\Models\Fornecedor;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
+use Helix\Foundation\Livewire\Concerns\AuthorizesOnHydrate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
@@ -21,6 +22,7 @@ use Livewire\WithFileUploads;
 
 class GestaoCotacoes extends Component
 {
+    use AuthorizesOnHydrate;
     use WithFileUploads;
 
     // Locked: a requisição em cotação é fixada no mount; o cliente não a reaponta.
@@ -67,13 +69,15 @@ class GestaoCotacoes extends Component
      * SEGUNDA TRANCA (2ª auditoria adversarial): a requisição é carregada com
      * `withoutGlobalScope(UnidadeScope)` e depois VIVE como propriedade do componente.
      * Model em propriedade Livewire é reidratado por `newQueryForRestoration()` →
-     * `newQueryWithoutScopes()`, que NÃO aplica o global scope de tenant: o snapshot é
-     * o caminho que dispensa a consulta escopada. A posse tem de ser checada na
-     * policy — no mount E em toda requisição subsequente (hydrate).
+     * `newQueryWithoutScopes()`, que NÃO aplica global scope nenhum: o snapshot é o
+     * caminho que dispensa a consulta escopada. Desde a fundação v0.4.0 o synth barra
+     * o registro de OUTRO tenant; a posse dentro do tenant (unidade/vínculo) é da
+     * policy `operar` — no mount (autorizarRequisicao) E em toda requisição
+     * subsequente (AuthorizesOnHydrate, com a habilidade abaixo).
      */
-    public function hydrate(): void
+    protected function hydrationAbility(): string
     {
-        $this->autorizarRequisicao();
+        return 'operar';
     }
 
     private function autorizarRequisicao(): void

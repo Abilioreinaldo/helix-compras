@@ -63,10 +63,12 @@ return new class extends Migration
             $this->dropIndice('saldos_estoque', 'saldos_estoque_tenant_catalogo_uq');
         }
         if (! Schema::hasIndex('saldos_estoque', 'saldos_estoque_catalogo_unique')) {
-            DB::statement($sqlite
-                ? 'CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque '
-                    .'(unidade_id, deposito, item_catalogo_id) WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL'
-                : 'CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque (catalogo_chave_unica)');
+            // DDL com o SQL LITERAL na chamada (um DB::statement por driver): o índice
+            // antigo, sem tenant_id, é o próprio objetivo do down().
+            $sqlite
+                ? DB::statement('CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque '
+                    .'(unidade_id, deposito, item_catalogo_id) WHERE item_catalogo_id IS NOT NULL AND fundido_para_id IS NULL')
+                : DB::statement('CREATE UNIQUE INDEX saldos_estoque_catalogo_unique ON saldos_estoque (catalogo_chave_unica)');
         }
 
         // cotacoes
@@ -91,9 +93,9 @@ return new class extends Migration
             $this->dropIndice('pagamentos', 'pagamentos_tenant_pedido_ativo_uq');
         }
         if (! Schema::hasIndex('pagamentos', 'pagamentos_pedido_ativo_unique')) {
-            DB::statement($sqlite
-                ? 'CREATE UNIQUE INDEX pagamentos_pedido_ativo_unique ON pagamentos (pedido_compra_id) WHERE deleted_at IS NULL'
-                : 'CREATE UNIQUE INDEX pagamentos_pedido_ativo_unique ON pagamentos (pedido_ativo_key)');
+            $sqlite
+                ? DB::statement('CREATE UNIQUE INDEX pagamentos_pedido_ativo_unique ON pagamentos (pedido_compra_id) WHERE deleted_at IS NULL')
+                : DB::statement('CREATE UNIQUE INDEX pagamentos_pedido_ativo_unique ON pagamentos (pedido_ativo_key)');
         }
     }
 

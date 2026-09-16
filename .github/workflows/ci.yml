@@ -79,6 +79,14 @@ jobs:
       # fosse produção (--strict-env=production) e reprova fail-closed desligado,
       # segredo fraco, allowlist inbound curinga etc. Roda depois do .env do CI
       # justamente para pegar env vazia/ausente derrubando o fail-closed.
+      # v0.4.0 — o doctor REPROVA verificação que não roda: sem banco acessível o
+      # alcance do off-boarding, a varredura de tenant_id NULL e a de user_role
+      # viram problema bloqueante. O runner não tem database.sqlite: cria um banco
+      # EFÊMERO do CI e aplica o schema antes (a suíte Pest continua em :memory:).
+      - name: Banco efêmero para o doctor (schema)
+        working-directory: comendador-compras
+        run: touch database/database.sqlite && php artisan migrate --force --no-interaction
+
       - name: Helix doctor (config avaliada como produção)
         working-directory: comendador-compras
         run: php artisan helix:doctor --strict-env=production

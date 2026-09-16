@@ -24,7 +24,8 @@ beforeEach(function () {
     TenantContext::forget();
 
     $this->tenant = Tenant::create(['slug' => 'alpha', 'name' => 'Alpha', 'status' => 'active']);
-    app(EntitlementService::class)->enable($this->tenant, 'compras');
+    // v0.4.0: ligar feature é operação de PLATAFORMA (o teste faz o papel do console).
+    TenantContext::runAsPlatform(fn () => app(EntitlementService::class)->enable($this->tenant, 'compras'));
     $this->admin = User::factory()->admin()->create(['tenant_id' => $this->tenant->id]);
 });
 

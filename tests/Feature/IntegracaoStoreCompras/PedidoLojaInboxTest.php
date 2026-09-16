@@ -48,9 +48,12 @@ it('o subscriber grava o pedido no inbox e é idempotente', function () {
 it('recebe o evento assinado no /api/inbound/events e materializa o inbox', function () {
     // v0.2.0: a allowlist de tenants por remetente é FAIL-CLOSED — sem entrada
     // para `store`, o envelope assinado leva 403 (ver o caso logo abaixo).
+    // v0.4.0: a allowlist de CONTRATOS também é fail-closed — explícita aqui para o
+    // teste não depender do HELIX_INBOUND_ACCEPT do .env local.
     config([
         'foundation.inbound.secrets.store' => 'par-secreto',
         'foundation.inbound.tenants.store' => [TenantContext::id()],
+        'foundation.inbound.accept' => [IngerirPedidoLoja::EVENTO],
     ]);
 
     $envelope = [
@@ -73,7 +76,10 @@ it('recebe o evento assinado no /api/inbound/events e materializa o inbox', func
 });
 
 it('rejeita (403) remetente sem allowlist de tenant e tenant fora dela', function () {
-    config(['foundation.inbound.secrets.store' => 'par-secreto']);
+    config([
+        'foundation.inbound.secrets.store' => 'par-secreto',
+        'foundation.inbound.accept' => [IngerirPedidoLoja::EVENTO],
+    ]);
 
     $envelope = [
         'name' => IngerirPedidoLoja::EVENTO,
@@ -91,6 +97,46 @@ it('rejeita (403) remetente sem allowlist de tenant e tenant fora dela', functio
     postAssinado($envelope, 'par-secreto')->assertStatus(403);
 
     expect(PedidoLojaRecebido::where('request_code', 'PED-0403')->count())->toBe(0);
+});
+
+it('recusa (422) todo evento quando HELIX_INBOUND_ACCEPT está vazio e evento fora da allowlist', function () {
+    // v0.4.0 — FAIL-CLOSED: até a v0.3.x `accept` vazio aceitava QUALQUER nome
+    // assinado, e um segredo vazado injetava qualquer contrato no outbox do Compras.
+    config([
+        'foundation.inbound.secrets.store' => 'par-secreto',
+        'foundation.inbound.tenants.store' => [TenantContext::id()],
+        'foundation.inbound.accept' => [],
+    ]);
+
+    $envelope = [
+        'name' => IngerirPedidoLoja::EVENTO,
+        'tenant_id' => TenantContext::id(),
+        'version' => 1,
+        'payload' => payloadPedidoLoja('PED-0422'),
+    ];
+
+    postAssinado($envelope, 'par-secreto')->assertStatus(422);
+
+    // Allowlist preenchida, mas com OUTRO contrato: o nosso continua recusado.
+    config(['foundation.inbound.accept' => ['store.purchase_request.cancelled']]);
+    test()->travel(2)->seconds();
+    postAssinado($envelope, 'par-secreto')->assertStatus(422);
+
+    // E um contrato não consumido pelo Compras, mesmo assinado, não entra.
+    config(['foundation.inbound.accept' => [IngerirPedidoLoja::EVENTO]]);
+    test()->travel(2)->seconds();
+    postAssinado(['name' => 'store.qualquer.coisa'] + $envelope, 'par-secreto')->assertStatus(422);
+
+    expect(PedidoLojaRecebido::where('request_code', 'PED-0422')->count())->toBe(0);
+});
+
+it('o .env.example declara a allowlist de contratos que o Compras consome', function () {
+    $env = (string) file_get_contents(base_path('.env.example'));
+
+    expect(preg_match('/^HELIX_INBOUND_ACCEPT=(.*)$/m', $env, $m))->toBe(1);
+
+    $contratos = array_values(array_filter(array_map('trim', explode(',', $m[1]))));
+    expect($contratos)->toBe([IngerirPedidoLoja::EVENTO]);
 });
 
 it('rejeita (401) envelope com assinatura inválida', function () {

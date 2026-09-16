@@ -6,6 +6,7 @@ use App\Actions\MarcarCotacaoVencedoraAction;
 use App\Models\Cotacao;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
+use Helix\Foundation\Livewire\Concerns\AuthorizesOnHydrate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Locked;
@@ -20,6 +21,8 @@ use Livewire\Component;
  */
 class MapaCotacao extends Component
 {
+    use AuthorizesOnHydrate;
+
     // Locked: o registro é resolvido no mount (findOrFail escopado); sem isto o
     // cliente reaponta a propriedade no payload e a action opera noutra requisição.
     #[Locked]
@@ -39,11 +42,11 @@ class MapaCotacao extends Component
     /**
      * SEGUNDA TRANCA (2ª auditoria adversarial): ver GestaoCotacoes. Model em
      * propriedade Livewire é reidratado sem global scopes — a posse é decidida pela
-     * policy no mount E a cada requisição.
+     * policy `operar` no mount E a cada requisição (AuthorizesOnHydrate).
      */
-    public function hydrate(): void
+    protected function hydrationAbility(): string
     {
-        $this->autorizarRequisicao();
+        return 'operar';
     }
 
     private function autorizarRequisicao(): void

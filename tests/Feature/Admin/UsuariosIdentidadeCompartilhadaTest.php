@@ -6,6 +6,7 @@ use Helix\Foundation\Exceptions\IdentityConflictException;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -120,4 +121,47 @@ it('segue editando nome e e-mail de quem só pertence a esta empresa', function 
 
     expect($soDaqui->fresh()->name)->toBe('So Daqui Renomeado')
         ->and($soDaqui->fresh()->email)->toBe('novo@alfa.test');
+});
+
+// ───────── v0.4.0: vínculo externo SUSPENSO também é identidade compartilhada ─────────
+
+/** Home no tenant A, com vínculo SUSPENSO (não ativo) no tenant B. */
+function idc_suspensoNoB(Tenant $a, Tenant $b): User
+{
+    $usuario = User::factory()->create(['tenant_id' => $a->id, 'name' => 'Suspenso no Bravo', 'email' => 'susp@alfa.test']);
+    $usuario->memberships()->syncWithoutDetaching([$b->id => ['is_admin' => true, 'status' => 'suspended']]);
+
+    return $usuario;
+}
+
+it('excluir quem tem vínculo SUSPENSO noutra empresa remove só o vínculo daqui', function () {
+    // Antes: a tela só olhava vínculo ATIVO e caía no deleteUser — apagava a identidade
+    // que o Bravo reativaria (e, na fundação v0.4.0, estourava TenantMismatchException).
+    $usuario = idc_suspensoNoB($this->tenantA, $this->tenantB);
+
+    Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('excluir', $usuario->id)
+        ->assertOk();
+
+    $identidade = User::withTrashed()->find($usuario->id);
+
+    expect($identidade->deleted_at)->toBeNull()
+        ->and($identidade->status)->toBe('active')
+        ->and(DB::table('tenant_user')->where('user_id', $usuario->id)->where('tenant_id', $this->tenantA->id)->exists())->toBeFalse()
+        ->and(DB::table('tenant_user')->where('user_id', $usuario->id)->where('tenant_id', $this->tenantB->id)->value('status'))->toBe('suspended');
+});
+
+it('não inativa a IDENTIDADE de quem tem vínculo SUSPENSO noutra empresa', function () {
+    $usuario = idc_suspensoNoB($this->tenantA, $this->tenantB);
+
+    Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('abrirEditar', $usuario->id)
+        ->set('status', 'inactive')
+        ->call('salvar')
+        ->assertOk()
+        ->assertHasErrors('status');
+
+    expect($usuario->fresh()->status)->toBe('active');
 });

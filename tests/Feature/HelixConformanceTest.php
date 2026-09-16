@@ -25,7 +25,10 @@ use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\UnidadeUser;
 use App\Models\User;
+use Helix\Foundation\Livewire\Synthesizers\TenantAwareEloquentCollectionSynth;
+use Helix\Foundation\Livewire\Synthesizers\TenantAwareModelSynth;
 use Helix\Foundation\Testing\Conformance\HelixConformance;
+use Livewire\Mechanisms\HandleSynths\HandleSynths;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,7 +59,7 @@ $revalidadoNoTenant = 'select do cliente; revalidado a cada uso com Rule::exists
 $filtroEscopado = 'filtro de listagem do cliente; só restringe uma consulta/coleção já escopada ao tenant (BelongsToTenant ou where tenant_id explícito) e ao vínculo do usuário — id alheio resulta em lista vazia';
 $aguardandoCatalogo = 'AGUARDANDO CATÁLOGO — sem equivalente em Permission::catalogByFeature()[compras]; permissão proposta no relatório da adoção do kit (P2)';
 
-HelixConformance::forProduct('Compras', feature: 'compras')
+$kit = HelixConformance::forProduct('Compras', feature: 'compras')
     ->models('app/Models', 'App\\Models')
     ->livewire('app/Livewire', 'App\\Livewire')
     ->migrations('database/migrations')
@@ -113,26 +116,28 @@ HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowUnauthorizedAction(Reconciliacao::class.'::processar', 'autoriza com manage/Pagamento antes de tudo; o único findOrFail é Banco (catálogo COMPE global, tabela sem tenant_id) — não há registro de tenant a passar para a policy. A ReconciliacaoBancaria nasce carimbada pelo contexto (BelongsToTenant)')
 
     // (k) DB::table() cru — migrations de schema/backfill (rodam no deploy, fora de request)
-    ->allowRawDbTable('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php', 'migration de backfill: é ela que CARIMBA tenant_id em unidades a partir do 1º tenant; roda uma vez no deploy, fora de request, e por definição atravessa tenants')
-    ->allowRawDbTable('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php', 'migration de backfill: carimba tenant_id nas 33 tabelas de negócio a partir de unidades/pais; roda uma vez no deploy, fora de request')
-    ->allowRawDbTable('database/migrations/2026_09_15_000002_sequencias_por_tenant.php', 'migration de schema: cria as tabelas de sequência e semeia uma linha POR TENANT (itera tenants por definição)')
-    ->allowRawDbTable('database/migrations/2026_09_15_000004_cotacoes_email_por_tenant_e_token_opaco.php', 'migration de dados: gera o email_token opaco das cotações existentes de TODOS os tenants, uma vez, no deploy')
-    ->allowRawDbTable('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php', 'migration de schema: sanea tenant_id órfão e cria a FK para tenants em todas as tabelas de negócio; roda uma vez no deploy, fora de request')
-    ->allowRawDbTable('database/migrations/2026_06_16_150803_add_fusao_to_movimentacoes_estoque_tipo.php', 'migration de schema: no SQLite a ampliação do enum `tipo` é feita recriando a coluna (ADD/UPDATE/DROP/RENAME). Os dois UPDATEs flagrados COPIAM a coluna para si mesma (tipo → tipo_novo, e o inverso no down) — são parte indivisível do rebuild de coluna, cujos ALTER o próprio kit já ignora como DDL. Filtrar por tenant_id aqui deixaria as linhas dos demais tenants com a coluna nova vazia')
+    ->allowRawDbTable('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php::up', 'migration de backfill: é ela que CARIMBA tenant_id em unidades a partir do 1º tenant; roda uma vez no deploy, fora de request, e por definição atravessa tenants')
+    ->allowRawDbTable('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php::up', 'migration de backfill: carimba tenant_id nas 33 tabelas de negócio a partir de unidades/pais; roda uma vez no deploy, fora de request')
+    ->allowRawDbTable('database/migrations/2026_09_15_000002_sequencias_por_tenant.php::up', 'migration de schema: cria as tabelas de sequência e semeia uma linha POR TENANT (itera tenants por definição)')
+    ->allowRawDbTable('database/migrations/2026_09_15_000002_sequencias_por_tenant.php::down', 'ROLLBACK de schema: o down() recria a tabela de sequência ANTIGA, que era por ano e global na instalação, colapsando o MAX(ultimo_numero) de todos os tenants — atravessar tenants é o próprio objetivo do rollback; roda só em migrate:rollback, fora de request')
+    ->allowRawDbTable('database/migrations/2026_09_15_000004_cotacoes_email_por_tenant_e_token_opaco.php::up', 'migration de dados: gera o email_token opaco das cotações existentes de TODOS os tenants, uma vez, no deploy')
+    ->allowRawDbTable('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php::up', 'migration de schema: sanea tenant_id órfão e cria a FK para tenants em todas as tabelas de negócio; roda uma vez no deploy, fora de request')
+    ->allowRawDbTable('database/migrations/2026_06_16_150803_add_fusao_to_movimentacoes_estoque_tipo.php::up', 'migration de schema: no SQLite a ampliação do enum `tipo` é feita recriando a coluna (ADD/UPDATE/DROP/RENAME). Os dois UPDATEs flagrados COPIAM a coluna para si mesma (tipo → tipo_novo, e o inverso no down) — são parte indivisível do rebuild de coluna, cujos ALTER o próprio kit já ignora como DDL. Filtrar por tenant_id aqui deixaria as linhas dos demais tenants com a coluna nova vazia')
+    ->allowRawDbTable('database/migrations/2026_06_16_150803_add_fusao_to_movimentacoes_estoque_tipo.php::down', 'migration de schema: no SQLite a ampliação do enum `tipo` é feita recriando a coluna (ADD/UPDATE/DROP/RENAME). Os dois UPDATEs flagrados COPIAM a coluna para si mesma (tipo → tipo_novo, e o inverso no down) — são parte indivisível do rebuild de coluna, cujos ALTER o próprio kit já ignora como DDL. Filtrar por tenant_id aqui deixaria as linhas dos demais tenants com a coluna nova vazia')
 
     // (l) update/insert em massa com tenant_id no payload
-    ->allowMassTenantWrite('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php', 'backfill único: o UPDATE com tenant_id é o próprio objetivo da migration')
-    ->allowMassTenantWrite('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php', 'backfill único: os UPDATEs com tenant_id são o próprio objetivo da migration')
-    ->allowMassTenantWrite('database/migrations/2026_09_15_000002_sequencias_por_tenant.php', 'semeadura da linha de sequência (tenant_id, ano): a coluna É a chave da linha, não um atributo migrável')
-    ->allowMassTenantWrite('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php', 'saneamento pré-FK: zera tenant_id ÓRFÃO (aponta para tenant inexistente) para a chave estrangeira poder ser criada')
-    ->allowMassTenantWrite('app/Support/SequenciaAnualPorTenant.php', 'tabelas de sequência (sequencias_pedido_compra/sequencias_requisicao) não têm model nem BelongsToTenant: a LINHA é o par (tenant_id, ano), então o insertOrIgnore precisa da coluna. Nenhum registro muda de tenant — o insert só cria a linha do próprio tenant e o update mexe só em ultimo_numero')
+    ->allowMassTenantWrite('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php::up', 'backfill único: o UPDATE com tenant_id é o próprio objetivo da migration')
+    ->allowMassTenantWrite('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php::up', 'backfill único: os UPDATEs com tenant_id são o próprio objetivo da migration')
+    ->allowMassTenantWrite('database/migrations/2026_09_15_000002_sequencias_por_tenant.php::up', 'semeadura da linha de sequência (tenant_id, ano): a coluna É a chave da linha, não um atributo migrável')
+    ->allowMassTenantWrite('database/migrations/2026_09_17_000003_add_tenant_foreign_keys.php::up', 'saneamento pré-FK: zera tenant_id ÓRFÃO (aponta para tenant inexistente) para a chave estrangeira poder ser criada')
+    ->allowMassTenantWrite('app/Support/SequenciaAnualPorTenant.php::proximo', 'tabelas de sequência (sequencias_pedido_compra/sequencias_requisicao) não têm model nem BelongsToTenant: a LINHA é o par (tenant_id, ano), então o insertOrIgnore precisa da coluna. Nenhum registro muda de tenant — o insert só cria a linha do próprio tenant e o update mexe só em ultimo_numero')
 
     // (n) withoutTenantScope() sem filtro de tenant
-    ->allowUnfilteredBypass('app/Actions/ProcessarRespostaCotacaoAction.php', 'a caixa IMAP de cotações é única da instalação e roda no console, SEM tenant no contexto: o casamento pelo email_token opaco (único na base) é o lookup que DESCOBRE o tenant. Logo em seguida tudo — idempotência, leitura, escrita e e-mail — roda dentro de TenantContext::runFor($tenantId)')
+    ->allowUnfilteredBypass('app/Actions/ProcessarRespostaCotacaoAction.php::resolverCotacaoId', 'a caixa IMAP de cotações é única da instalação e roda no console, SEM tenant no contexto: o casamento pelo email_token opaco (único na base) é o lookup que DESCOBRE o tenant. Logo em seguida tudo — idempotência, leitura, escrita e e-mail — roda dentro de TenantContext::runFor($tenantId)')
 
     // (o) consulta a User sem filtro de tenant
-    ->allowUnscopedUserQuery('app/Console/Commands/ExecutarRateioMensal.php', 'console: o --executado-por identifica o Admin operador ANTES de existir tenant no contexto; é dele que o tenant é derivado (runFor do tenant do Admin), e o comando recusa quem não tem perfil Admin')
-    ->allowUnscopedUserQuery('app/Console/Commands/SanearDuplicatasCatalogo.php', 'console: idem — o --executado-por resolve o Admin operador antes do tenant, e a fusão fica restrita ao tenant DELE')
+    ->allowUnscopedUserQuery('app/Console/Commands/ExecutarRateioMensal.php::handle', 'console: o --executado-por identifica o Admin operador ANTES de existir tenant no contexto; é dele que o tenant é derivado (runFor do tenant do Admin), e o comando recusa quem não tem perfil Admin')
+    ->allowUnscopedUserQuery('app/Console/Commands/SanearDuplicatasCatalogo.php::handle', 'console: idem — o --executado-por resolve o Admin operador antes do tenant, e a fusão fica restrita ao tenant DELE')
 
     // (q) comando agendado sem runFor/eachTenant
     ->allowTenantlessCommand('cotacoes:capturar-respostas', 'o comando não escolhe tenant: ele lê a caixa IMAP única da instalação. O tenant de CADA mensagem é descoberto pelo email_token da cotação e todo o processamento roda dentro de TenantContext::runFor (ProcessarRespostaCotacaoAction::execute)')
@@ -185,4 +190,34 @@ HelixConformance::forProduct('Compras', feature: 'compras')
     ->isolate(Requisicao::class)
     ->isolate(Cotacao::class)
     ->isolate(PedidoCompra::class)
-    ->register();
+
+    // (v0.4.0) DEFEITO DA FUNDAÇÃO, não do app: a verificação procura o synth em
+    // HandleComponents::$propertySynthesizers (Livewire 4.3); no Livewire 4.4 do app
+    // os synths moraram para HandleSynths::$synthesizers, a reflexão lança e o kit
+    // conclui "synth NÃO ativo" para TODO componente com Model — inclusive os que usam
+    // AuthorizesOnHydrate. O synth ESTÁ ativo (provado logo abaixo e em
+    // LivewireHydrationGuardTest). A verificação continua rodando no teste abaixo, só
+    // sem a linha falsa da detecção do synth. Remover quando a fundação corrigir.
+    ->skip('livewire_models_authorized_on_hydrate', 'falso negativo da fundação v0.4.0 na detecção do synth (Livewire 4.4 mudou HandleComponents::$propertySynthesizers para HandleSynths::$synthesizers); a verificação roda em "livewire_models_authorized_on_hydrate (sem a detecção quebrada do synth)" neste arquivo');
+
+$kit->register();
+
+it('livewire_models_authorized_on_hydrate (sem a detecção quebrada do synth)', function () use ($kit) {
+    $synths = (new ReflectionProperty(HandleSynths::class, 'synthesizers'))->getValue(app(HandleSynths::class));
+    $porChave = [];
+    foreach ($synths as $synth) {
+        $porChave[$synth::getKey()] ??= $synth; // o primeiro com a chave vence (unshift)
+    }
+
+    expect($porChave['mdl'] ?? null)->toBe(TenantAwareModelSynth::class)
+        ->and($porChave['elcln'] ?? null)->toBe(TenantAwareEloquentCollectionSynth::class);
+
+    $resultado = $kit->checks()->run('livewire_models_authorized_on_hydrate');
+    $violacoes = array_values(array_filter(
+        $resultado->violations,
+        fn (string $v) => ! str_ends_with($v, ' — o synth global TenantAwareModelSynth da fundação NÃO está ativo: o Livewire reidrata Model sem escopo de tenant'),
+    ));
+
+    expect($resultado->inconclusive)->toBeNull()
+        ->and($violacoes)->toBe([], $resultado->fix);
+});

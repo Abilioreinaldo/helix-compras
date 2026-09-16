@@ -150,8 +150,10 @@ class ListaUsuarios extends Component
                     'email' => $this->temVinculoForaDaqui($usuario) ? $usuario->email : $this->email,
                     'is_admin' => $this->isAdmin,
                 ], $this->papeis, auth()->user());
-            } catch (UniqueConstraintViolationException) {
-                // Mesma resposta da criação: não confirma que o e-mail tem conta noutro cliente.
+            } catch (IdentityConflictException|UniqueConstraintViolationException) {
+                // Fundação v0.4.0 traduz a unique global na edição (IdentityConflictException);
+                // a resposta continua a MESMA da criação: não confirma que o e-mail tem conta
+                // noutro cliente.
                 $this->addError('email', IdentityConflictException::forEmail()->getMessage());
 
                 return;
@@ -160,10 +162,15 @@ class ListaUsuarios extends Component
             // `status` mora na IDENTIDADE (users.status), não na membership: inativar
             // aqui derrubaria o acesso do usuário em TODOS os tenants dele. Só é
             // permitido quando este tenant é o único vínculo — caso contrário, o
-            // caminho correto é remover o vínculo (excluir). Falta na fundação um
-            // "suspender membership" (tenant_user.status) para permitir o resto.
+            // caminho correto é remover o vínculo (excluir). A fundação v0.4.0 já oferece
+            // `UserService::suspendMembership` (tenant_user.status); expô-lo nesta tela é
+            // decisão de produto pendente.
             if ($statusAntigo !== $this->status) {
-                if ($this->temOutroVinculo($usuario)) {
+                // Qualquer vínculo externo, EM QUALQUER STATUS (fundação v0.4.0): um vínculo
+                // suspenso noutra empresa ainda é uma porta para ela, e o UserService recusa
+                // (TenantMismatchException) — antes a tela só olhava vínculo ATIVO e o
+                // inativar/reativar da identidade compartilhada passava daqui.
+                if ($this->temVinculoForaDaqui($usuario)) {
                     $this->addError('status', 'Este usuário também participa de outra empresa: inativá-lo aqui derrubaria o acesso dele lá. Remova o vínculo com esta empresa.');
 
                     return;
@@ -213,13 +220,17 @@ class ListaUsuarios extends Component
         $tenantId = auth()->user()->getActiveTenantId();
 
         // CONVIDADO (home noutro tenant) nunca tem a IDENTIDADE apagada por este admin —
-        // só o vínculo. `temOutroVinculo()` sozinho não bastava: bastava que o vínculo
+        // só o vínculo. Olhar só o vínculo ATIVO não bastava: bastava que o vínculo
         // do convidado com a empresa DELE estivesse inativo (ou já removido) para o
         // admin daqui cair no `deleteUser` e soft-deletar uma identidade que não é sua,
         // com a trilha de auditoria nascendo no tenant home — a outra empresa perdia o
         // usuário e via na sua própria auditoria um ator de fora. As demais escritas já
         // tinham esta guarda (abrirEditar/salvar); a exclusão era a que faltava.
-        if ($this->ehConvidado($usuario) || $this->temOutroVinculo($usuario)) {
+        //
+        // Fundação v0.4.0: o vínculo externo conta EM QUALQUER STATUS. Quem tem home aqui e
+        // um vínculo SUSPENSO/INATIVO noutra empresa caía no deleteUser e perdia a
+        // identidade — a conta com que a outra empresa o reativaria.
+        if ($this->ehConvidado($usuario) || $this->temVinculoForaDaqui($usuario)) {
             // Vínculos por unidade deste tenant caem junto (o pivot é escopado).
             DB::table('unidade_user')
                 ->where('user_id', $usuario->getKey())
@@ -312,16 +323,6 @@ class ListaUsuarios extends Component
     private function ehConvidado(User $usuario): bool
     {
         return (string) ($usuario->getAttributes()['tenant_id'] ?? '') !== (string) auth()->user()->getActiveTenantId();
-    }
-
-    /** O usuário participa de algum tenant ALÉM do ativo (vínculo ativo)? */
-    private function temOutroVinculo(User $usuario): bool
-    {
-        return DB::table('tenant_user')
-            ->where('user_id', $usuario->getKey())
-            ->where('tenant_id', '!=', auth()->user()->getActiveTenantId())
-            ->where('status', 'active')
-            ->exists();
     }
 
     /** O usuário tem QUALQUER vínculo (ativo, suspenso ou inativo) com outro tenant? */
