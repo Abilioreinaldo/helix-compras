@@ -24,6 +24,8 @@ uses(RefreshDatabase::class);
  */
 beforeEach(function () {
     Mail::fake();
+    // authserv-id do NOSSO MX: só o carimbo dele conta (3ª auditoria adversarial).
+    config(['mail.imap.authserv_id' => 'mx.helix.test']);
 
     $this->tenantA = Tenant::create(['slug' => 'alfa-imap', 'name' => 'Alfa', 'status' => 'active']);
     $this->tenantB = Tenant::create(['slug' => 'bravo-imap', 'name' => 'Bravo', 'status' => 'active']);
@@ -35,10 +37,10 @@ beforeEach(function () {
     TenantContext::forget();
 });
 
-/** Header `Authentication-Results` de um servidor que aprovou SPF+DKIM do domínio. */
+/** Header `Authentication-Results` do nosso MX aprovando SPF+DKIM+DMARC do domínio. */
 function autenticadoPor(string $dominio): string
 {
-    return "mx.helix.test; spf=pass smtp.mailfrom=forn@{$dominio}; dkim=pass header.d={$dominio}; dmarc=pass";
+    return "mx.helix.test; spf=pass smtp.mailfrom=forn@{$dominio}; dkim=pass header.d={$dominio}; dmarc=pass header.from={$dominio}";
 }
 
 /** Cria uma cotação aguardando resposta no tenant informado. */
@@ -217,9 +219,9 @@ it('aceita DKIM assinado pelo domínio PAI do remetente, mas não por um subdom�
 
     // Subdomínio não fala pelo pai: quem assina por `outra.alfa.test` não autentica
     // `cotacoes.alfa.test`.
-    expect($comAuth('mx; dkim=pass header.d=outra.alfa.test'))->toBeNull();
+    expect($comAuth('mx.helix.test; dkim=pass header.d=outra.alfa.test; dmarc=pass header.from=cotacoes.alfa.test'))->toBeNull();
 
     // O pai, sim (`alfa.test` assina pelo próprio subdomínio).
-    expect($comAuth('mx; dkim=pass header.d=alfa.test'))->not->toBeNull()
+    expect($comAuth('mx.helix.test; dkim=pass header.d=alfa.test; dmarc=pass header.from=cotacoes.alfa.test'))->not->toBeNull()
         ->and((float) $cot->fresh()->valor_respondido)->toBe(7.00);
 });

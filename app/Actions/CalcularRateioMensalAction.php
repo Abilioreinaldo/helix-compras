@@ -121,12 +121,15 @@ class CalcularRateioMensalAction
         // Consumo = SUM(valor_total) das saídas do mês, por unidade (via saldo). Junta unidades
         // e exclui soft-deletadas — simétrico ao fetch de unidades ativas abaixo. Intervalo de
         // datas é portável SQLite↔MySQL (sem MONTH()/strftime).
+        $tenantId = TenantContext::requireId('rateio mensal');
+
         $consumoPorUnidade = DB::table('movimentacoes_estoque as m')
             // Query builder cru não passa pelo BelongsToTenant: recorte explícito
-            // (fail-closed — o rateio roda sob TenantContext::runFor do Admin executor).
-            ->where('m.tenant_id', TenantContext::requireId('rateio mensal'))
-            ->join('saldos_estoque as s', 's.id', '=', 'm.saldo_estoque_id')
-            ->join('unidades as u', 'u.id', '=', 's.unidade_id')
+            // (fail-closed — o rateio roda sob TenantContext::runFor do Admin executor)
+            // em TODA tabela do join (3ª auditoria: FK cruzada trazia consumo de outro tenant).
+            ->where('m.tenant_id', $tenantId)
+            ->join('saldos_estoque as s', fn ($j) => $j->on('s.id', '=', 'm.saldo_estoque_id')->where('s.tenant_id', $tenantId))
+            ->join('unidades as u', fn ($j) => $j->on('u.id', '=', 's.unidade_id')->where('u.tenant_id', $tenantId))
             ->whereNull('u.deleted_at')
             ->where('m.tipo', TipoMovimentacao::Saida->value)
             ->whereBetween('m.created_at', [$inicio, $fim])

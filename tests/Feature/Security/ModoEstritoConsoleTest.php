@@ -81,6 +81,7 @@ it('aprovacoes:lembrar-pendentes roda sem contexto', function () {
 
 it('captura IMAP resolve o tenant pela cotação referenciada (sem contexto)', function () {
     Mail::fake();
+    config(['mail.imap.authserv_id' => 'mx.helix.test']);
 
     $cotacao = TenantContext::runFor($this->tenants[1], fn () => Cotacao::factory()->create([
         'fornecedor_id' => Fornecedor::factory()->create(['contato_email' => 'fornecedor@estrito.test'])->id,
@@ -95,7 +96,7 @@ it('captura IMAP resolve o tenant pela cotação referenciada (sem contexto)', f
         de: 'fornecedor@estrito.test',
         assunto: "Re: Solicitação de cotação [COT-{$cotacao->email_token}]",
         corpo: 'Valor: R$ 150,00 | Prazo: 15 dias',
-        autenticacao: 'mx.helix.test; spf=pass smtp.mailfrom=fornecedor@estrito.test; dkim=pass header.d=estrito.test',
+        autenticacao: 'mx.helix.test; spf=pass smtp.mailfrom=fornecedor@estrito.test; dkim=pass header.d=estrito.test; dmarc=pass header.from=estrito.test',
     ));
 
     expect($resultado)->not->toBeNull()

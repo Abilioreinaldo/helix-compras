@@ -7,9 +7,11 @@ use App\Enums\Perfil;
 use App\Models\Scopes\UnidadeScope;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Exceptions\IdentityConflictException;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Services\Platform\Identity\UserService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -102,13 +104,15 @@ class ListaUsuarios extends Component
         abort_unless(auth()->user()->can('users.manage'), 403);
 
         $tenantId = auth()->user()->getActiveTenantId();
-        $emailUnico = $this->editandoId
-            ? Rule::unique('users', 'email')->ignore($this->editandoId)
-            : Rule::unique('users', 'email');
 
+        // SEM `Rule::unique('users','email')` (3ª auditoria adversarial): `users.email`
+        // é unique GLOBAL da suíte, e o validador rodando ANTES do UserService respondia
+        // "Este e-mail já está em uso." — oráculo de quem tem conta em QUALQUER cliente.
+        // O conflito agora só aparece como a mensagem genérica da fundação
+        // (IdentityConflictException), igual na criação e na edição.
         $this->validate([
             'name' => 'required|string|max:255',
-            'email' => ['required', 'email', $emailUnico],
+            'email' => ['required', 'email', 'max:255'],
             'isAdmin' => 'boolean',
             'papeis' => 'array',
             'papeis.*' => [Rule::exists('roles', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
@@ -116,7 +120,6 @@ class ListaUsuarios extends Component
         ], [
             'name.required' => 'O nome é obrigatório.',
             'email.required' => 'O e-mail é obrigatório.',
-            'email.unique' => 'Este e-mail já está em uso.',
         ]);
 
         if ($this->editandoId) {
@@ -125,11 +128,34 @@ class ListaUsuarios extends Component
             abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
             $statusAntigo = $usuario->status;
 
-            $users->updateUser($usuario, [
-                'name' => $this->name,
-                'email' => $this->email,
-                'is_admin' => $this->isAdmin,
-            ], $this->papeis, auth()->user());
+            // IDENTIDADE COMPARTILHADA (3ª auditoria adversarial): nome e e-mail moram em
+            // `users`, que a outra empresa também usa (o e-mail é o LOGIN lá). Barrar só o
+            // convidado não bastava — o home daqui renomeava/trocava o login de quem
+            // trabalha também noutro tenant. Com qualquer outro vínculo (ativo ou não:
+            // um suspenso volta com o mesmo login), só o VÍNCULO é editável aqui.
+            if ($this->temVinculoForaDaqui($usuario)) {
+                foreach (['name' => $usuario->name, 'email' => $usuario->email] as $campo => $atual) {
+                    if (mb_strtolower(trim((string) $this->{$campo})) !== mb_strtolower(trim((string) $atual))) {
+                        $this->addError($campo, 'Este usuário também participa de outra empresa: nome e e-mail só podem ser alterados por ele mesmo ou pelo suporte da plataforma.');
+
+                        return;
+                    }
+                }
+            }
+
+            try {
+                $users->updateUser($usuario, [
+                    // Com vínculo externo, grava a identidade EXATAMENTE como está.
+                    'name' => $this->temVinculoForaDaqui($usuario) ? $usuario->name : $this->name,
+                    'email' => $this->temVinculoForaDaqui($usuario) ? $usuario->email : $this->email,
+                    'is_admin' => $this->isAdmin,
+                ], $this->papeis, auth()->user());
+            } catch (UniqueConstraintViolationException) {
+                // Mesma resposta da criação: não confirma que o e-mail tem conta noutro cliente.
+                $this->addError('email', IdentityConflictException::forEmail()->getMessage());
+
+                return;
+            }
 
             // `status` mora na IDENTIDADE (users.status), não na membership: inativar
             // aqui derrubaria o acesso do usuário em TODOS os tenants dele. Só é
@@ -149,18 +175,26 @@ class ListaUsuarios extends Component
             $this->mostrarModal = false;
             $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
         } else {
-            $this->senhaProvisoria = Str::random(10);
+            $senha = Str::random(10);
 
-            $users->createUser([
-                'name' => $this->name,
-                'email' => $this->email,
-                'password' => $this->senhaProvisoria,
-                'tenant_id' => $tenantId,
-                'is_admin' => $this->isAdmin,
-                'status' => $this->status,
-                'precisa_trocar_senha' => true,
-            ], $this->papeis, auth()->user());
+            try {
+                $users->createUser([
+                    'name' => $this->name,
+                    'email' => $this->email,
+                    'password' => $senha,
+                    'tenant_id' => $tenantId,
+                    'is_admin' => $this->isAdmin,
+                    'status' => $this->status,
+                    'precisa_trocar_senha' => true,
+                ], $this->papeis, auth()->user());
+            } catch (IdentityConflictException $e) {
+                // Mensagem genérica da fundação: não afirma que a conta existe nem repete o e-mail.
+                $this->addError('email', $e->getMessage());
 
+                return;
+            }
+
+            $this->senhaProvisoria = $senha;
             $this->mostrarModal = false;
         }
     }
@@ -287,6 +321,15 @@ class ListaUsuarios extends Component
             ->where('user_id', $usuario->getKey())
             ->where('tenant_id', '!=', auth()->user()->getActiveTenantId())
             ->where('status', 'active')
+            ->exists();
+    }
+
+    /** O usuário tem QUALQUER vínculo (ativo, suspenso ou inativo) com outro tenant? */
+    private function temVinculoForaDaqui(User $usuario): bool
+    {
+        return DB::table('tenant_user')
+            ->where('user_id', $usuario->getKey())
+            ->where('tenant_id', '!=', auth()->user()->getActiveTenantId())
             ->exists();
     }
 

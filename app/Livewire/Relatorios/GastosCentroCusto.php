@@ -3,6 +3,7 @@
 namespace App\Livewire\Relatorios;
 
 use App\Enums\StatusPedidoCompra;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -24,7 +25,7 @@ class GastosCentroCusto extends Component
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-        $tenantId = auth()->user()->getActiveTenantId();
+        $tenantId = TenantContext::requireId('relatório GastosCentroCusto');
 
         $resultados = DB::table('itens_pedido_compra as ipc')
             ->join('pedidos_compra as pc', 'pc.id', '=', 'ipc.pedido_compra_id')

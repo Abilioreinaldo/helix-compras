@@ -3,6 +3,7 @@
 namespace App\Livewire\Relatorios;
 
 use App\Enums\StatusRequisicao;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -24,7 +25,7 @@ class ComprasEmergenciais extends Component
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
-        $tenantId = auth()->user()->getActiveTenantId();
+        $tenantId = TenantContext::requireId('relatório ComprasEmergenciais');
 
         // Valor por requisição usando cascata: PC emitido > cotação vencedora > estimativa.
         // Query builder não passa pelo BelongsToTenant: TODO recorte de tenant é explícito.

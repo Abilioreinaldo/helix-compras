@@ -182,10 +182,16 @@ class RegistroRecebimento extends Component
         // Quantidade já recebida por item. SUM precisa de alias: sem ele, o pluck do Laravel
         // tenta ler a propriedade "quantidade_recebida" da linha (cuja coluna é "SUM(...)") e
         // estoura "Undefined property" quando há recebimentos.
+        $tenantId = TenantContext::requireId('recebimentos do pedido');
+
         $jaRecebidoPorItem = DB::table('itens_recebimento')
-            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
-            ->where('itens_recebimento.tenant_id', TenantContext::requireId('recebimentos do pedido'))
-            ->join('recebimentos', 'itens_recebimento.recebimento_id', '=', 'recebimentos.id')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito em TODA
+            // tabela do join (3ª auditoria: recebimento de outro tenant com FK cruzada
+            // inflava o "já recebido" e travava o recebimento legítimo).
+            ->where('itens_recebimento.tenant_id', $tenantId)
+            ->join('recebimentos', fn ($j) => $j
+                ->on('itens_recebimento.recebimento_id', '=', 'recebimentos.id')
+                ->where('recebimentos.tenant_id', $tenantId))
             ->where('recebimentos.pedido_compra_id', $pedido->id)
             ->whereNull('itens_recebimento.deleted_at')
             ->whereNull('recebimentos.deleted_at')

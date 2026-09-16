@@ -4,6 +4,7 @@ namespace App\Livewire\Relatorios;
 
 use App\Models\EstoqueMinimo;
 use App\Models\LoteEstoque;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -36,7 +37,7 @@ class PosicaoEstoque extends Component
 
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
         $unidades = DB::table('unidades')
-            ->where('tenant_id', auth()->user()->getActiveTenantId())
+            ->where('tenant_id', TenantContext::requireId('relatório PosicaoEstoque'))
             ->whereNull('deleted_at')
             ->orderBy('nome')
             ->select('id', 'nome')

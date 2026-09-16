@@ -150,10 +150,16 @@ class EmitirPedidoCompraAction
             return;
         }
 
+        $tenantId = TenantContext::requireId('teto de emissão do pedido');
+
         $jaEmitido = DB::table('itens_pedido_compra')
-            // Query builder cru não passa pelo BelongsToTenant: recorte explícito.
-            ->where('itens_pedido_compra.tenant_id', TenantContext::requireId('teto de emissão do pedido'))
-            ->join('pedidos_compra', 'itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
+            // Query builder cru não passa pelo BelongsToTenant: recorte explícito em
+            // TODA tabela do join (3ª auditoria: pedido de outro tenant com FK cruzada
+            // contava no teto e bloqueava a emissão legítima).
+            ->where('itens_pedido_compra.tenant_id', $tenantId)
+            ->join('pedidos_compra', fn ($j) => $j
+                ->on('itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
+                ->where('pedidos_compra.tenant_id', $tenantId))
             ->where('itens_pedido_compra.requisicao_id', $requisicaoId)
             ->where('pedidos_compra.status', StatusPedidoCompra::Emitido->value)
             ->where('pedidos_compra.id', '!=', $pedidoAtual->id)

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Relatorios;
 
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -18,7 +19,7 @@ class RequisicoesAprovador extends Component
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-        $tenantId = auth()->user()->getActiveTenantId();
+        $tenantId = TenantContext::requireId('relatório RequisicoesAprovador');
 
         // Somente aprovações pendentes do ciclo atual de cada requisição.
         $resultados = DB::table('aprovacoes as a')

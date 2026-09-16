@@ -14,60 +14,23 @@ final readonly class MensagemEmail
         public string $de,        // e-mail do remetente
         public string $assunto,
         public string $corpo,
-        // Header `Authentication-Results` cru, como o servidor de entrada o escreveu.
-        // `de` (From) é texto livre escolhido por quem envia — forjá-lo é trivial. A
-        // única evidência de autenticidade que chega junto da mensagem é esta.
-        public ?string $autenticacao = null,
+        // Headers `Authentication-Results` CRUS, na ordem do cabeçalho (do TOPO para
+        // baixo) — uma string é tratada como um único header. `de` (From) é texto
+        // livre escolhido por quem envia; a evidência de autenticidade é o carimbo
+        // do NOSSO servidor de entrada, e só ele (ver VerificadorAutenticidadeEmail).
+        // NUNCA concatene vários headers numa string: o remetente também escreve
+        // `Authentication-Results`, e juntar tudo foi o bypass da 3ª auditoria.
+        public string|array|null $autenticacao = null,
     ) {}
 
-    /**
-     * SPF ou DKIM aprovados e ALINHADOS com o domínio esperado (o do fornecedor da
-     * cotação)? Fail-closed: sem header, header ilegível ou domínio de outro
-     * remetente → false.
-     *
-     * "Alinhado" = o domínio que assinou/autorizou é o esperado ou um pai dele
-     * (`alfa.test` assina por `cotacoes.alfa.test`). Nunca o contrário: um
-     * subdomínio não fala pelo pai.
-     */
-    public function autenticadaPara(string $dominioEsperado): bool
+    /** @return list<string> headers Authentication-Results, do topo para baixo */
+    public function cabecalhosAutenticacao(): array
     {
-        $esperado = mb_strtolower(trim($dominioEsperado));
-        $cabecalho = mb_strtolower(trim((string) $this->autenticacao));
-
-        if ($esperado === '' || $cabecalho === '') {
-            return false;
+        if ($this->autenticacao === null) {
+            return [];
         }
 
-        // DKIM: assinatura criptográfica; header.d é quem assinou.
-        if (preg_match_all('/dkim=pass[^;]*?header\.d=([a-z0-9.\-]+)/', $cabecalho, $m)) {
-            foreach ($m[1] as $assinante) {
-                if ($this->dominioAlinhado(trim($assinante, '.'), $esperado)) {
-                    return true;
-                }
-            }
-        }
-
-        // SPF: o IP de origem está autorizado pelo domínio do envelope.
-        if (preg_match_all('/spf=pass[^;]*?smtp\.(?:mailfrom|helo)=([^\s;]+)/', $cabecalho, $m)) {
-            foreach ($m[1] as $envelope) {
-                $envelope = trim($envelope, '<>"\' ');
-                $dominio = str_contains($envelope, '@')
-                    ? substr((string) strrchr($envelope, '@'), 1)
-                    : $envelope;
-
-                if ($this->dominioAlinhado(trim($dominio, '.'), $esperado)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private function dominioAlinhado(string $autorizador, string $esperado): bool
-    {
-        return $autorizador !== ''
-            && ($autorizador === $esperado || str_ends_with($esperado, '.'.$autorizador));
+        return array_values(array_map('strval', (array) $this->autenticacao));
     }
 
     /** Detecta auto-respostas, bounces e remetentes automáticos (não processar). */

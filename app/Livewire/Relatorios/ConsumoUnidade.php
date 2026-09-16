@@ -3,6 +3,7 @@
 namespace App\Livewire\Relatorios;
 
 use App\Enums\TipoMovimentacao;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -26,7 +27,7 @@ class ConsumoUnidade extends Component
         // Consumo = saídas de estoque (RIM). A unidade vem do saldo de origem.
         // Apenas tipo 'saida' entra — entrada/ajuste/fusão não são consumo.
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-        $tenantId = auth()->user()->getActiveTenantId();
+        $tenantId = TenantContext::requireId('relatório ConsumoUnidade');
 
         $resultados = DB::table('movimentacoes_estoque as m')
             ->where('m.tenant_id', $tenantId)

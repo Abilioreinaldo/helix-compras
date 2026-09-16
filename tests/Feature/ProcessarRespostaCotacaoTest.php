@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
 
+// authserv-id do NOSSO MX: só o carimbo dele conta (3ª auditoria adversarial).
+beforeEach(fn () => config(['mail.imap.authserv_id' => 'mx.helix.test']));
+
 /**
  * Cria uma cotação com fornecedor (e-mail conhecido) e compradora (criadora).
  *
@@ -42,9 +45,9 @@ function mensagemTeste(Cotacao $c, string $corpo, array $over = []): MensagemEma
         // Token ULID opaco: o `[COT-{id}]` numérico deixou de casar (enumerável e global).
         assunto: $over['assunto'] ?? "Re: Solicitação de cotação [COT-{$c->email_token}]",
         corpo: $corpo,
-        // SPF/DKIM aprovados para o domínio de quem envia — o caminho legítimo.
+        // SPF/DKIM/DMARC aprovados para o domínio de quem envia — o caminho legítimo.
         autenticacao: $over['autenticacao']
-            ?? "mx.helix.test; spf=pass smtp.mailfrom={$de}; dkim=pass header.d={$dominio}",
+            ?? "mx.helix.test; spf=pass smtp.mailfrom={$de}; dkim=pass header.d={$dominio}; dmarc=pass header.from={$dominio}",
     );
 }
 

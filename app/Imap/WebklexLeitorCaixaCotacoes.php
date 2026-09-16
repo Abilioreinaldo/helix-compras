@@ -61,28 +61,52 @@ class WebklexLeitorCaixaCotacoes implements LeitorCaixaCotacoes
     }
 
     /**
-     * Header `Authentication-Results` cru (SPF/DKIM/DMARC apurados pelo servidor de
-     * entrada). Pode haver mais de um (relay encadeado) — concatenamos todos; o
-     * consumidor exige alinhamento com o domínio do fornecedor, então um carimbo de
-     * relay intermediário não "aprova" ninguém sozinho. Ausente = null (fail-closed
-     * do lado de quem consome).
+     * Headers `Authentication-Results` crus, UM POR ELEMENTO, na ordem em que estão
+     * no cabeçalho (do topo para baixo).
+     *
+     * Antes (3ª auditoria adversarial) todos eram concatenados numa string — e o
+     * remetente também escreve `Authentication-Results`: bastava anexar
+     * `mx.nosso; dkim=pass header.d=fornecedor` para o carimbo forjado entrar no
+     * mesmo texto que o real. A ordem importa porque só o PRIMEIRO carimbo com o
+     * nosso authserv-id vale (VerificadorAutenticidadeEmail). Lemos do cabeçalho
+     * BRUTO para não depender de como a biblioteca agrupa/ordena repetições.
+     *
+     * @return list<string>
      */
-    private function autenticacao(Message $mensagem): ?string
+    private function autenticacao(Message $mensagem): array
     {
         try {
-            $atributo = $mensagem->getHeader()->get('authentication_results');
+            $bruto = (string) $mensagem->getHeader()?->raw;
         } catch (\Throwable) {
-            return null;
+            return [];
         }
 
-        if ($atributo === null) {
-            return null;
+        return self::authenticationResultsDoCabecalho($bruto);
+    }
+
+    /**
+     * Extrai, do cabeçalho bruto, os valores de `Authentication-Results` em ordem,
+     * desdobrando linhas continuadas (RFC 5322 §2.2.3). Puro — testável sem IMAP.
+     *
+     * @return list<string>
+     */
+    public static function authenticationResultsDoCabecalho(string $bruto): array
+    {
+        // Só o bloco de cabeçalho (até a primeira linha vazia).
+        $bruto = preg_split('/\r?\n\r?\n/', $bruto, 2)[0] ?? '';
+        $desdobrado = preg_replace('/\r?\n[ \t]+/', ' ', $bruto) ?? '';
+
+        $valores = [];
+        foreach (preg_split('/\r?\n/', $desdobrado) ?: [] as $linha) {
+            if (preg_match('/^authentication-results[ \t]*:(.*)$/i', $linha, $m)) {
+                $valor = trim($m[1]);
+                if ($valor !== '') {
+                    $valores[] = $valor;
+                }
+            }
         }
 
-        $valores = method_exists($atributo, 'toArray') ? (array) $atributo->toArray() : [$atributo];
-        $texto = trim(implode('; ', array_map(fn ($v) => (string) $v, $valores)));
-
-        return $texto === '' ? null : $texto;
+        return $valores;
     }
 
     public function marcarComoLida(string $id): void

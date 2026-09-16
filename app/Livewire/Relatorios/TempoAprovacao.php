@@ -3,6 +3,7 @@
 namespace App\Livewire\Relatorios;
 
 use App\Enums\StatusRequisicao;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -37,7 +38,7 @@ class TempoAprovacao extends Component
         }
 
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-        $tenantId = auth()->user()->getActiveTenantId();
+        $tenantId = TenantContext::requireId('relatório TempoAprovacao');
 
         $resultados = DB::table('requisicoes as r')
             // Tenant TAMBÉM na tabela juntada: sem isso o nome da faixa viria de

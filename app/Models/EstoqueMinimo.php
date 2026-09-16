@@ -94,12 +94,17 @@ class EstoqueMinimo extends ComprasModel
         // explícito e vem PRIMEIRO na cadeia (fail-closed via requireId).
         return DB::table('estoque_minimos as em')
             ->where('em.tenant_id', $tenantId)
-            ->join('unidades as u', function ($join) {
+            // TODA tabela do join leva o tenant (3ª auditoria): as FKs ainda não são
+            // compostas com tenant_id, então casar só por id deixa uma linha com FK
+            // cruzada trazer o catálogo/unidade de outro tenant.
+            ->join('unidades as u', function ($join) use ($tenantId) {
                 $join->on('u.id', '=', 'em.unidade_id')
+                    ->where('u.tenant_id', $tenantId)
                     ->whereNull('u.deleted_at');
             })
-            ->join('catalogo_itens as ci', function ($join) {
+            ->join('catalogo_itens as ci', function ($join) use ($tenantId) {
                 $join->on('ci.id', '=', 'em.item_catalogo_id')
+                    ->where('ci.tenant_id', $tenantId)
                     ->whereNull('ci.deleted_at')
                     ->where('ci.ativo', 1);
             })
@@ -150,13 +155,17 @@ class EstoqueMinimo extends ComprasModel
         // explícito e vem PRIMEIRO na cadeia (fail-closed via requireId).
         $query = DB::table('saldos_estoque as s')
             ->where('s.tenant_id', $tenantId)
-            ->join('unidades as u', function ($join) {
+            ->join('unidades as u', function ($join) use ($tenantId) {
                 $join->on('u.id', '=', 's.unidade_id')
+                    ->where('u.tenant_id', $tenantId)
                     ->whereNull('u.deleted_at');
             })
-            ->leftJoin('estoque_minimos as em', function ($join) {
+            // O mínimo é do MESMO tenant do saldo (3ª auditoria): sem isto um mínimo de
+            // outro tenant com FK cruzada acendia/apagava o alerta daqui.
+            ->leftJoin('estoque_minimos as em', function ($join) use ($tenantId) {
                 $join->on('em.unidade_id', '=', 's.unidade_id')
-                    ->on('em.item_catalogo_id', '=', 's.item_catalogo_id');
+                    ->on('em.item_catalogo_id', '=', 's.item_catalogo_id')
+                    ->where('em.tenant_id', $tenantId);
             })
             ->where('u.tenant_id', $tenantId)
             ->whereNull('s.fundido_para_id')
@@ -234,12 +243,17 @@ class EstoqueMinimo extends ComprasModel
         // explícito e vem PRIMEIRO na cadeia (fail-closed via requireId).
         $query = DB::table('estoque_minimos as em')
             ->where('em.tenant_id', $tenantId)
-            ->join('unidades as u', function ($join) {
+            // TODA tabela do join leva o tenant (3ª auditoria): as FKs ainda não são
+            // compostas com tenant_id, então casar só por id deixa uma linha com FK
+            // cruzada trazer o catálogo/unidade de outro tenant.
+            ->join('unidades as u', function ($join) use ($tenantId) {
                 $join->on('u.id', '=', 'em.unidade_id')
+                    ->where('u.tenant_id', $tenantId)
                     ->whereNull('u.deleted_at');
             })
-            ->join('catalogo_itens as ci', function ($join) {
+            ->join('catalogo_itens as ci', function ($join) use ($tenantId) {
                 $join->on('ci.id', '=', 'em.item_catalogo_id')
+                    ->where('ci.tenant_id', $tenantId)
                     ->whereNull('ci.deleted_at')
                     ->where('ci.ativo', 1);
             })

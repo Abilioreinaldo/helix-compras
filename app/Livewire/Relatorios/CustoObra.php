@@ -3,6 +3,7 @@
 namespace App\Livewire\Relatorios;
 
 use App\Enums\StatusPedidoCompra;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
@@ -24,7 +25,7 @@ class CustoObra extends Component
         abort_unless(auth()->user()->can('compras.manage'), 403);
 
         // Query builder não passa pelo BelongsToTenant: o recorte de tenant é explícito.
-        $tenantId = auth()->user()->getActiveTenantId();
+        $tenantId = TenantContext::requireId('relatório CustoObra');
 
         // Lista de obras disponíveis para o filtro (unidade.nome como nome da obra).
         $obras = DB::table('obras as o')

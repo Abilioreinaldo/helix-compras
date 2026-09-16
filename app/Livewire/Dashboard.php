@@ -7,6 +7,7 @@ use App\Enums\StatusRequisicao;
 use App\Models\PedidoCompra;
 use App\Models\Requisicao;
 use App\Models\SaldoEstoque;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
@@ -47,8 +48,12 @@ class Dashboard extends Component
 
         $pedidosEmitidos = PedidoCompra::where('status', StatusPedidoCompra::Emitido->value)->count();
 
+        // O global scope filtra `pedidos_compra`; a tabela do join precisa do próprio
+        // recorte (3ª auditoria): item de outro tenant com FK cruzada entrava no valor.
         $valorEmitido = (float) PedidoCompra::where('status', StatusPedidoCompra::Emitido->value)
-            ->join('itens_pedido_compra', 'itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
+            ->join('itens_pedido_compra', fn ($j) => $j
+                ->on('itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
+                ->where('itens_pedido_compra.tenant_id', TenantContext::requireId('valor emitido do painel')))
             ->whereNull('itens_pedido_compra.deleted_at')
             ->sum('itens_pedido_compra.valor_total');
 

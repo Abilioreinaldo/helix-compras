@@ -56,8 +56,13 @@ class CancelarPedidoCompraAction
                 $requisicaoIds = $pedido->itens()->reorder()->distinct()->pluck('requisicao_id');
 
                 foreach ($requisicaoIds as $requisicaoId) {
+                    // O global scope filtra `itens_pedido_compra`; o pedido do join também
+                    // tem de ser do tenant (3ª auditoria: PC emitido de outro tenant com FK
+                    // cruzada impedia a requisição de voltar para Aprovada).
                     $temOutroPC = ItemPedidoCompra::query()
-                        ->join('pedidos_compra', 'itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
+                        ->join('pedidos_compra', fn ($j) => $j
+                            ->on('itens_pedido_compra.pedido_compra_id', '=', 'pedidos_compra.id')
+                            ->where('pedidos_compra.tenant_id', (string) $pedido->tenant_id))
                         ->where('itens_pedido_compra.requisicao_id', $requisicaoId)
                         ->where('pedidos_compra.status', StatusPedidoCompra::Emitido->value)
                         ->where('pedidos_compra.id', '!=', $pedido->id)

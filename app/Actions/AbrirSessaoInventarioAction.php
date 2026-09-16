@@ -74,6 +74,9 @@ class AbrirSessaoInventarioAction
                     $sub->select(DB::raw(1))
                         ->from('catalogo_itens')
                         ->whereColumn('catalogo_itens.id', 'saldos_estoque.item_catalogo_id')
+                        // Mesmo tenant do saldo (3ª auditoria): item de outro tenant com FK
+                        // cruzada tirava o saldo daqui do inventário.
+                        ->whereColumn('catalogo_itens.tenant_id', 'saldos_estoque.tenant_id')
                         ->where('catalogo_itens.controla_lote', true);
                 });
 

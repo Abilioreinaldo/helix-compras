@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Imap\MensagemEmail;
+use App\Imap\VerificadorAutenticidadeEmail;
 use App\Mail\RespostaCotacaoRecebida;
 use App\Models\Cotacao;
 use App\Services\ParseadorRespostaEmailService;
@@ -19,6 +20,8 @@ use Illuminate\Support\Facades\Mail;
  */
 class ProcessarRespostaCotacaoAction
 {
+    public function __construct(private VerificadorAutenticidadeEmail $verificador) {}
+
     public function execute(MensagemEmail $mensagem): ?Cotacao
     {
         // A caixa IMAP é única da instalação e roda no console (sem tenant no contexto).
@@ -69,14 +72,6 @@ class ProcessarRespostaCotacaoAction
         return $id !== null ? (int) $id : null;
     }
 
-    /** Domínio de um endereço (`forn@alfa.test` → `alfa.test`). */
-    private function dominioDe(string $email): string
-    {
-        $arroba = strrchr($email, '@');
-
-        return $arroba === false ? '' : substr($arroba, 1);
-    }
-
     /** Passos 2–7 sob o tenant da cotação (leitura/escrita/e-mail escopados). */
     private function processarNoTenant(MensagemEmail $mensagem, int $cotacaoId): ?Cotacao
     {
@@ -113,8 +108,10 @@ class ProcessarRespostaCotacaoAction
         //     encaminhado) gravava a "resposta do fornecedor". Exigimos a evidência que
         //     o servidor de entrada carimba: SPF/DKIM aprovado e ALINHADO com o domínio
         //     do fornecedor. Fail-closed — sem header válido, nada é gravado.
-        if (config('mail.imap.exigir_autenticacao') && ! $mensagem->autenticadaPara($this->dominioDe($emailFornecedor))) {
-            Log::warning('Resposta IMAP sem SPF/DKIM aprovado para o domínio do fornecedor.', [
+        //     3ª auditoria: só o PRIMEIRO carimbo do nosso authserv-id, parser RFC 8601,
+        //     DMARC alinhado e e-mail exato em webmail público (VerificadorAutenticidadeEmail).
+        if (config('mail.imap.exigir_autenticacao') !== false && ! $this->verificador->autentica($mensagem, $emailFornecedor)) {
+            Log::warning('Resposta IMAP sem SPF/DKIM/DMARC aprovado para o fornecedor.', [
                 'cotacao_id' => $cotacao->id,
                 'remetente' => $remetente,
                 'authentication_results' => $mensagem->autenticacao,

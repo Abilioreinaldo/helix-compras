@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Actions\ProcessarRespostaCotacaoAction;
 use App\Imap\LeitorCaixaCotacoes;
+use App\Imap\LeitorCaixaCotacoesIndisponivel;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -19,6 +20,20 @@ class CapturarRespostasCotacao extends Command
 
     public function handle(LeitorCaixaCotacoes $leitor, ProcessarRespostaCotacaoAction $acao): int
     {
+        // Verificação exigida sem authserv-id confiável: TODA resposta seria recusada
+        // e marcada como lida — some da caixa sem nunca ter sido avaliada. Falha alto
+        // e não toca a caixa (3ª auditoria; ver config mail.imap.authserv_id).
+        // Sem IMAP configurado (leitor indisponível) não há caixa a proteger: segue o
+        // no-op de sempre, sem falhar o scheduler de dev/CI.
+        if (! $leitor instanceof LeitorCaixaCotacoesIndisponivel
+            && config('mail.imap.exigir_autenticacao') !== false
+            && trim((string) config('mail.imap.authserv_id')) === '') {
+            Log::error('Captura IMAP de cotações sem IMAP_AUTHSERV_ID: caixa não lida.');
+            $this->error('IMAP_AUTHSERV_ID não configurado: a autenticidade das respostas não pode ser verificada. Caixa não lida.');
+
+            return self::FAILURE;
+        }
+
         try {
             $mensagens = $leitor->naoLidas();
         } catch (\Throwable $e) {

@@ -135,21 +135,49 @@ return [
         'mailbox' => env('IMAP_MAILBOX', 'INBOX'),
 
         /*
-         * Exigir SPF/DKIM aprovado (header `Authentication-Results`) e ALINHADO com o
-         * domínio do fornecedor antes de gravar a resposta da cotação. LIGADO por
-         * padrão: sem isto, a única prova de origem é o header `From`, que é texto
-         * livre. Requisito de INFRA: o servidor IMAP de entrada precisa carimbar o
-         * `Authentication-Results` (postfix/rspamd, Google Workspace e Microsoft 365
-         * carimbam; Exchange on-prem sem filtro de borda, não).
+         * Exigir a autenticidade do remetente (SPF/DKIM + DMARC, carimbados pelo NOSSO
+         * servidor de entrada no `Authentication-Results`) antes de gravar a resposta
+         * da cotação. LIGADO por padrão: sem isto, a única prova de origem é o header
+         * `From`, que é texto livre.
          *
-         * FILTER_NULL_ON_FAILURE + `?? true`: `IMAP_EXIGIR_AUTENTICACAO=` (declarada e
-         * VAZIA) NÃO desliga a verificação — só `false`/`0` explícitos desligam.
+         * FAIL-CLOSED DE VERDADE (3ª auditoria): só desliga com valor falso EXPLÍCITO
+         * (false/0/off/no). A versão anterior usava filter_var(..., FILTER_NULL_ON_FAILURE)
+         * e o comentário dizia que vazio não desligava — mas filter_var('') devolve
+         * FALSE (não null): `IMAP_EXIGIR_AUTENTICACAO=` DESLIGAVA a verificação.
          */
-        'exigir_autenticacao' => filter_var(
-            env('IMAP_EXIGIR_AUTENTICACAO', true),
-            FILTER_VALIDATE_BOOL,
-            FILTER_NULL_ON_FAILURE
-        ) ?? true,
-    ],
+        'exigir_autenticacao' => (static function (): bool {
+            $valor = env('IMAP_EXIGIR_AUTENTICACAO');
+
+            if ($valor === false) { // "false" / "(false)" — o env() já converte
+                return false;
+            }
+
+            return ! in_array(strtolower(trim((string) $valor)), ['0', 'off', 'no', 'false'], true);
+        })(),
+
+        /*
+         * authserv-id CONFIÁVEL: o identificador que o NOSSO MTA de entrada escreve no
+         * início do `Authentication-Results` (ex.: `mx.empresa.com.br`; Google
+         * Workspace = `mx.google.com`). Só o PRIMEIRO carimbo do topo com este id é
+         * lido. VAZIO = nenhuma resposta é aceita e a captura nem abre a caixa
+         * (fail-closed). Requisito de INFRA: o MTA deve REMOVER os A-R que chegam de
+         * fora com este id (RFC 8601 §5) e carimbar o seu no topo, em RFC 8601 (o
+         * M365 escreve sem authserv-id — não serve sem um filtro de borda que carimbe).
+         */
+        'authserv_id' => env('IMAP_AUTHSERV_ID'),
+
+        /*
+         * Domínios de webmail PÚBLICO: o domínio não identifica o fornecedor (qualquer
+         * um abre conta), então exige-se o e-mail EXATO no SPF (`smtp.mailfrom`) ou no
+         * DKIM (`header.i`) — não basta DKIM/DMARC de gmail.com.
+         */
+        'dominios_webmail_publico' => [
+            'gmail.com', 'googlemail.com', 'outlook.com', 'outlook.com.br', 'hotmail.com',
+            'hotmail.com.br', 'live.com', 'msn.com', 'yahoo.com', 'yahoo.com.br',
+            'ymail.com', 'icloud.com', 'me.com', 'mac.com', 'aol.com', 'uol.com.br',
+            'bol.com.br', 'terra.com.br', 'ig.com.br', 'globo.com', 'globomail.com',
+            'r7.com', 'zoho.com', 'proton.me', 'protonmail.com', 'gmx.com', 'gmx.net',
+            'yandex.com', 'mail.com',
+        ],    ],
 
 ];
