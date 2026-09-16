@@ -52,9 +52,12 @@
         @enderror
     </x-report-card>
 
-    {{-- Solicitar cotação por e-mail (captura IMAP preenche a sugestão depois) --}}
-    <x-report-card title="Solicitar cotação por e-mail" icon="truck" subtitle="Cria uma cotação aguardando e envia o pedido ao fornecedor. A resposta é capturada automaticamente.">
+    {{-- Solicitar cotação por e-mail: o fornecedor responde pelo LINK ASSINADO (decisão 11) --}}
+    <x-report-card title="Solicitar cotação por e-mail" icon="truck" subtitle="Cria uma cotação aguardando e envia ao fornecedor um link de uso único para preencher a proposta. Respostas por e-mail só geram aviso.">
         @error('fornecedoresSolicitar')
+            <div class="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{{ $message }}</div>
+        @enderror
+        @error('prazoResposta')
             <div class="mb-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{{ $message }}</div>
         @enderror
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -68,6 +71,10 @@
                     @endforeach
                 </select>
                 <p class="mt-1 text-xs text-slate-500">Segure Ctrl/Cmd para selecionar vários.</p>
+            </div>
+            <div>
+                <label class="mb-1 block text-sm font-medium text-slate-300">Prazo de resposta</label>
+                <input type="date" wire:model="prazoResposta" class="input-dark">
             </div>
             <button wire:click="solicitarPorEmail" wire:loading.attr="disabled"
                 class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500">
@@ -117,6 +124,16 @@
                                 @else
                                     <span class="font-normal italic text-slate-500">Aguardando resposta</span>
                                 @endif
+                                @if ($cotacao->valor === null && $cotacao->linkAtual)
+                                    @php $link = $cotacao->linkAtual; @endphp
+                                    <span class="block text-xs font-normal text-slate-500">
+                                        @if ($link->submetido_em) Proposta enviada pelo link em {{ $link->submetido_em->format('d/m/Y H:i') }}
+                                        @elseif ($link->revogado_em) Link revogado
+                                        @elseif ($link->expires_at->isPast()) Link expirado
+                                        @else Link válido até {{ $link->expires_at->format('d/m/Y') }}
+                                        @endif
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-4 py-3 text-slate-300">
                                 @if ($cotacao->valor !== null)
@@ -151,6 +168,18 @@
                                 <span class="block text-xs text-slate-500">{{ $cotacao->created_at?->format('d/m/Y H:i') }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
+                                @if ($cotacao->valor === null && $cotacao->fornecedor?->contato_email)
+                                    <button wire:click="reenviarLink({{ $cotacao->id }})"
+                                        class="mr-3 text-xs text-slate-400 hover:text-slate-200">
+                                        Reenviar link
+                                    </button>
+                                    @if ($cotacao->linkAtual?->utilizavel())
+                                        <button wire:click="revogarLink({{ $cotacao->id }})"
+                                            class="mr-3 text-xs text-rose-400 hover:text-rose-300">
+                                            Revogar link
+                                        </button>
+                                    @endif
+                                @endif
                                 @if ($cotacao->valor === null && $cotacao->valor_respondido !== null)
                                     <button wire:click="confirmarSugestao({{ $cotacao->id }})"
                                         class="text-xs font-medium text-blue-400 hover:text-blue-300">

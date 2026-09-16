@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PropostaCotacaoPublicaController;
 use App\Livewire\Account2FA;
 use App\Livewire\Admin\CatalogoItens\ListaCatalogoItens;
 use App\Livewire\Admin\CentrosCusto\ListaCentrosCusto;
@@ -115,6 +116,10 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     // (c2) action cujo único findOrFail é de tabela GLOBAL (sem tenant a comparar)
     ->allowUnauthorizedAction(Reconciliacao::class.'::processar', 'autoriza com manage/Pagamento antes de tudo; o único findOrFail é Banco (catálogo COMPE global, tabela sem tenant_id) — não há registro de tenant a passar para a policy. A ReconciliacaoBancaria nasce carimbada pelo contexto (BelongsToTenant)')
 
+    // (decisão 15) relatório de saneamento multitenant, somente leitura
+    ->allowPlatformContext('app/Console/Commands/IntegridadeTenantCommand.php::handle', 'relatório de saneamento SÓ LEITURA do DBA (decisão 15): compara filhas e mães de TODOS os tenants para achar órfãos/cruzados — é por definição cross-tenant. Só SELECT (listener que recusa INSERT/UPDATE/DELETE/DDL em IntegridadeTenantCommandTest); não é agendado, roda à mão em cópia da produção')
+    ->allowRawDbTable('app/Console/Commands/IntegridadeTenantCommand.php::contarOrfaos', 'relatório de saneamento SÓ LEITURA (decisão 15, docs/SANEAMENTO-TENANT.md): contar filhas cuja mãe NÃO EXISTE atravessa todos os tenants por definição — não há tenant a filtrar numa linha órfã. Só SELECT count (provado em IntegridadeTenantCommandTest com listener que recusa escrita), roda sob runAsPlatform declarado')
+
     // (k) DB::table() cru — migrations de schema/backfill (rodam no deploy, fora de request)
     ->allowRawDbTable('database/migrations/2026_08_04_000001_add_tenant_id_to_unidades.php::up', 'migration de backfill: é ela que CARIMBA tenant_id em unidades a partir do 1º tenant; roda uma vez no deploy, fora de request, e por definição atravessa tenants')
     ->allowRawDbTable('database/migrations/2026_08_04_000002_add_tenant_id_to_compras_business_tables.php::up', 'migration de backfill: carimba tenant_id nas 33 tabelas de negócio a partir de unidades/pais; roda uma vez no deploy, fora de request')
@@ -133,14 +138,19 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowMassTenantWrite('app/Support/SequenciaAnualPorTenant.php::proximo', 'tabelas de sequência (sequencias_pedido_compra/sequencias_requisicao) não têm model nem BelongsToTenant: a LINHA é o par (tenant_id, ano), então o insertOrIgnore precisa da coluna. Nenhum registro muda de tenant — o insert só cria a linha do próprio tenant e o update mexe só em ultimo_numero')
 
     // (n) withoutTenantScope() sem filtro de tenant
-    ->allowUnfilteredBypass('app/Actions/ProcessarRespostaCotacaoAction.php::resolverCotacaoId', 'a caixa IMAP de cotações é única da instalação e roda no console, SEM tenant no contexto: o casamento pelo email_token opaco (único na base) é o lookup que DESCOBRE o tenant. Logo em seguida tudo — idempotência, leitura, escrita e e-mail — roda dentro de TenantContext::runFor($tenantId)')
+    ->allowUnfilteredBypass('app/Actions/ProcessarRespostaCotacaoAction.php::resolverLink', 'a caixa IMAP de cotações é única da instalação e roda no console, SEM tenant no contexto: a referência PÚBLICA do link (cotacao_links.referencia, ULID único na base) é o lookup que DESCOBRE o tenant. Logo em seguida tudo — leitura, dedupe, auditoria e aviso — roda dentro de TenantContext::runFor((string) $link->tenant_id). Não grava nada na cotação (decisão 11)')
+    ->allowUnfilteredBypass('app/Services/CotacaoLinkService.php::resolver', 'rota PÚBLICA do link assinado (sem login, sem tenant no contexto): o token (lookup pelo SHA-256, único na base) é o que DESCOBRE o tenant; o controller roda todo o resto sob TenantContext::runFor((string) $link->tenant_id) e a cotação é relida escopada (decisão 11)')
 
     // (o) consulta a User sem filtro de tenant
     ->allowUnscopedUserQuery('app/Console/Commands/ExecutarRateioMensal.php::handle', 'console: o --executado-por identifica o Admin operador ANTES de existir tenant no contexto; é dele que o tenant é derivado (runFor do tenant do Admin), e o comando recusa quem não tem perfil Admin')
     ->allowUnscopedUserQuery('app/Console/Commands/SanearDuplicatasCatalogo.php::handle', 'console: idem — o --executado-por resolve o Admin operador antes do tenant, e a fusão fica restrita ao tenant DELE')
 
     // (q) comando agendado sem runFor/eachTenant
-    ->allowTenantlessCommand('cotacoes:capturar-respostas', 'o comando não escolhe tenant: ele lê a caixa IMAP única da instalação. O tenant de CADA mensagem é descoberto pelo email_token da cotação e todo o processamento roda dentro de TenantContext::runFor (ProcessarRespostaCotacaoAction::execute)')
+    ->allowTenantlessCommand('cotacoes:capturar-respostas', 'o comando não escolhe tenant: ele lê a caixa IMAP única da instalação. O tenant de CADA mensagem é descoberto pela referência pública do link de cotação e todo o processamento (só aviso, nada gravado) roda dentro de TenantContext::runFor (ProcessarRespostaCotacaoAction::execute)')
+
+    // (c3) endpoints públicos por desenho
+    ->allowUnauthorizedEndpoint(PropostaCotacaoPublicaController::class.'::show', 'link assinado de cotação (decisão 11): o fornecedor não tem login. A autorização É o link — assinatura HMAC do APP_KEY com expiração + token de 256 bits conferido pelo SHA-256 na base + uso único/revogação/expiração + cotação relida sob o tenant do link e amarrada ao fornecedor do link; qualquer falha devolve a mesma página genérica. Rate limit por IP e token (Security/CotacaoLinkAssinadoTest)')
+    ->allowUnauthorizedEndpoint(PropostaCotacaoPublicaController::class.'::store', 'idem show: grava só nos campos de sugestão da cotação do link, depois de consumir o link com UPDATE condicional atômico (uso único), dentro de TenantContext::runFor do tenant do link (Security/CotacaoLinkAssinadoTest)')
 
     // (j2) tabela de infraestrutura sem tenant_id (também fora do alcance do off-boarding)
     ->allowTableWithoutTenant('personal_access_tokens', 'tabela do Sanctum: token de API da IDENTIDADE (tokenable = users), que é compartilhada pela suíte e não tem tenant dono. O expurgo do tenant não a alcança de propósito — quem revoga é o UserService (removeMembership/changeStatus/deleteUser revogam os tokens do usuário)')
@@ -152,7 +162,9 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowGlobalUnique('obras.unidade_id', 'unidade_id é FK para unidades, que tem tenant_id + FK para tenants: uma obra de outra empresa nunca aponta para a mesma unidade — o unique já é por-tenant por transitividade')
     ->allowGlobalUnique('etapas_alcada.faixa_alcada_id+ordem', 'faixa_alcada_id é FK para faixas_alcada (escopada): a etapa herda o tenant da faixa')
     ->allowGlobalUnique('centros_custo.unidade_id+codigo+deleted_at', 'unidade_id é FK para unidades (escopada): o código do centro de custo já é único POR UNIDADE, logo por tenant')
-    ->allowGlobalUnique('cotacoes.email_token', 'token OPACO e global por desenho: é ele que RESOLVE o tenant quando a resposta do fornecedor chega pela caixa IMAP única da instalação (ProcessarRespostaCotacaoAction), antes de existir tenant no contexto. Unicidade global é requisito, não descuido')
+    ->allowGlobalUnique('cotacoes.email_token', 'DESCONTINUADO (decisão 11): coluna legada, não é mais gerada nem lida — o índice sai junto com a coluna numa migration de limpeza. Era global por desenho (resolvia o tenant na caixa IMAP única)')
+    ->allowGlobalUnique('cotacao_links.token_hash', 'SHA-256 de token aleatório de 256 bits: identificador GLOBAL por desenho — é ele que DESCOBRE o tenant na rota pública do link assinado, antes de existir tenant no contexto')
+    ->allowGlobalUnique('cotacao_links.referencia', 'ULID público de correlação do e-mail de cotação: GLOBAL por desenho — é ele que DESCOBRE o tenant da resposta que chega pela caixa IMAP única da instalação')
     ->allowGlobalUnique('aprovacoes.requisicao_id+ciclo+ordem+deleted_at', 'requisicao_id é FK para requisicoes (escopada)')
     ->allowGlobalUnique('itens_pedido_compra.pedido_compra_id+item_requisicao_id', 'pedido_compra_id é FK para pedidos_compra (escopada)')
     ->allowGlobalUnique('saldos_estoque.unidade_id+deposito+descricao_normalizada', 'unidade_id é FK para unidades (escopada): a identidade do saldo já é única por unidade, logo por tenant')

@@ -3,20 +3,28 @@
 use App\Actions\ProcessarRespostaCotacaoAction;
 use App\Imap\LeitorCaixaCotacoes;
 use App\Imap\MensagemEmail;
-use App\Mail\RespostaCotacaoRecebida;
+use App\Mail\RespostaCotacaoPorEmailRecebida;
 use App\Models\Cotacao;
+use App\Models\CotacaoLink;
 use App\Models\Fornecedor;
 use App\Models\User;
+use App\Services\CotacaoLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
 uses(RefreshDatabase::class);
+
+/*
+| Decisão 11: a resposta por e-mail NÃO grava mais proposta — vira AVISO ao comprador.
+| A proposta só é gravada pelo link assinado (Security/CotacaoLinkAssinadoTest).
+*/
 
 // authserv-id do NOSSO MX: só o carimbo dele conta (3ª auditoria adversarial).
 beforeEach(fn () => config(['mail.imap.authserv_id' => 'mx.helix.test']));
 
 /**
- * Cria uma cotação com fornecedor (e-mail conhecido) e compradora (criadora).
+ * Cotação aguardando, com fornecedor (e-mail conhecido), compradora (criadora) e link emitido.
  *
  * @param  array<string, mixed>  $attrs
  */
@@ -25,11 +33,20 @@ function cotacaoTeste(array $attrs = []): Cotacao
     $fornecedor = Fornecedor::factory()->create(['contato_email' => 'fornecedor@exemplo.com']);
     $compradora = User::factory()->create(['email' => 'compradora@exemplo.com']);
 
-    return Cotacao::factory()->create(array_merge([
+    $cotacao = Cotacao::factory()->create(array_merge([
         'fornecedor_id' => $fornecedor->id,
         'criada_por' => $compradora->id,
         'valor' => null,
     ], $attrs));
+
+    app(CotacaoLinkService::class)->emitir($cotacao, now()->addDays(5));
+
+    return $cotacao;
+}
+
+function referenciaDe(Cotacao $c): string
+{
+    return CotacaoLink::withoutTenantScope()->where('cotacao_id', $c->id)->latest('id')->value('referencia');
 }
 
 /** @param array<string, mixed> $over */
@@ -42,34 +59,62 @@ function mensagemTeste(Cotacao $c, string $corpo, array $over = []): MensagemEma
         id: $over['id'] ?? 'uid-1',
         messageId: $over['messageId'] ?? '<msg-1@fornecedor>',
         de: $de,
-        // Token ULID opaco: o `[COT-{id}]` numérico deixou de casar (enumerável e global).
-        assunto: $over['assunto'] ?? "Re: Solicitação de cotação [COT-{$c->email_token}]",
+        assunto: $over['assunto'] ?? 'Re: Solicitação de cotação [COT-'.referenciaDe($c).']',
         corpo: $corpo,
-        // SPF/DKIM/DMARC aprovados para o domínio de quem envia — o caminho legítimo.
-        autenticacao: $over['autenticacao']
-            ?? "mx.helix.test; spf=pass smtp.mailfrom={$de}; dkim=pass header.d={$dominio}; dmarc=pass header.from={$dominio}",
+        autenticacao: array_key_exists('autenticacao', $over)
+            ? $over['autenticacao']
+            : "mx.helix.test; spf=pass smtp.mailfrom={$de}; dkim=pass header.d={$dominio}; dmarc=pass header.from={$dominio}",
     );
+}
+
+/** Colunas que a resposta por e-mail gravava antes da decisão 11. */
+function camposDeProposta(Cotacao $c): array
+{
+    return collect(DB::table('cotacoes')->where('id', $c->id)->first())
+        ->only(['valor', 'valor_respondido', 'prazo_respondido', 'observacoes_fornecedor', 'resposta_recebida_em', 'email_externo_id', 'prazo_entrega_dias', 'validade_proposta', 'updated_at'])
+        ->all();
 }
 
 // ─── Ação ────────────────────────────────────────────────────────────────────
 
-it('registra a resposta nos campos advisory sem tocar no valor oficial', function () {
+it('NÃO grava nada na cotação: nem sugestão, nem valor, nem Message-ID', function () {
     Mail::fake();
     $c = cotacaoTeste();
+    $antes = camposDeProposta($c);
 
+    $this->travel(1)->minutes();
     $res = app(ProcessarRespostaCotacaoAction::class)
         ->execute(mensagemTeste($c, 'Valor: R$ 150,00 | Prazo: 15 dias'));
 
-    $c->refresh();
     expect($res)->not->toBeNull()
-        ->and((float) $c->valor_respondido)->toBe(150.00)
-        ->and($c->prazo_respondido)->toBe(15)
-        ->and($c->resposta_recebida_em)->not->toBeNull()
-        ->and($c->email_externo_id)->toBe('<msg-1@fornecedor>')
-        ->and($c->valor)->toBeNull(); // valor oficial permanece intocado
+        ->and(camposDeProposta($c))->toBe($antes)
+        ->and(DB::table('itens_cotacao')->where('cotacao_id', $c->id)->count())->toBe(0);
 });
 
-it('não duplica quando o mesmo Message-ID chega duas vezes', function () {
+it('avisa a compradora com os sinais de remetente e autenticidade', function () {
+    Mail::fake();
+    $c = cotacaoTeste();
+
+    app(ProcessarRespostaCotacaoAction::class)->execute(mensagemTeste($c, 'Valor: R$ 100,00 em 5 dias'));
+
+    Mail::assertSent(RespostaCotacaoPorEmailRecebida::class, fn ($m) => $m->hasTo('compradora@exemplo.com')
+        && $m->cotacao->is($c) && $m->remetenteConfere && $m->autenticado);
+});
+
+it('autenticidade e remetente são só SINAIS: e-mail forjado ainda avisa, marcado como não verificado, e não grava', function () {
+    Mail::fake();
+    $c = cotacaoTeste();
+    $antes = camposDeProposta($c);
+
+    $res = app(ProcessarRespostaCotacaoAction::class)->execute(
+        mensagemTeste($c, 'Valor: R$ 1,00', ['de' => 'estranho@invasor.com', 'autenticacao' => null])
+    );
+
+    expect($res)->not->toBeNull()->and(camposDeProposta($c))->toBe($antes);
+    Mail::assertSent(RespostaCotacaoPorEmailRecebida::class, fn ($m) => ! $m->remetenteConfere && ! $m->autenticado);
+});
+
+it('não avisa duas vezes o mesmo Message-ID', function () {
     Mail::fake();
     $c = cotacaoTeste();
     $msg = mensagemTeste($c, 'R$ 100,00');
@@ -77,65 +122,31 @@ it('não duplica quando o mesmo Message-ID chega duas vezes', function () {
     app(ProcessarRespostaCotacaoAction::class)->execute($msg);
     $res2 = app(ProcessarRespostaCotacaoAction::class)->execute($msg);
 
-    expect($res2)->toBeNull()
-        ->and(Cotacao::where('email_externo_id', $msg->messageId)->count())->toBe(1);
+    expect($res2)->toBeNull();
+    Mail::assertSentCount(1);
 });
 
-it('rejeita resposta de remetente que não é o fornecedor da cotação', function () {
-    Mail::fake();
-    $c = cotacaoTeste();
-
-    $res = app(ProcessarRespostaCotacaoAction::class)
-        ->execute(mensagemTeste($c, 'R$ 100,00', ['de' => 'estranho@invasor.com']));
-
-    expect($res)->toBeNull()
-        ->and($c->fresh()->resposta_recebida_em)->toBeNull();
-});
-
-it('ignora e-mail sem token de cotação no assunto', function () {
+it('ignora e-mail sem referência de cotação no assunto', function () {
     Mail::fake();
     $c = cotacaoTeste();
 
     $res = app(ProcessarRespostaCotacaoAction::class)
         ->execute(mensagemTeste($c, 'R$ 100,00', ['assunto' => 'Bom dia, segue nossa proposta']));
 
-    expect($res)->toBeNull()
-        ->and($c->fresh()->resposta_recebida_em)->toBeNull();
+    expect($res)->toBeNull();
+    Mail::assertNothingSent();
 });
 
-it('ignora cotação que já foi respondida (rate limit)', function () {
+it('o antigo email_token (ULID da cotação) não casa mais', function () {
     Mail::fake();
-    $c = cotacaoTeste(['resposta_recebida_em' => now()->subDay()]);
+    $c = cotacaoTeste();
+    DB::table('cotacoes')->where('id', $c->id)->update(['email_token' => '01J0000000000000000000LEGA']);
 
     $res = app(ProcessarRespostaCotacaoAction::class)
-        ->execute(mensagemTeste($c, 'R$ 999,00', ['messageId' => '<novo@fornecedor>']));
+        ->execute(mensagemTeste($c, 'R$ 100,00', ['assunto' => 'Re: [COT-01J0000000000000000000LEGA]']));
 
     expect($res)->toBeNull();
-});
-
-it('quando o parser não acha valor, registra a resposta como fallback manual', function () {
-    Mail::fake();
-    $c = cotacaoTeste();
-
-    $res = app(ProcessarRespostaCotacaoAction::class)
-        ->execute(mensagemTeste($c, 'Bom dia, conseguimos atender. Retorno em breve com os números.'));
-
-    $c->refresh();
-    expect($res)->not->toBeNull()
-        ->and($c->valor_respondido)->toBeNull()
-        ->and($c->resposta_recebida_em)->not->toBeNull()
-        ->and($c->observacoes_fornecedor)->toContain('Bom dia');
-    Mail::assertSent(RespostaCotacaoRecebida::class); // mesmo sem valor, notifica
-});
-
-it('notifica a compradora que criou a cotação', function () {
-    Mail::fake();
-    $c = cotacaoTeste();
-
-    app(ProcessarRespostaCotacaoAction::class)
-        ->execute(mensagemTeste($c, 'Valor: R$ 100,00 em 5 dias'));
-
-    Mail::assertSent(RespostaCotacaoRecebida::class, fn ($m) => $m->hasTo('compradora@exemplo.com') && $m->cotacao->is($c));
+    Mail::assertNothingSent();
 });
 
 // ─── DTO ─────────────────────────────────────────────────────────────────────
@@ -170,18 +181,18 @@ function leitorFake(array $mensagens): LeitorCaixaCotacoes
     };
 }
 
-it('command captura respostas e marca como lida', function () {
+it('command avisa a compradora, não grava proposta e marca como lida', function () {
     Mail::fake();
     $c = cotacaoTeste();
+    $antes = camposDeProposta($c);
     $fake = leitorFake([mensagemTeste($c, 'Valor: R$ 250,00 | Prazo: 8 dias')]);
     app()->instance(LeitorCaixaCotacoes::class, $fake);
 
     $this->artisan('cotacoes:capturar-respostas')->assertExitCode(0);
 
-    $c->refresh();
-    expect((float) $c->valor_respondido)->toBe(250.00)
-        ->and($c->prazo_respondido)->toBe(8)
+    expect(camposDeProposta($c))->toBe($antes)
         ->and($fake->lidas)->toContain('uid-1');
+    Mail::assertSent(RespostaCotacaoPorEmailRecebida::class);
 });
 
 it('command descarta auto-reply sem processar', function () {
@@ -193,7 +204,6 @@ it('command descarta auto-reply sem processar', function () {
 
     $this->artisan('cotacoes:capturar-respostas')->assertExitCode(0);
 
-    expect($c->fresh()->resposta_recebida_em)->toBeNull()
-        ->and($fake->lidas)->toContain('uid-auto'); // marcada lida (descartada)
+    expect($fake->lidas)->toContain('uid-auto'); // marcada lida (descartada)
     Mail::assertNothingSent();
 });

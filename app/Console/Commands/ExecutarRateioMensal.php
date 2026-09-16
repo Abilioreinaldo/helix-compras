@@ -38,8 +38,11 @@ class ExecutarRateioMensal extends Command
 
         $admin = User::find($adminId);
 
-        if ($admin === null || ! $admin->temPerfil(Perfil::Admin)) {
-            $this->error("Usuário #{$adminId} não encontrado ou sem perfil Admin. Rateio abortado.");
+        // Identidade GLOBAL ativa (users.status) + membership ativa de admin no tenant home
+        // (temPerfil → isAdminForActiveTenant): a autoria gravada (criado_por/registrado_por)
+        // nunca é de quem foi suspenso.
+        if ($admin === null || $admin->status !== 'active' || ! $admin->temPerfil(Perfil::Admin)) {
+            $this->error("Usuário #{$adminId} não encontrado, inativo ou sem perfil Admin. Rateio abortado.");
 
             return self::FAILURE;
         }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BaixarPdfPedidoCompraController;
 use App\Http\Controllers\DownloadArquivoCotacaoController;
+use App\Http\Controllers\PropostaCotacaoPublicaController;
 use App\Livewire\Account2FA;
 use App\Livewire\Admin\Alcadas\ListaAlcadas;
 use App\Livewire\Admin\CatalogoItens\ListaCatalogoItens;
@@ -128,6 +129,14 @@ Route::middleware(['auth', 'ativo', 'tenant.ctx', 'tenant.ativo', 'troca.senha',
         Route::get('/catalogo-itens', ListaCatalogoItens::class)->name('catalogo-itens');
         Route::get('/reconciliacao-saldos', ReconciliacaoSaldos::class)->name('reconciliacao-saldos');
     });
+});
+
+// Decisão 11 — resposta de cotação pelo LINK ASSINADO (público, sem login). A assinatura,
+// o token (hash na base) e o tenant são resolvidos no controller, que responde a MESMA página
+// genérica para qualquer link inválido (sem oráculo). Rate limit por IP e por token.
+Route::middleware('throttle:cotacao-link')->group(function () {
+    Route::get('/cotacao/proposta/{token}', [PropostaCotacaoPublicaController::class, 'show'])->name('cotacao.proposta');
+    Route::post('/cotacao/proposta/{token}', [PropostaCotacaoPublicaController::class, 'store'])->name('cotacao.proposta.enviar');
 });
 
 Route::redirect('/', '/login');

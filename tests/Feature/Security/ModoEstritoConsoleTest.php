@@ -9,6 +9,7 @@ use App\Models\PrecoHomologado;
 use App\Models\Requisicao;
 use App\Models\RequisicaoLog;
 use App\Models\Scopes\UnidadeScope;
+use App\Services\CotacaoLinkService;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\Mail;
@@ -79,14 +80,18 @@ it('aprovacoes:lembrar-pendentes roda sem contexto', function () {
     $this->artisan('aprovacoes:lembrar-pendentes')->assertSuccessful();
 });
 
-it('captura IMAP resolve o tenant pela cotação referenciada (sem contexto)', function () {
+it('captura IMAP resolve o tenant pela referência do link (sem contexto) e só avisa', function () {
     Mail::fake();
     config(['mail.imap.authserv_id' => 'mx.helix.test']);
 
-    $cotacao = TenantContext::runFor($this->tenants[1], fn () => Cotacao::factory()->create([
-        'fornecedor_id' => Fornecedor::factory()->create(['contato_email' => 'fornecedor@estrito.test'])->id,
-        'valor' => null,
-    ]));
+    [$cotacao, $referencia] = TenantContext::runFor($this->tenants[1], function () {
+        $cotacao = Cotacao::factory()->create([
+            'fornecedor_id' => Fornecedor::factory()->create(['contato_email' => 'fornecedor@estrito.test'])->id,
+            'valor' => null,
+        ]);
+
+        return [$cotacao, app(CotacaoLinkService::class)->emitir($cotacao, now()->addDays(2))['link']->referencia];
+    });
 
     TenantContext::forget();
 
@@ -94,11 +99,11 @@ it('captura IMAP resolve o tenant pela cotação referenciada (sem contexto)', f
         id: 'uid-estrito',
         messageId: '<estrito@fornecedor>',
         de: 'fornecedor@estrito.test',
-        assunto: "Re: Solicitação de cotação [COT-{$cotacao->email_token}]",
+        assunto: "Re: Solicitação de cotação [COT-{$referencia}]",
         corpo: 'Valor: R$ 150,00 | Prazo: 15 dias',
         autenticacao: 'mx.helix.test; spf=pass smtp.mailfrom=fornecedor@estrito.test; dkim=pass header.d=estrito.test; dmarc=pass header.from=estrito.test',
     ));
 
-    expect($resultado)->not->toBeNull()
-        ->and(Cotacao::withoutTenantScope()->find($cotacao->id)->resposta_recebida_em)->not->toBeNull();
+    expect($resultado?->id)->toBe($cotacao->id)
+        ->and(Cotacao::withoutTenantScope()->find($cotacao->id)->resposta_recebida_em)->toBeNull();
 });

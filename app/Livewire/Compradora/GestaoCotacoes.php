@@ -10,8 +10,10 @@ use App\Models\Cotacao;
 use App\Models\Fornecedor;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
+use App\Services\CotacaoLinkService;
 use Helix\Foundation\Livewire\Concerns\AuthorizesOnHydrate;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -52,6 +54,9 @@ class GestaoCotacoes extends Component
     /** @var array<int, int> fornecedores selecionados para solicitar cotação por e-mail */
     public array $fornecedoresSolicitar = [];
 
+    /** Prazo de resposta da solicitação (Y-m-d): vira o expires_at do link assinado. */
+    public string $prazoResposta = '';
+
     public function mount(int $id): void
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
@@ -63,6 +68,8 @@ class GestaoCotacoes extends Component
         $this->autorizarRequisicao();
 
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
+
+        $this->prazoResposta = now()->addDays(7)->toDateString();
     }
 
     /**
@@ -144,9 +151,11 @@ class GestaoCotacoes extends Component
     }
 
     /**
-     * Envia a solicitação de cotação por e-mail aos fornecedores selecionados.
-     * Cria uma cotação "aguardando" (valor null) por fornecedor — a captura IMAP depois
-     * preenche a sugestão de valor/prazo, que a compradora confirma.
+     * Envia a solicitação de cotação aos fornecedores selecionados (decisão 11).
+     * Cria uma cotação "aguardando" (valor null) por fornecedor e envia o LINK ASSINADO
+     * de uso único, válido até o prazo de resposta — o único canal que grava a proposta.
+     * Fornecedor que já tem cotação AGUARDANDO nesta requisição recebe link novo (o
+     * anterior é revogado): é assim que cotações abertas antes do link migram.
      */
     public function solicitarPorEmail(): void
     {
@@ -156,40 +165,103 @@ class GestaoCotacoes extends Component
 
         $this->validate([
             'fornecedoresSolicitar' => 'required|array|min:1',
-            'fornecedoresSolicitar.*' => ['integer', Rule::exists('fornecedores', 'id')->where('tenant_id', $this->requisicao->tenant_id)->whereNull('deleted_at')],
+            'fornecedoresSolicitar.*' => ['integer', Rule::existsInTenant('fornecedores')],
+            'prazoResposta' => $this->regraPrazoResposta(),
         ], [
             'fornecedoresSolicitar.required' => 'Selecione ao menos um fornecedor.',
+            'prazoResposta.*' => 'Informe um prazo de resposta entre hoje e 90 dias.',
         ]);
 
-        $jaExistem = $this->requisicao->cotacoes()->whereNull('deleted_at')
-            ->pluck('fornecedor_id')->map(fn ($id) => (int) $id)->all();
+        $existentes = $this->requisicao->cotacoes()->whereNull('deleted_at')->get()->keyBy('fornecedor_id');
 
         $enviados = 0;
         foreach ($this->fornecedoresSolicitar as $fornecedorId) {
-            if (in_array((int) $fornecedorId, $jaExistem, true)) {
-                continue; // já há cotação para esse fornecedor nesta requisição
-            }
-
             $fornecedor = Fornecedor::find($fornecedorId);
             if (! $fornecedor || ! $fornecedor->contato_email) {
                 continue;
             }
 
-            $cotacao = Cotacao::create([
+            $cotacao = $existentes->get($fornecedor->id);
+            if ($cotacao !== null && $cotacao->valor !== null) {
+                continue; // cotação já confirmada: não há proposta a pedir
+            }
+
+            $cotacao ??= Cotacao::create([
                 'requisicao_id' => $this->requisicao->id,
                 'fornecedor_id' => $fornecedor->id,
                 'valor' => null,
                 'criada_por' => auth()->id(),
             ]);
 
-            Mail::to($fornecedor->contato_email)->send(new SolicitacaoCotacao($cotacao));
+            $this->enviarLink($cotacao);
             $enviados++;
         }
 
         $this->fornecedoresSolicitar = [];
+        $this->recarregar();
+        $this->dispatch('notify', mensagem: "Solicitação enviada a {$enviados} fornecedor(es).");
+    }
+
+    /** Reemite o link de uma cotação aguardando (revoga o anterior) e reenvia o e-mail. */
+    public function reenviarLink(int $cotacaoId): void
+    {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
+        $this->requisicao->refresh();
+        abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
+
+        $cotacao = Cotacao::with('fornecedor')->findOrFail($cotacaoId);
+        abort_unless(auth()->user()->can('operar', $cotacao), 403);
+        abort_unless($cotacao->requisicao_id === $this->requisicao->id, 403);
+
+        $this->validate(['prazoResposta' => $this->regraPrazoResposta()], [
+            'prazoResposta.*' => 'Informe um prazo de resposta entre hoje e 90 dias.',
+        ]);
+
+        if ($cotacao->valor !== null || ! $cotacao->fornecedor?->contato_email) {
+            $this->addError('cotacoes', 'Só é possível reenviar o link de cotação aguardando, de fornecedor com e-mail.');
+
+            return;
+        }
+
+        $this->enviarLink($cotacao);
+        $this->recarregar();
+        $this->dispatch('notify', mensagem: 'Link de cotação reenviado.');
+    }
+
+    /** Revoga o link ainda utilizável da cotação (o fornecedor passa a ver "link indisponível"). */
+    public function revogarLink(int $cotacaoId): void
+    {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
+
+        $cotacao = Cotacao::findOrFail($cotacaoId);
+        abort_unless(auth()->user()->can('operar', $cotacao), 403);
+        abort_unless($cotacao->requisicao_id === $this->requisicao->id, 403);
+
+        $revogados = app(CotacaoLinkService::class)->revogar($cotacao);
+
+        $this->recarregar();
+        $this->dispatch('notify', mensagem: $revogados > 0 ? 'Link revogado.' : 'Não havia link ativo para revogar.');
+    }
+
+    private function enviarLink(Cotacao $cotacao): void
+    {
+        $emitido = app(CotacaoLinkService::class)->emitir($cotacao, Carbon::parse($this->prazoResposta));
+        $link = $emitido['link'];
+
+        Mail::to($cotacao->fornecedor->contato_email)
+            ->send(new SolicitacaoCotacao($cotacao, $emitido['url'], $link->referencia, $link->expires_at));
+    }
+
+    /** @return array<int, string> */
+    private function regraPrazoResposta(): array
+    {
+        return ['required', 'date', 'after_or_equal:today', 'before_or_equal:'.now()->addDays(90)->toDateString()];
+    }
+
+    private function recarregar(): void
+    {
         $this->requisicao->refresh();
         $this->requisicao->load(['cotacoes.fornecedor', 'cotacoes.criador', 'faixaAlcada']);
-        $this->dispatch('notify', mensagem: "Solicitação enviada a {$enviados} fornecedor(es).");
     }
 
     /** Confirma o valor oficial a partir da sugestão capturada por e-mail. */
@@ -285,7 +357,7 @@ class GestaoCotacoes extends Component
             ? 1
             : ($this->requisicao->faixaAlcada?->minimo_cotacoes ?? 3);
 
-        $cotacoes = $this->requisicao->cotacoes()->whereNull('deleted_at')->with('fornecedor', 'criador')->get();
+        $cotacoes = $this->requisicao->cotacoes()->whereNull('deleted_at')->with('fornecedor', 'criador', 'linkAtual')->get();
         $temVencedora = $cotacoes->where('vencedora', true)->count() === 1;
         // Cotações "aguardando" (valor null, só com sugestão) não contam para o mínimo
         // até a compradora confirmar o valor.

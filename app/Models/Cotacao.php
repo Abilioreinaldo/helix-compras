@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Str;
 
 #[Fillable([
     'requisicao_id',
@@ -42,18 +42,12 @@ class Cotacao extends ComprasModel
 
     protected $table = 'cotacoes';
 
-    /**
-     * Token OPACO da cotação, usado no assunto do e-mail ao fornecedor. Não é
-     * fillable de propósito: é identificador de sistema, nunca vem de payload.
-     * Substitui o antigo `[COT-{id}]`, que expunha a PK sequencial global (volume
-     * da instalação inteira, e enumerável por quem recebe um e-mail).
+    /*
+     * `email_token` (ULID no assunto do e-mail) foi DESCONTINUADO pela decisão 11: a
+     * proposta só é gravada pelo link assinado (CotacaoLink) e a correlação de uma
+     * resposta por e-mail usa a referência pública do link. A coluna fica na base
+     * (não é mais gerada nem lida) até sair numa migration de limpeza.
      */
-    protected static function booted(): void
-    {
-        static::creating(function (self $cotacao) {
-            $cotacao->email_token ??= (string) Str::ulid();
-        });
-    }
 
     /**
      * @return array<string, string>
@@ -106,6 +100,18 @@ class Cotacao extends ComprasModel
     public function itensCotacao(): HasMany
     {
         return $this->hasMany(ItemCotacao::class);
+    }
+
+    /** Links assinados de resposta emitidos para esta cotação (decisão 11). */
+    public function links(): HasMany
+    {
+        return $this->hasMany(CotacaoLink::class);
+    }
+
+    /** Link mais recente (utilizável ou não) — status exibido ao comprador. */
+    public function linkAtual(): HasOne
+    {
+        return $this->hasOne(CotacaoLink::class)->latestOfMany();
     }
 
     public function criador(): BelongsTo

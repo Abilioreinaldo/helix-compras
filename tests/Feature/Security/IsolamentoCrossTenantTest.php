@@ -30,6 +30,7 @@ use App\Subscribers\IngerirPedidoLoja;
 use Helix\Foundation\Models\Platform\Event\DomainEvent;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -209,10 +210,21 @@ it('as policies negam requisição de A para admin, compradora e aprovador de B'
     $this->actingAs($this->compradoraB);
     expect($this->compradoraB->can('view', $this->reqA))->toBeFalse();
 
-    // Mesmo com um vínculo forjado na unidade de A, o aprovador de B não acessa nem decide.
-    TenantContext::runFor($this->tenantA->id, fn () => $this->aprovadorB->unidades()->attach(
+    // Decisão 17: o BANCO já recusa o vínculo forjado — o aprovador de B não é membro de A
+    // (FK composta unidade_user → tenant_user).
+    $forjar = fn () => TenantContext::runFor($this->tenantA->id, fn () => $this->aprovadorB->unidades()->attach(
         $this->unidadeA->id, ['perfil' => Perfil::Aprovador->value, 'nivel_alcada' => NivelAlcada::Gestor->value],
     ));
+    expect($forjar)->toThrow(QueryException::class);
+
+    if (DB::getDriverName() !== 'sqlite') {
+        return;
+    }
+
+    // Defesa em profundidade: com o vínculo forjado passando por FK adiada (restore/import
+    // com checagem desligada), o aprovador de B continua sem acessar nem decidir.
+    DB::statement('PRAGMA defer_foreign_keys = ON');
+    $forjar();
 
     $this->actingAs($this->aprovadorB);
     expect($this->aprovadorB->can('aprovacao.acessar', $this->reqA))->toBeFalse()

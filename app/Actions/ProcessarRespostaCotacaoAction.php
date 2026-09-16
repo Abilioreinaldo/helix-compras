@@ -4,152 +4,98 @@ namespace App\Actions;
 
 use App\Imap\MensagemEmail;
 use App\Imap\VerificadorAutenticidadeEmail;
-use App\Mail\RespostaCotacaoRecebida;
+use App\Mail\RespostaCotacaoPorEmailRecebida;
 use App\Models\Cotacao;
-use App\Services\ParseadorRespostaEmailService;
+use App\Models\CotacaoLink;
+use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Processa UMA mensagem de resposta de fornecedor: casa com a cotação, extrai a
- * sugestão de valor/prazo e grava nos campos ADVISORY (nunca no valor oficial).
+ * Processa UMA resposta por e-mail de fornecedor — e NÃO grava proposta (decisão 11).
  *
- * Camada advisory: não muda status, não escolhe vencedora, não bloqueia nada. A
- * compradora sempre confirma. Decisões registradas em Log para auditoria leve.
+ * Desde a decisão 11 o link assinado é o único canal que grava proposta. O e-mail
+ * vira só AVISO ao comprador ("resposta recebida por e-mail, conferir"), sem alterar
+ * nenhum campo da cotação. A verificação SPF/DKIM/DMARC (RFC 8601) segue rodando,
+ * mas como SINAL informativo no aviso, não como porteira.
+ *
+ * Casamento: `[COT-{referencia}]` do assunto → `cotacao_links.referencia` (ULID
+ * público do link). O antigo `cotacoes.email_token` foi DESCONTINUADO: resposta a
+ * e-mail enviado antes do link não casa (cai no log) — a cotação aberta ganha link
+ * novo no próximo envio.
  */
 class ProcessarRespostaCotacaoAction
 {
     public function __construct(private VerificadorAutenticidadeEmail $verificador) {}
 
+    /** Devolve a cotação avisada, ou null quando a mensagem é descartada. */
     public function execute(MensagemEmail $mensagem): ?Cotacao
     {
-        // A caixa IMAP é única da instalação e roda no console (sem tenant no contexto).
-        // O casamento pelo token é o ÚNICO lookup global (o token é opaco e único na
-        // base); a partir dele tudo — inclusive a idempotência — roda sob o tenant da
-        // cotação. A ordem importa: a idempotência por Message-ID NÃO pode vir antes,
-        // porque o Message-ID é escolhido pelo servidor do fornecedor e uma colisão
-        // (acidental ou plantada) com outro tenant descartaria a resposta em silêncio.
-
-        // 1) Casar a cotação pelo token [COT-{token}] do assunto (vindo da SolicitacaoCotacao).
-        if (! preg_match('/\[COT-([0-9A-Za-z]+)\]/i', $mensagem->assunto, $m)) {
-            Log::info('Resposta IMAP sem token de cotação no assunto.', ['assunto' => $mensagem->assunto]);
+        if (! preg_match('/\[COT-([0-9A-HJKMNP-TV-Z]{26})\]/i', $mensagem->assunto, $m)) {
+            Log::info('Resposta IMAP sem referência de cotação no assunto.', ['assunto' => $mensagem->assunto]);
 
             return null;
         }
 
-        $cotacaoId = $this->resolverCotacaoId($m[1]);
-        if ($cotacaoId === null) {
-            Log::info('Resposta IMAP para cotação inexistente.', ['token' => $m[1]]);
+        $link = $this->resolverLink(strtoupper($m[1]));
+        if ($link === null) {
+            Log::info('Resposta IMAP para referência de cotação inexistente.', ['referencia' => $m[1]]);
 
             return null;
         }
 
-        $tenantId = Cotacao::withoutTenantScope()->withTrashed()->whereKey($cotacaoId)->value('tenant_id');
-        if ($tenantId === null) {
-            Log::info('Resposta IMAP para cotação inexistente.', ['token' => $m[1]]);
-
-            return null;
-        }
-
-        return TenantContext::runFor((string) $tenantId, fn () => $this->processarNoTenant($mensagem, $cotacaoId));
+        return TenantContext::runFor((string) $link->tenant_id, fn () => $this->avisarNoTenant($mensagem, $link));
     }
 
     /**
-     * Id da cotação a partir do token do assunto. SÓ pelo ULID opaco (`email_token`).
-     *
-     * O fallback pelo `[COT-{id}]` numérico foi REMOVIDO (2ª auditoria adversarial):
-     * a PK é sequencial e GLOBAL na instalação, então `[COT-4812]` é enumerável e
-     * alcançava a cotação de QUALQUER tenant — bastava chutar números. A migration
-     * 2026_09_15_000004 semeou `email_token` para 100% das linhas existentes, então
-     * não há legado sem token; o único e-mail que deixa de casar é o que saiu com o
-     * assunto antigo e ainda está na caixa do fornecedor — esse cai no fluxo manual.
+     * A caixa IMAP é única da instalação e roda no console, SEM tenant no contexto:
+     * a referência pública do link (única na base) é o lookup que DESCOBRE o tenant.
      */
-    private function resolverCotacaoId(string $token): ?int
+    private function resolverLink(string $referencia): ?CotacaoLink
     {
-        $id = Cotacao::withoutTenantScope()->withTrashed()->where('email_token', $token)->value('id');
-
-        return $id !== null ? (int) $id : null;
+        return CotacaoLink::withoutTenantScope()->where('referencia', $referencia)->first();
     }
 
-    /** Passos 2–7 sob o tenant da cotação (leitura/escrita/e-mail escopados). */
-    private function processarNoTenant(MensagemEmail $mensagem, int $cotacaoId): ?Cotacao
+    private function avisarNoTenant(MensagemEmail $mensagem, CotacaoLink $link): ?Cotacao
     {
-        // 2) Idempotência DENTRO do tenant: o mesmo e-mail nunca gera dois registros
-        //    aqui, e um Message-ID repetido noutra empresa não interfere nesta.
-        if (Cotacao::withTrashed()->where('email_externo_id', $mensagem->messageId)->exists()) {
-            Log::info('Resposta IMAP ignorada (Message-ID já processado neste tenant).', ['message_id' => $mensagem->messageId]);
+        $cotacao = Cotacao::query()->with(['fornecedor', 'criador'])->find($link->cotacao_id);
+        if ($cotacao === null) {
+            Log::info('Resposta IMAP para cotação inexistente.', ['cotacao_id' => $link->cotacao_id]);
 
             return null;
         }
 
-        $cotacao = Cotacao::query()->with(['fornecedor', 'criador'])->find($cotacaoId);
-        if (! $cotacao) {
-            Log::info('Resposta IMAP para cotação inexistente.', ['cotacao_id' => $cotacaoId]);
+        // Um aviso por Message-ID por tenant (a chave é prefixada pelo tenant do contexto).
+        if (! tenantCache()->add('compras:imap-aviso:'.hash('sha256', $mensagem->messageId), true, now()->addDays(30))) {
+            Log::info('Resposta IMAP ignorada (aviso já emitido para este Message-ID).', ['cotacao_id' => $cotacao->id]);
 
             return null;
         }
 
-        // 3) Integridade leve: remetente precisa ser o e-mail do fornecedor da cotação.
         $emailFornecedor = mb_strtolower(trim((string) $cotacao->fornecedor?->contato_email));
         $remetente = mb_strtolower(trim($mensagem->de));
-        if ($emailFornecedor === '' || $remetente !== $emailFornecedor) {
-            Log::warning('Resposta IMAP de remetente que não confere com o fornecedor.', [
-                'cotacao_id' => $cotacao->id,
+        $remetenteConfere = $emailFornecedor !== '' && $remetente === $emailFornecedor;
+        // Sinal informativo (RFC 8601): NÃO decide nada, só qualifica o aviso.
+        $autenticado = $emailFornecedor !== '' && $this->verificador->autentica($mensagem, $emailFornecedor);
+
+        app(ActivityRecorder::class)->record('compras.cotacao_resposta_email_recebida', $cotacao, null, [
+            'metadata' => [
                 'remetente' => $remetente,
-            ]);
-
-            return null;
-        }
-
-        // 3b) AUTENTICIDADE do remetente (2ª auditoria adversarial): o passo 3 compara
-        //     o header `From`, que é texto livre — escrever `From: forn@alfa.test` custa
-        //     uma linha. Quem souber o token de uma cotação (ou o vazar de um reply
-        //     encaminhado) gravava a "resposta do fornecedor". Exigimos a evidência que
-        //     o servidor de entrada carimba: SPF/DKIM aprovado e ALINHADO com o domínio
-        //     do fornecedor. Fail-closed — sem header válido, nada é gravado.
-        //     3ª auditoria: só o PRIMEIRO carimbo do nosso authserv-id, parser RFC 8601,
-        //     DMARC alinhado e e-mail exato em webmail público (VerificadorAutenticidadeEmail).
-        if (config('mail.imap.exigir_autenticacao') !== false && ! $this->verificador->autentica($mensagem, $emailFornecedor)) {
-            Log::warning('Resposta IMAP sem SPF/DKIM/DMARC aprovado para o fornecedor.', [
-                'cotacao_id' => $cotacao->id,
-                'remetente' => $remetente,
-                'authentication_results' => $mensagem->autenticacao,
-            ]);
-
-            return null;
-        }
-
-        // 4) Rate limit: uma resposta por cotação (previne sobrescrita/spam).
-        if ($cotacao->resposta_recebida_em !== null) {
-            Log::info('Resposta IMAP ignorada (cotação já respondida).', ['cotacao_id' => $cotacao->id]);
-
-            return null;
-        }
-
-        // 5) Parsear (sugestão). valor pode ser null → fallback manual (corpo fica salvo).
-        $valor = ParseadorRespostaEmailService::extrairValor($mensagem->corpo);
-        $prazo = ParseadorRespostaEmailService::extrairPrazo($mensagem->corpo);
-
-        // 6) Gravar SÓ os campos advisory — nunca o valor oficial (compradora confirma).
-        $cotacao->update([
-            'valor_respondido' => $valor,
-            'prazo_respondido' => $prazo,
-            'observacoes_fornecedor' => $mensagem->corpo,
-            'resposta_recebida_em' => now(),
-            'email_externo_id' => $mensagem->messageId,
+                'remetente_confere' => $remetenteConfere,
+                'autenticidade_verificada' => $autenticado,
+                'message_id' => $mensagem->messageId,
+            ],
         ]);
 
-        // 7) Notificar a compradora que criou a cotação.
         if ($cotacao->criador?->email) {
-            Mail::to($cotacao->criador->email)->send(new RespostaCotacaoRecebida($cotacao));
+            Mail::to($cotacao->criador->email)->send(new RespostaCotacaoPorEmailRecebida($cotacao, $remetente, $remetenteConfere, $autenticado));
         }
 
-        Log::info('Resposta IMAP processada.', [
+        Log::info('Resposta IMAP convertida em aviso ao comprador (nada gravado na cotação).', [
             'cotacao_id' => $cotacao->id,
-            'valor_respondido' => $valor,
-            'prazo_respondido' => $prazo,
-            'parser_extraiu_valor' => $valor !== null,
+            'remetente_confere' => $remetenteConfere,
+            'autenticidade_verificada' => $autenticado,
         ]);
 
         return $cotacao;

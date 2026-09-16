@@ -40,6 +40,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 $user ? 'tenant:'.$user->getActiveTenantId().'|user:'.$user->getAuthIdentifier() : 'ip:'.$request->ip()
             );
         });
+
+        // Link público de resposta de cotação (decisão 11): teto por IP (varredura de
+        // tokens) E por token (martelar um link vazado). O token entra só como hash.
+        RateLimiter::for('cotacao-link', fn (Request $request) => [
+            Limit::perMinute(30)->by('cotacao-link:ip:'.$request->ip()),
+            Limit::perMinute(10)->by('cotacao-link:token:'.hash('sha256', (string) $request->route('token'))),
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

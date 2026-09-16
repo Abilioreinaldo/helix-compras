@@ -5,16 +5,15 @@ Olá, {{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_so
 
 A **HELIX Compras** gostaria de receber sua cotação para a {{ $cotacao->requisicao?->codigo ? 'requisição '.$cotacao->requisicao->codigo : 'requisição em aberto' }}.
 
-**Como responder:**
-Basta **responder este e-mail** (mantendo o assunto) informando:
+**Como responder:** clique no botão abaixo e preencha os preços, o prazo de entrega e as observações da sua proposta.
 
-- **Valor:** R$ XXX,XX
-- **Prazo:** XX dias
-- **Observações** (opcional)
+<x-mail::button :url="$url">
+Enviar proposta
+</x-mail::button>
 
-Exemplo de resposta:
+O link é **pessoal e de uso único** e vale até **{{ $expiraEm->format('d/m/Y H:i') }}**. Não o encaminhe.
 
-> Olá! Temos o preço de **R$ 145,00** com entrega em **12 dias úteis**. Item disponível em estoque.
+Propostas enviadas como **resposta a este e-mail não são registradas** — use sempre o link.
 
 Obrigado,
 HELIX Compras

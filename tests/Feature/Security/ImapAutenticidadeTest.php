@@ -1,13 +1,10 @@
 <?php
 
-use App\Actions\ProcessarRespostaCotacaoAction;
 use App\Imap\AuthenticationResults;
 use App\Imap\LeitorCaixaCotacoes;
 use App\Imap\MensagemEmail;
+use App\Imap\VerificadorAutenticidadeEmail;
 use App\Imap\WebklexLeitorCaixaCotacoes;
-use App\Models\Cotacao;
-use App\Models\Fornecedor;
-use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
 /*
@@ -27,32 +24,46 @@ beforeEach(function () {
     config(['mail.imap.authserv_id' => IMAP_AUTHSERV, 'mail.imap.exigir_autenticacao' => true]);
 });
 
-/** Cotação aguardando resposta, com o fornecedor no e-mail informado. */
-function cotacaoImap(string $emailFornecedor): Cotacao
-{
-    $fornecedor = Fornecedor::factory()->create(['contato_email' => $emailFornecedor]);
+/*
+| Decisão 11: a verificação deixou de ser PORTEIRA (a resposta por e-mail não grava
+| mais nada) e virou SINAL informativo no aviso ao comprador. As regras abaixo seguem
+| valendo integralmente para esse sinal — um "verificado" falso induziria o comprador.
+*/
 
-    return Cotacao::factory()->create([
-        'fornecedor_id' => $fornecedor->id,
-        'criada_por' => User::factory()->create()->id,
-        'valor' => null,
-    ]);
+/** "Cotação" aguardando resposta: aqui só importa o e-mail cadastrado do fornecedor. */
+function cotacaoImap(string $emailFornecedor): string
+{
+    return $emailFornecedor;
 }
 
-/** Processa uma "resposta" cujo From confere com o fornecedor; devolve se foi gravada. */
-function respostaGravada(Cotacao $cotacao, string $de, string|array|null $autenticacao): bool
+/** A resposta cujo From confere com o fornecedor sai com o sinal "autenticidade verificada"? */
+function respostaGravada(string $emailFornecedor, string $de, string|array|null $autenticacao): bool
 {
-    $resultado = app(ProcessarRespostaCotacaoAction::class)->execute(new MensagemEmail(
+    return app(VerificadorAutenticidadeEmail::class)->autentica(new MensagemEmail(
         id: 'uid-'.uniqid(),
         messageId: '<'.uniqid().'@remetente>',
         de: $de,
-        assunto: "Re: [COT-{$cotacao->email_token}]",
+        assunto: 'Re: [COT-X]',
         corpo: 'Valor: R$ 1,00',
         autenticacao: $autenticacao,
-    ));
-
-    return $resultado !== null && $cotacao->fresh()->resposta_recebida_em !== null;
+    ), $emailFornecedor);
 }
+
+it('aceita DKIM assinado pelo domínio PAI do remetente, mas não por um subdomínio', function () {
+    $cot = cotacaoImap('forn@cotacoes.alfa.test');
+
+    expect(respostaGravada($cot, 'forn@cotacoes.alfa.test', 'mx.helix.test; dkim=pass header.d=outra.alfa.test; dmarc=pass header.from=cotacoes.alfa.test'))->toBeFalse()
+        ->and(respostaGravada($cot, 'forn@cotacoes.alfa.test', 'mx.helix.test; dkim=pass header.d=alfa.test; dmarc=pass header.from=cotacoes.alfa.test'))->toBeTrue();
+});
+
+it('sem SPF/DKIM aprovado e alinhado não há sinal de autenticidade', function () {
+    $cot = cotacaoImap('forn@alfa.test');
+
+    expect(respostaGravada($cot, 'forn@alfa.test', null))->toBeFalse()
+        ->and(respostaGravada($cot, 'forn@alfa.test', 'mx.helix.test; spf=fail smtp.mailfrom=forn@alfa.test; dkim=fail header.d=alfa.test'))->toBeFalse()
+        ->and(respostaGravada($cot, 'forn@alfa.test', 'mx.helix.test; spf=pass smtp.mailfrom=forn@atacante.test; dkim=pass header.d=atacante.test'))->toBeFalse()
+        ->and(respostaGravada($cot, 'forn@alfa.test', 'mx.helix.test; spf=pass smtp.mailfrom=forn@alfa.test; dkim=pass header.d=alfa.test; dmarc=pass header.from=alfa.test'))->toBeTrue();
+});
 
 // ───────── Achado 5: casos da sonda ─────────
 

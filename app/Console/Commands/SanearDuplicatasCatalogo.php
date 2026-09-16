@@ -47,8 +47,9 @@ class SanearDuplicatasCatalogo extends Command
         // de calcular grupos — não lê nem processa nada sem permissão.
         $admin = User::find($adminId);
 
-        if ($admin === null || ! $admin->temPerfil(Perfil::Admin)) {
-            $this->error("Usuário #{$adminId} não encontrado ou não possui perfil Admin. Fusão abortada.");
+        // Identidade GLOBAL ativa + membership ativa de admin (ver ExecutarRateioMensal).
+        if ($admin === null || $admin->status !== 'active' || ! $admin->temPerfil(Perfil::Admin)) {
+            $this->error("Usuário #{$adminId} não encontrado, inativo ou não possui perfil Admin. Fusão abortada.");
 
             return self::FAILURE;
         }

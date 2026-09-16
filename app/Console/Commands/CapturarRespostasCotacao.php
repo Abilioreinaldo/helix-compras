@@ -9,19 +9,20 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Lê a caixa IMAP de cotações e registra as respostas dos fornecedores (advisory).
- * Agendado a cada 5 min (routes/console.php, withoutOverlapping).
+ * Lê a caixa IMAP de cotações e transforma cada resposta de fornecedor em AVISO ao
+ * comprador (decisão 11: a proposta só é gravada pelo link assinado; o e-mail não
+ * altera a cotação). Agendado a cada 5 min (routes/console.php, withoutOverlapping).
  */
 class CapturarRespostasCotacao extends Command
 {
     protected $signature = 'cotacoes:capturar-respostas';
 
-    protected $description = 'Captura respostas de cotação da caixa IMAP e registra a sugestão de valor/prazo.';
+    protected $description = 'Lê respostas de cotação da caixa IMAP e avisa o comprador (não grava proposta).';
 
     public function handle(LeitorCaixaCotacoes $leitor, ProcessarRespostaCotacaoAction $acao): int
     {
-        // Verificação exigida sem authserv-id confiável: TODA resposta seria recusada
-        // e marcada como lida — some da caixa sem nunca ter sido avaliada. Falha alto
+        // Verificação exigida sem authserv-id confiável: TODO aviso sairia marcado como
+        // "autenticidade NÃO verificada" e a mensagem seria marcada como lida. Falha alto
         // e não toca a caixa (3ª auditoria; ver config mail.imap.authserv_id).
         // Sem IMAP configurado (leitor indisponível) não há caixa a proteger: segue o
         // no-op de sempre, sem falhar o scheduler de dev/CI.
@@ -67,7 +68,7 @@ class CapturarRespostasCotacao extends Command
             }
         }
 
-        $this->info("Respostas de cotação processadas: {$processadas}/".count($mensagens));
+        $this->info("Respostas de cotação avisadas ao comprador: {$processadas}/".count($mensagens));
 
         return self::SUCCESS;
     }

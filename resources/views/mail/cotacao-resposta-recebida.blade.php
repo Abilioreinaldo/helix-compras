@@ -1,18 +1,16 @@
 <x-mail::message>
-# Resposta de cotação recebida
+# Proposta de cotação recebida
 
-O fornecedor **{{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_social ?? '—' }}** respondeu à cotação **#COT-{{ $cotacao->id }}**.
+O fornecedor **{{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_social ?? '—' }}** enviou a proposta da cotação **#COT-{{ $cotacao->id }}** pelo link de cotação.
 
 @if($cotacao->valor_respondido !== null)
-**Valor sugerido:** R$ {{ number_format((float) $cotacao->valor_respondido, 2, ',', '.') }}
-@else
-**Valor sugerido:** não identificado automaticamente — confira o e-mail e preencha manualmente.
+**Valor proposto:** R$ {{ number_format((float) $cotacao->valor_respondido, 2, ',', '.') }}
 @endif
 @if($cotacao->prazo_respondido !== null)
-**Prazo sugerido:** {{ $cotacao->prazo_respondido }} dias
+**Prazo proposto:** {{ $cotacao->prazo_respondido }} dias
 @endif
 
-Estes valores são **sugestões** extraídas do e-mail. Abra a cotação para conferir e **confirmar** o valor oficial.
+Abra a cotação para conferir e **confirmar** o valor oficial.
 
 HELIX Compras
 </x-mail::message>
