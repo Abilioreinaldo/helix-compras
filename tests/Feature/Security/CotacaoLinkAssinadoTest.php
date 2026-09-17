@@ -347,7 +347,12 @@ it('limita tentativas por IP (varredura de tokens)', function () {
 // ─── Envio pela tela da compradora ───────────────────────────────────────────
 
 it('a solicitação por e-mail envia o link assinado e o reenvio revoga o anterior', function () {
-    TenantContext::runFor($this->tenantA, function () {
+    // Fundação v0.7.0 (decisão 13): a solicitação ao FORNECEDOR é mensagem comercial —
+    // sai pelo domínio de envio da EMPRESA, pelo CommercialMessenger. Sem canal ativo
+    // ela falha fechado (caso logo abaixo), então o cenário feliz monta o canal.
+    $entregas = canalDeEmailAtivo($this->tenantA);
+
+    TenantContext::runFor($this->tenantA, function () use ($entregas) {
         $compradora = User::factory()->compradora()->create();
         $unidade = Unidade::factory()->create();
         $compradora->unidades()->attach($unidade->id, ['perfil' => Perfil::Solicitante->value]);
@@ -365,12 +370,18 @@ it('a solicitação por e-mail envia o link assinado e o reenvio revoga o anteri
             ->call('solicitarPorEmail')
             ->assertHasNoErrors();
 
-        $urls = [];
-        Mail::assertSent(SolicitacaoCotacao::class, function (SolicitacaoCotacao $m) use (&$urls) {
-            $urls[] = $m->url;
+        /** @var list<SolicitacaoCotacao> $enviadas */
+        $enviadas = $entregas->paraDestinatario('ui@alfa.test');
 
-            return $m->hasTo('ui@alfa.test') && str_contains($m->envelope()->subject, '[COT-'.$m->referencia.']');
-        });
+        expect($enviadas)->toHaveCount(1)
+            ->and($enviadas[0])->toBeInstanceOf(SolicitacaoCotacao::class)
+            ->and($enviadas[0]->envelope()->subject)->toContain('[COT-'.$enviadas[0]->referencia.']')
+            // O e-mail saiu pelo domínio de envio DA EMPRESA (canal do tenant), nunca
+            // pelo remetente da plataforma — é a decisão 13 provada na entrega.
+            ->and($entregas->enviados[0]['from'])->toBe('compras@envio.cliente.test')
+            ->and($entregas->enviados[0]['host'])->toBe('smtp.provedor.test');
+
+        $urls = [$enviadas[0]->url];
 
         $cotacao = Cotacao::query()->where('requisicao_id', $requisicao->id)->firstOrFail();
         $link = CotacaoLink::query()->where('cotacao_id', $cotacao->id)->firstOrFail();
@@ -386,5 +397,40 @@ it('a solicitação por e-mail envia o link assinado e o reenvio revoga o anteri
 
         $tela->call('revogarLink', $cotacao->id);
         expect(CotacaoLink::query()->where('cotacao_id', $cotacao->id)->whereNull('revogado_em')->count())->toBe(0);
+    });
+});
+
+// ─── Decisão 13: sem canal do cliente, a cotação não sai (e nada fica pela metade) ──
+
+it('sem canal de e-mail ATIVO a solicitação falha FECHADA — não cai para o canal da suíte', function () {
+    // Até a v0.6.x este e-mail saía pelo mailer do app, ou seja, pelo domínio da
+    // PLATAFORMA: a reputação de envio de todos os clientes numa conta só, e a resposta
+    // do fornecedor chegando sem dono. A v0.7.0 exige o canal da empresa — e, sem ele,
+    // não existe caminho de queda: a tela recusa, sem criar cotação nem emitir link.
+    TenantContext::runFor($this->tenantA, function () {
+        $compradora = User::factory()->compradora()->create();
+        $unidade = Unidade::factory()->create();
+        $compradora->unidades()->attach($unidade->id, ['perfil' => Perfil::Solicitante->value]);
+        $requisicao = Requisicao::factory()->create([
+            'unidade_id' => $unidade->id,
+            'centro_custo_id' => CentroCusto::factory()->create(['unidade_id' => $unidade->id])->id,
+            'status' => StatusRequisicao::EmCotacao,
+            'codigo' => 'REQ-LNK-SEMCANAL',
+        ]);
+        $fornecedor = Fornecedor::factory()->homologado()->create(['contato_email' => 'sem-canal@alfa.test']);
+
+        Livewire::actingAs($compradora)->test(GestaoCotacoes::class, ['id' => $requisicao->id])
+            ->set('fornecedoresSolicitar', [$fornecedor->id])
+            ->set('prazoResposta', now()->addDays(5)->toDateString())
+            ->call('solicitarPorEmail')
+            ->assertHasErrors('cotacoes');
+
+        // Nada pela metade: sem cotação "aguardando" e sem link emitido que o fornecedor
+        // nunca receberia (o comprador não teria como distinguir isso de "não respondeu").
+        expect(Cotacao::query()->where('requisicao_id', $requisicao->id)->count())->toBe(0)
+            ->and(CotacaoLink::query()->count())->toBe(0);
+
+        // E o mailer do app não foi usado como escape.
+        Mail::assertNotSent(SolicitacaoCotacao::class);
     });
 });

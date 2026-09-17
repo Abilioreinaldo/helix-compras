@@ -36,12 +36,25 @@ it('compradora e financeiro são graduados por permissão, não por slug', funct
     $compradora = User::factory()->compradora()->create(['tenant_id' => $this->tenant->id]);
     $financeiro = User::factory()->financeiro()->create(['tenant_id' => $this->tenant->id]);
 
-    expect($compradora->temPerfil(Perfil::CompradoraSenior))->toBeTrue()
-        ->and($compradora->podeVerTodasUnidades())->toBeTrue()
-        ->and($compradora->podeVerPagamentos())->toBeFalse()
-        ->and($financeiro->podeVerPagamentos())->toBeTrue()
-        ->and($financeiro->podeVerTodasUnidades())->toBeFalse()
-        ->and($financeiro->isComprasStaff())->toBeTrue();
+    // Fundação v0.7.0 (FUNDACAO-8): permissão é sempre NUM tenant. Este teste é
+    // multi-tenant (fez `TenantContext::forget()` no setup), então declara o tenant da
+    // pergunta — fora de contexto, `temPerfil`/`podeVer*` NEGAM, por desenho.
+    expect($compradora->temPerfilEm(Perfil::CompradoraSenior, $this->tenant->id))->toBeTrue()
+        ->and($compradora->temPerfil(Perfil::CompradoraSenior))->toBeFalse() // sem tenant no contexto: nega
+        ->and($compradora->hasPermissionIn($this->tenant->id, 'compras.manage'))->toBeTrue()
+        ->and($compradora->hasPermissionIn($this->tenant->id, 'pagamentos.manage'))->toBeFalse()
+        ->and($financeiro->hasPermissionIn($this->tenant->id, 'pagamentos.manage'))->toBeTrue()
+        ->and($financeiro->hasPermissionIn($this->tenant->id, 'compras.manage'))->toBeFalse()
+        ->and($financeiro->hasPermissionIn($this->tenant->id, 'compras.view'))->toBeTrue();
+
+    // E, com o tenant declarado, os atalhos do app respondem o mesmo.
+    TenantContext::runFor($this->tenant->id, function () use ($compradora, $financeiro) {
+        expect($compradora->podeVerTodasUnidades())->toBeTrue()
+            ->and($compradora->podeVerPagamentos())->toBeFalse()
+            ->and($financeiro->podeVerPagamentos())->toBeTrue()
+            ->and($financeiro->podeVerTodasUnidades())->toBeFalse()
+            ->and($financeiro->isComprasStaff())->toBeTrue();
+    });
 
     // O admin tira compras.manage do papel → a compradora perde a visão global na hora.
     // Role/Permission são escopados (BelongsToTenant): no modo estrito o setup declara o tenant.
@@ -51,8 +64,10 @@ it('compradora e financeiro são graduados por permissão, não por slug', funct
     ]);
     $role->permissions()->detach($manage->id);
 
-    expect($compradora->fresh()->podeVerTodasUnidades())->toBeFalse()
-        ->and($compradora->fresh()->can('compras.manage'))->toBeFalse();
+    TenantContext::runFor($this->tenant->id, function () use ($compradora) {
+        expect($compradora->fresh()->podeVerTodasUnidades())->toBeFalse()
+            ->and($compradora->fresh()->can('compras.manage'))->toBeFalse();
+    });
 });
 
 it('tela de usuários atribui papéis do catálogo pelo convite e pelo UserService', function () {

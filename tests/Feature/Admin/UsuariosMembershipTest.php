@@ -67,6 +67,41 @@ it('não lista mais quem teve o vínculo com esta empresa revogado', function ()
         ->toThrow(ModelNotFoundException::class);
 });
 
+// ─── v0.7.0: vínculo SUSPENSO é visível e revogável (membersOf com status) ────
+
+it('lista quem está SUSPENSO nesta empresa e permite revogar o vínculo', function () {
+    // Até a v0.6.x `membersOf()` só trazia vínculo ATIVO: quem estava suspenso sumia da
+    // tela — e o `excluir` respondia 404. O admin ficava sem ver (e sem poder fechar)
+    // uma porta que continua aberta para a empresa dele. A v0.7.0 deu status ao
+    // `membersOf`, e a listagem passou a enxergar o suspenso.
+    $suspenso = User::factory()->create(['tenant_id' => $this->tenantA->id, 'name' => 'Membro Suspenso']);
+    vinculo($suspenso, $this->tenantA->id, status: 'suspended');
+
+    Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->assertSee('Membro Suspenso')
+        ->assertSee('Vínculo suspenso');
+
+    Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('excluir', $suspenso->id)
+        ->assertOk();
+
+    expect(DB::table('tenant_user')->where('user_id', $suspenso->id)->where('tenant_id', $this->tenantA->id)->exists())->toBeFalse();
+});
+
+it('vínculo suspenso não abre a edição (reativar não é ação desta tela)', function () {
+    $suspenso = User::factory()->create(['tenant_id' => $this->tenantA->id, 'name' => 'Membro Suspenso']);
+    vinculo($suspenso, $this->tenantA->id, status: 'suspended');
+
+    // Fail-closed: as ações que operam sobre vínculo ATIVO continuam resolvendo pela
+    // consulta de ativos — ver o suspenso na lista não o torna editável.
+    expect(fn () => Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('abrirEditar', $suspenso->id))
+        ->toThrow(ModelNotFoundException::class);
+});
+
 it('não mostra os papéis que o convidado tem na empresa dele', function () {
     $convidado = User::factory()->compradora()->create([
         'tenant_id' => $this->tenantB->id, 'name' => 'Convidado Compras',

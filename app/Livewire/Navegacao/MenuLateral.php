@@ -87,6 +87,10 @@ class MenuLateral extends Component
                 $this->item('Unidades', 'admin.unidades', 'building'),
                 $this->item('Usuários', 'admin.usuarios', 'users'),
                 $this->item('Papéis & Permissões', 'admin.papeis', 'scale'),
+                // Fundação v0.7.0 (decisão 13): é aqui que o admin cadastra o domínio de
+                // envio DA EMPRESA. Sem canal ativo, a solicitação de cotação ao
+                // fornecedor falha fechada — a tela precisa estar alcançável.
+                $this->item('Canais de comunicação', 'admin.canais', 'mail'),
                 $this->item('Fornecedores', 'admin.fornecedores', 'truck'),
                 $this->item('Alçadas', 'admin.alcadas', 'scale'),
                 $this->item('Centros de Custo', 'admin.centros-custo', 'tag'),

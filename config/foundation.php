@@ -60,6 +60,79 @@ return [
     'mandatory_2fa_roles' => ['compras', 'financeiro'],
 
     /*
+     * v0.7.0 (decisão 13) — CANAIS DE COMUNICAÇÃO.
+     *
+     * ATENÇÃO: o mergeConfigFrom é RASO. Declarar `channels` aqui SUBSTITUI o bloco
+     * inteiro do pacote — por isso todas as subchaves estão replicadas, mesmo as que o
+     * Compras não usa hoje. Tirar uma daqui não "herda o default": deixa a chave nula.
+     *
+     * O que muda no Compras: a SOLICITAÇÃO DE COTAÇÃO ao fornecedor fala em nome do
+     * cliente (é a empresa dele pedindo preço), então sai pelo canal DELE
+     * (CommercialMessenger) — nunca pelo remetente da suíte, que é só para convite,
+     * link de senha e troca de e-mail. Sem canal ativo, o envio falha FECHADO.
+     */
+    'channels' => [
+        // Mailer de SISTEMA — declarado em config/mail.php (mailers.system).
+        'system_mailer' => env('HELIX_SYSTEM_MAILER', 'system'),
+        'system_from' => [
+            'address' => env('HELIX_SYSTEM_MAIL_FROM_ADDRESS'),
+            'name' => env('HELIX_SYSTEM_MAIL_FROM_NAME', 'HELIX'),
+        ],
+
+        /*
+         * Features cuja operação fala com o CLIENTE FINAL do tenant. O `helix:doctor`
+         * avisa os tenants que as têm ligadas e não têm canal ativo — que é exatamente
+         * a pendência do Compras hoje: o e-mail ao fornecedor precisa do domínio de
+         * envio da empresa (SPF/DKIM/DMARC dela) cadastrado em /admin/canais.
+         */
+        'commercial_features' => ['compras'],
+
+        'reserved_domains' => array_values(array_filter(array_map('trim', explode(',', (string) env('HELIX_CHANNEL_RESERVED_DOMAINS', ''))))),
+        'rate_per_minute' => (int) env('HELIX_CHANNEL_RATE_PER_MINUTE', 60),
+        'evolution' => [
+            // O Compras não manda WhatsApp: a allowlist fica vazia (fail-closed).
+            'base_urls' => array_values(array_filter(array_map('trim', explode(',', (string) env('HELIX_EVOLUTION_BASE_URLS', ''))))),
+            'timeout' => (int) env('HELIX_EVOLUTION_TIMEOUT', 15),
+        ],
+        'email' => [
+            // Fail-closed: vazio = nenhum host SMTP aceito no cadastro do canal.
+            'smtp_allowed_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env('HELIX_CHANNEL_SMTP_ALLOWED_HOSTS', ''))))),
+            'smtp_ports' => [465, 587, 2525],
+        ],
+        'inbound' => [
+            'tolerance_seconds' => (int) env('HELIX_CHANNEL_INBOUND_TOLERANCE', 300),
+            'rate_per_minute' => (int) env('HELIX_CHANNEL_INBOUND_RATE', 120),
+        ],
+        'route' => 'admin.canais',
+    ],
+
+    /*
+     * v0.7.0 (4ª auditoria, FUNDACAO-2) — raiz dos LINKS de e-mail.
+     *
+     * `route()` monta a URL com o Host da requisição: um POST com um Host forjado na
+     * ação que dispara o link fazia o e-mail legítimo levar o token para o atacante.
+     * A raiz vem daqui (vazio = APP_URL, que o doctor exige https em produção).
+     */
+    'links' => [
+        'base_url' => env('HELIX_LINK_BASE_URL', ''),
+        'allowed_origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('HELIX_LINK_ALLOWED_ORIGINS', ''))))),
+    ],
+
+    /*
+     * v0.7.0 (4ª auditoria, FUNDACAO-6) — o app binda os contratos de step-up?
+     *
+     * DECLARADO FALSE, com motivo: o Compras é app de NEGÓCIO e não governa plataforma
+     * (provisionar tenant, entitlement, billing e status de tenant moram no helix-admin,
+     * que binda os dois contratos). O que sobra aqui é o RBAC da própria empresa, em
+     * /admin/papeis — e, desde a v0.7.0, `RbacService::guardWrite` já exige AUTORIDADE
+     * (plataforma declarada, superadmin ou admin daquele tenant) mesmo sem guard bindado,
+     * que era o furo real do achado. O Compras não tem reautenticação/step-up: bindar um
+     * contrato com implementação vazia seria pior — daria ao doctor um verde que não
+     * corresponde a nada. Se um dia houver step-up aqui, esta linha some.
+     */
+    'privileged_guard_required' => false,
+
+    /*
      * Rota inicial padrão pós-login.
      */
     'home_route' => 'dashboard',

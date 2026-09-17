@@ -50,15 +50,17 @@ it('recebe o evento assinado no /api/inbound/events e materializa o inbox', func
     // para `store`, o envelope assinado leva 403 (ver o caso logo abaixo).
     // v0.4.0: a allowlist de CONTRATOS também é fail-closed — explícita aqui para o
     // teste não depender do HELIX_INBOUND_ACCEPT do .env local.
+    $tenantId = (string) TenantContext::id();
+
     config([
         'foundation.inbound.secrets.store' => 'par-secreto',
-        'foundation.inbound.tenants.store' => [TenantContext::id()],
+        'foundation.inbound.tenants.store' => [$tenantId],
         'foundation.inbound.accept' => [IngerirPedidoLoja::EVENTO],
     ]);
 
     $envelope = [
         'name' => IngerirPedidoLoja::EVENTO,
-        'tenant_id' => TenantContext::id(),
+        'tenant_id' => $tenantId,
         'version' => 1,
         'payload' => payloadPedidoLoja('PED-0002'),
     ];
@@ -66,16 +68,21 @@ it('recebe o evento assinado no /api/inbound/events e materializa o inbox', func
     postAssinado($envelope, 'par-secreto')->assertStatus(202);
 
     // QUEUE_CONNECTION=sync → o ProcessDomainEvent já rodou o subscriber.
-    expect(PedidoLojaRecebido::where('request_code', 'PED-0002')->count())->toBe(1);
+    // v0.7.0 (FUNDACAO-12): o TenantContext é LIMPO ao fim do request (middleware
+    // global terminável) — o contexto do webhook não vaza para o que roda depois.
+    // A asserção pós-request, portanto, declara o tenant que quer inspecionar.
+    inbox($tenantId, 'PED-0002', 1);
 
     // reentrega assinada → mesma linha (idempotência do consumidor). O remetente
     // reassina com timestamp novo (senão o anti-replay da foundation devolve 409).
     test()->travel(2)->seconds();
     postAssinado($envelope, 'par-secreto')->assertStatus(202);
-    expect(PedidoLojaRecebido::where('request_code', 'PED-0002')->count())->toBe(1);
+    inbox($tenantId, 'PED-0002', 1);
 });
 
 it('rejeita (403) remetente sem allowlist de tenant e tenant fora dela', function () {
+    $tenantId = (string) TenantContext::id();
+
     config([
         'foundation.inbound.secrets.store' => 'par-secreto',
         'foundation.inbound.accept' => [IngerirPedidoLoja::EVENTO],
@@ -83,7 +90,7 @@ it('rejeita (403) remetente sem allowlist de tenant e tenant fora dela', functio
 
     $envelope = [
         'name' => IngerirPedidoLoja::EVENTO,
-        'tenant_id' => TenantContext::id(),
+        'tenant_id' => $tenantId,
         'version' => 1,
         'payload' => payloadPedidoLoja('PED-0403'),
     ];
@@ -96,21 +103,23 @@ it('rejeita (403) remetente sem allowlist de tenant e tenant fora dela', functio
     test()->travel(2)->seconds();
     postAssinado($envelope, 'par-secreto')->assertStatus(403);
 
-    expect(PedidoLojaRecebido::where('request_code', 'PED-0403')->count())->toBe(0);
+    inbox($tenantId, 'PED-0403', 0);
 });
 
 it('recusa (422) todo evento quando HELIX_INBOUND_ACCEPT está vazio e evento fora da allowlist', function () {
     // v0.4.0 — FAIL-CLOSED: até a v0.3.x `accept` vazio aceitava QUALQUER nome
     // assinado, e um segredo vazado injetava qualquer contrato no outbox do Compras.
+    $tenantId = (string) TenantContext::id();
+
     config([
         'foundation.inbound.secrets.store' => 'par-secreto',
-        'foundation.inbound.tenants.store' => [TenantContext::id()],
+        'foundation.inbound.tenants.store' => [$tenantId],
         'foundation.inbound.accept' => [],
     ]);
 
     $envelope = [
         'name' => IngerirPedidoLoja::EVENTO,
-        'tenant_id' => TenantContext::id(),
+        'tenant_id' => $tenantId,
         'version' => 1,
         'payload' => payloadPedidoLoja('PED-0422'),
     ];
@@ -127,7 +136,7 @@ it('recusa (422) todo evento quando HELIX_INBOUND_ACCEPT está vazio e evento fo
     test()->travel(2)->seconds();
     postAssinado(['name' => 'store.qualquer.coisa'] + $envelope, 'par-secreto')->assertStatus(422);
 
-    expect(PedidoLojaRecebido::where('request_code', 'PED-0422')->count())->toBe(0);
+    inbox($tenantId, 'PED-0422', 0);
 });
 
 it('o .env.example declara a allowlist de contratos que o Compras consome', function () {
@@ -140,6 +149,8 @@ it('o .env.example declara a allowlist de contratos que o Compras consome', func
 });
 
 it('rejeita (401) envelope com assinatura inválida', function () {
+    $tenantId = (string) TenantContext::id();
+
     config(['foundation.inbound.secrets.store' => 'par-secreto']);
 
     $body = json_encode(['name' => IngerirPedidoLoja::EVENTO, 'payload' => payloadPedidoLoja('PED-X')]);
@@ -152,8 +163,24 @@ it('rejeita (401) envelope com assinatura inválida', function () {
         'HTTP_ACCEPT' => 'application/json',
     ], $body)->assertStatus(401);
 
-    expect(PedidoLojaRecebido::count())->toBe(0);
+    TenantContext::runFor($tenantId, fn () => expect(PedidoLojaRecebido::count())->toBe(0));
 });
+
+/**
+ * Conta as linhas do inbox DEPOIS do request.
+ *
+ * Fundação v0.7.0 (4ª auditoria, FUNDACAO-12): o `TenantContext` é limpo ao fim de cada
+ * request, para o tenant de um webhook não sobreviver ao que roda depois dele. No modo
+ * estrito isso significa que a asserção pós-request precisa DECLARAR o tenant que quer
+ * inspecionar — o que é a leitura certa de qualquer jeito: ela afirma que a linha está
+ * (ou não está) NAQUELE cliente.
+ */
+function inbox(string $tenantId, string $requestCode, int $esperado): void
+{
+    TenantContext::runFor($tenantId, fn () => expect(
+        PedidoLojaRecebido::where('request_code', $requestCode)->count()
+    )->toBe($esperado));
+}
 
 /** POST assinado com corpo bruto controlado (para o HMAC bater). */
 function postAssinado(array $envelope, string $secret): TestResponse

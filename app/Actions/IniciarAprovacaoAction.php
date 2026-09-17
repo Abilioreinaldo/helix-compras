@@ -123,13 +123,16 @@ class IniciarAprovacaoAction
 
     private function aprovadoresElegiveis(Requisicao $requisicao, NivelAlcada $nivel): Collection
     {
-        return User::whereIn('id', function ($q) use ($requisicao, $nivel) {
-            $q->select('user_id')
-                ->from('unidade_user')
-                ->where('tenant_id', $requisicao->tenant_id)
-                ->where('unidade_id', $requisicao->unidade_id)
-                ->where('perfil', Perfil::Aprovador->value)
-                ->where('nivel_alcada', $nivel->value);
-        })->get();
+        // ofTenant() (fundação v0.7.0): o recorte de gente é o VÍNCULO ATIVO em
+        // `tenant_user` — `users.tenant_id` é só o tenant HOME. Ver AprovarEtapaAction.
+        return User::ofTenant((string) $requisicao->tenant_id)
+            ->whereIn('id', function ($q) use ($requisicao, $nivel) {
+                $q->select('user_id')
+                    ->from('unidade_user')
+                    ->where('tenant_id', $requisicao->tenant_id)
+                    ->where('unidade_id', $requisicao->unidade_id)
+                    ->where('perfil', Perfil::Aprovador->value)
+                    ->where('nivel_alcada', $nivel->value);
+            })->get();
     }
 }

@@ -144,4 +144,30 @@ Route::middleware('throttle:cotacao-link')->group(function () {
 // InvitationService::invite falha fechado.
 Route::helixInvitations();
 
+// Fundação v0.6.0/v0.7.0 — redefinição de senha POR LINK (GET /senha/redefinir/{token},
+// nome senha.redefinir). Pública: a autorização é a posse do link, de uso único e com
+// validade. Sem esta rota o envio do link falha FECHADO — e, desde a v0.7.0, o
+// `helix:doctor` REPROVA produção sem ela (antes era só um aviso, e o furo só aparecia
+// no dia em que alguém precisava voltar a entrar).
+Route::helixPasswordReset();
+
+// Fundação v0.6.0 — gestão de passkeys (GET /seguranca/passkeys, nome
+// seguranca.passkeys). O Compras não obriga passkey hoje (`mandatory_webauthn_roles`
+// vazio), mas o superadmin da suíte é obrigado SEMPRE: sem esta tela, quem é obrigado e
+// não tem passkey fica BLOQUEADO (403) neste app. Uma linha, e o doctor para de reprovar.
+Route::helixWebAuthn();
+
+// Fundação v0.7.0 (4ª auditoria, FUNDACAO-1) — confirmação da TROCA DE E-MAIL
+// (GET /email/confirmar/{token}, nome email.confirmar). Pública pelo mesmo motivo: a
+// autorização é a posse do link, enviado ao endereço NOVO. O e-mail é a chave da
+// identidade, e trocá-lo sem prova de posse era tomada de conta.
+Route::helixEmailChange();
+
+// Fundação v0.7.0 (decisão 13) — canais de comunicação do próprio cliente
+// (GET /admin/canais, nome admin.canais, permissão channels.manage). É por aqui que o
+// admin da empresa cadastra e ativa o domínio de envio dela: sem canal ATIVO, o e-mail
+// COMERCIAL (a solicitação de cotação ao fornecedor) falha fechado — nunca sai pelo
+// canal da suíte.
+Route::helixChannels();
+
 Route::redirect('/', '/login');

@@ -1,10 +1,17 @@
 <?php
 
+use App\Models\User;
+use Helix\Foundation\Contracts\Channels\CommercialMailer;
+use Helix\Foundation\Contracts\Channels\DnsResolver;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Services\Platform\Channels\TenantChannelService;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
+use Helix\Foundation\Support\StepUpProof;
+use Helix\Foundation\Testing\Channels\FakeDnsResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Assert;
+use Tests\Support\EntregaComercialDeTeste;
 use Tests\TestCase;
 
 /*
@@ -67,6 +74,61 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+/**
+ * Canal COMERCIAL de e-mail ATIVO do tenant (fundação v0.7.0, decisão 13).
+ *
+ * A solicitação de cotação ao fornecedor fala em nome do CLIENTE e sai pelo domínio de
+ * envio DELE (`CommercialMessenger`). Sem canal ativo, o envio falha FECHADO — não há
+ * queda para o canal da suíte. Todo teste que exercita o envio precisa, portanto, montar
+ * o canal antes; é o mesmo caminho da tela `/admin/canais` (configurar → verificar →
+ * ativar), com os fakes de DNS e de entrega que o próprio pacote publica.
+ *
+ * Devolve o FakeCommercialMailer: é nele que o teste lê o remetente e o host usados — a
+ * prova de que o e-mail saiu pelo domínio do cliente, e não pelo da plataforma.
+ */
+function canalDeEmailAtivo(string $tenantId, ?User $admin = null, string $dominio = 'envio.cliente.test'): EntregaComercialDeTeste
+{
+    $dns = new FakeDnsResolver;
+    $mailer = new EntregaComercialDeTeste;
+
+    app()->instance(DnsResolver::class, $dns);
+    app()->instance(CommercialMailer::class, $mailer);
+
+    $config = [
+        'domain' => $dominio,
+        'from_address' => 'compras@'.$dominio,
+        'from_name' => 'Compras do Cliente',
+        'host' => 'smtp.provedor.test',
+        'port' => 587,
+        'encryption' => 'tls',
+        'spf_include' => 'spf.provedor.test',
+        'dkim_selector' => 'helix1',
+        'username' => 'cliente',
+        'password' => 'senha-smtp-do-cliente',
+    ];
+
+    $dns->publicarTudo($config['domain'], $config['spf_include'], $config['dkim_selector']);
+
+    // A allowlist de hosts SMTP é da PLATAFORMA (o cliente traz só o domínio e as
+    // credenciais dele) e é FAIL-CLOSED: vazia = nenhum provedor aceito. Na suíte ela
+    // fica vazia por padrão — de propósito —, então o cenário declara o host do fake.
+    config(['foundation.channels.email.smtp_allowed_hosts' => [$config['host']]]);
+
+    TenantContext::runFor($tenantId, function () use ($tenantId, $admin, $config) {
+        // `channels.manage` é ADMIN_ONLY no catálogo: quem monta o canal é o admin da
+        // empresa. A senha da UserFactory é 'password' — é ela que fecha o step-up
+        // (sem 2FA obrigatório na suíte, senha basta).
+        $admin ??= User::factory()->admin()->create(['tenant_id' => $tenantId]);
+
+        $canais = app(TenantChannelService::class);
+        $credencial = $canais->configure('email', 'smtp', $config, $admin, new StepUpProof('password'));
+        $canais->verify($credencial, $admin, new StepUpProof('password'));
+        $canais->activate($credencial, $admin, new StepUpProof('password'));
+    });
+
+    return $mailer;
+}
 
 /**
  * Harness do índice UNIQUE de catálogo (`saldos_estoque_tenant_catalogo_uq`) para os testes

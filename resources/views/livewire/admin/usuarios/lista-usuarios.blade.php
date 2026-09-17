@@ -49,7 +49,13 @@
                             <td class="px-4 py-3">
                                 @php($ehAdmin = in_array($usuario->id, $adminsDoTenant, true))
                                 @php($ehConvidado = in_array($usuario->id, $convidados, true))
+                                @php($ehSuspenso = in_array((int) $usuario->id, $suspensos, true))
                                 <div class="flex flex-wrap gap-1">
+                                    @if ($ehSuspenso)
+                                        {{-- Fundação v0.7.0: vínculo suspenso não some mais da lista — o admin
+                                             precisa VER que a porta desta empresa continua aberta para poder fechá-la. --}}
+                                        <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-rose-500/15 text-rose-400" title="Vínculo com esta empresa suspenso: sem acesso, mas ainda vinculado. Use Excluir para revogar.">Vínculo suspenso</span>
+                                    @endif
                                     @if ($ehAdmin)
                                         <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-violet-500/15 text-violet-400">Admin</span>
                                     @endif
@@ -70,9 +76,13 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
-                                <button wire:click="abrirVinculos({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-slate-700 transition-colors">Vínculos</button>
-                                @unless (in_array($usuario->id, $convidados, true))
-                                    <button wire:click="abrirEditar({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
+                                {{-- Vínculo suspenso: só a revogação é oferecida (as demais ações operam
+                                     sobre vínculo ATIVO e responderiam 404 — fail-closed por desenho). --}}
+                                @unless ($ehSuspenso)
+                                    <button wire:click="abrirVinculos({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-slate-700 transition-colors">Vínculos</button>
+                                    @unless (in_array($usuario->id, $convidados, true))
+                                        <button wire:click="abrirEditar({{ $usuario->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Editar</button>
+                                    @endunless
                                 @endunless
                                 <button wire:click="excluir({{ $usuario->id }})" wire:confirm="Confirma remover este usuário desta empresa?" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Excluir</button>
                             </td>
@@ -130,8 +140,15 @@
 
                     <div>
                         <label class="block text-sm font-medium text-slate-300 mb-1">E-mail</label>
-                        <input type="email" wire:model="email" class="input-dark w-full @error('email') border-rose-500 @enderror">
+                        {{-- Fundação v0.7.0 (4ª auditoria, FUNDACAO-1): o e-mail é a CHAVE da
+                             identidade (recuperação de senha, convites, login). Trocá-lo por
+                             outra pessoa é tomar a conta dela, então na EDIÇÃO ele é só leitura:
+                             a própria pessoa troca, confirmando o endereço novo. --}}
+                        <input type="email" wire:model="email" @disabled($editandoId) class="input-dark w-full @error('email') border-rose-500 @enderror @if ($editandoId) cursor-not-allowed opacity-60 @endif">
                         @error('email') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
+                        @if ($editandoId)
+                            <p class="mt-1 text-xs text-slate-500">O e-mail é da pessoa: só ela pode trocá-lo, confirmando o endereço novo no próprio perfil.</p>
+                        @endif
                     </div>
 
                     @if ($editandoId)

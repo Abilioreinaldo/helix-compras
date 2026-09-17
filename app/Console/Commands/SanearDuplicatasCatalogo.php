@@ -47,16 +47,17 @@ class SanearDuplicatasCatalogo extends Command
         // de calcular grupos — não lê nem processa nada sem permissão.
         $admin = User::find($adminId);
 
-        // Identidade GLOBAL ativa + membership ativa de admin (ver ExecutarRateioMensal).
-        if ($admin === null || $admin->status !== 'active' || ! $admin->temPerfil(Perfil::Admin)) {
+        // Console não tem tenant no contexto (modo estrito): tenant a tenant. A execução
+        // fica restrita ao tenant do Admin executor — ele não tem autoridade sobre os demais.
+        $tenantAlvo = $admin === null ? '' : (string) $admin->getAttributes()['tenant_id'];
+
+        // Identidade GLOBAL ativa + vínculo ativo de admin NAQUELE tenant (COMPRAS-7 /
+        // fundação v0.7.0: sem tenant no contexto, `temPerfil()` nega — ver ExecutarRateioMensal).
+        if ($admin === null || $admin->status !== 'active' || ! $admin->temPerfilEm(Perfil::Admin, $tenantAlvo)) {
             $this->error("Usuário #{$adminId} não encontrado, inativo ou não possui perfil Admin. Fusão abortada.");
 
             return self::FAILURE;
         }
-
-        // Console não tem tenant no contexto (modo estrito): tenant a tenant. A execução
-        // fica restrita ao tenant do Admin executor — ele não tem autoridade sobre os demais.
-        $tenantAlvo = (string) $admin->getAttributes()['tenant_id'];
         $encontrou = false;
         $codigo = self::SUCCESS;
 

@@ -37,11 +37,16 @@ class ExecutarRateioMensal extends Command
         }
 
         $admin = User::find($adminId);
+        $tenantAlvo = $admin === null ? '' : (string) $admin->getAttributes()['tenant_id'];
 
-        // Identidade GLOBAL ativa (users.status) + membership ativa de admin no tenant home
-        // (temPerfil → isAdminForActiveTenant): a autoria gravada (criado_por/registrado_por)
-        // nunca é de quem foi suspenso.
-        if ($admin === null || $admin->status !== 'active' || ! $admin->temPerfil(Perfil::Admin)) {
+        // Identidade GLOBAL ativa (users.status) + vínculo ativo de admin NO TENANT em que
+        // o rateio vai rodar: a autoria gravada (criado_por/registrado_por) nunca é de quem
+        // foi suspenso, e a autoridade é a daquele cliente.
+        //
+        // COMPRAS-7 (4ª auditoria) / fundação v0.7.0: aqui não há tenant no contexto, e
+        // `temPerfil()` passou a NEGAR nessa situação (antes respondia pelo tenant home).
+        // A pergunta explícita `temPerfilEm($tenant)` é a que diz o que este comando quer.
+        if ($admin === null || $admin->status !== 'active' || ! $admin->temPerfilEm(Perfil::Admin, $tenantAlvo)) {
             $this->error("Usuário #{$adminId} não encontrado, inativo ou sem perfil Admin. Rateio abortado.");
 
             return self::FAILURE;
@@ -49,7 +54,7 @@ class ExecutarRateioMensal extends Command
 
         // Console não tem tenant no contexto: o rateio roda no tenant do Admin executor
         // (modo estrito — consulta/criação sem tenant lança).
-        return TenantContext::runFor((string) $admin->getAttributes()['tenant_id'], fn () => $this->executarNoTenant($admin));
+        return TenantContext::runFor((string) $tenantAlvo, fn () => $this->executarNoTenant($admin));
     }
 
     private function executarNoTenant(User $admin): int

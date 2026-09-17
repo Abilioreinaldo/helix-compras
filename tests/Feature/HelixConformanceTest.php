@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Perfil;
 use App\Http\Controllers\PropostaCotacaoPublicaController;
 use App\Livewire\Account2FA;
 use App\Livewire\Admin\CatalogoItens\ListaCatalogoItens;
@@ -25,7 +26,9 @@ use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\UnidadeUser;
 use App\Models\User;
+use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Helix\Foundation\Testing\Conformance\HelixConformance;
+use Helix\Foundation\Testing\PlatformFixtures;
 
 /*
 |--------------------------------------------------------------------------
@@ -42,15 +45,52 @@ use Helix\Foundation\Testing\Conformance\HelixConformance;
 
 // Unidade/Requisicao/PedidoCompra também carregam o UnidadeScope (recorte POR UNIDADE,
 // fail-closed sem usuário). Para o teste de isolamento provar só a dimensão TENANT é
-// preciso um usuário que enxergue todas as unidades — mas NÃO um superadmin: ele
-// desliga o Gate::before (libera qualquer permissão) e transcende tenants, e o kit
-// passaria a medir um mundo privilegiado em vez do mundo real. Usamos a compradora
-// sênior, que chega a "todas as unidades" pela permissão de verdade (compras.manage)
-// e continua sujeita a policies, permissões e escopo de tenant. O tenant de cada
-// asserção vem do runFor do próprio kit. Ver KitConformidadeAtorTest.
+// preciso um usuário que ENXERGUE o registro do tenant sob teste — mas NÃO um
+// superadmin: ele desliga o Gate::before (libera qualquer permissão) e transcende
+// tenants, e o kit passaria a medir um mundo privilegiado em vez do mundo real.
+// Usamos a compradora sênior, que continua sujeita a policies, permissões e escopo de
+// tenant. O tenant de cada asserção vem do runFor do próprio kit. Ver KitConformidadeAtorTest.
 beforeEach(function () {
     $this->actingAs(User::factory()->compradora()->create());
 });
+
+/**
+ * Fábrica do kit para as models com UnidadeScope (fundação v0.7.0, FUNDACAO-8).
+ *
+ * Até a v0.6.x a compradora enxergava "todas as unidades" em qualquer tenant, porque
+ * `hasPermission('compras.manage')` era avaliada no tenant HOME dela — inclusive dentro
+ * dos tenants efêmeros que o kit cria para o teste de isolamento. Era exatamente o
+ * escalonamento que a v0.7.0 fechou: permissão vale NO TENANT DA OPERAÇÃO, e num tenant
+ * onde ela não tem vínculo a resposta é NÃO.
+ *
+ * O mundo real que sobra é o do usuário comum: enxerga o que está NA UNIDADE a que está
+ * vinculado. Então a fábrica cria o registro sob o contexto do kit e liga o ator à
+ * unidade dele — no mesmo tenant (o pivot `unidade_user` deriva o tenant da unidade e
+ * recusa cruzar). Antes disso o ator precisa SER da empresa: a FK composta
+ * `unidade_user(user_id, tenant_id) → tenant_user(user_id, tenant_id)` (migration
+ * 2026_09_21_000002) só aceita vínculo de unidade de quem tem vínculo com o tenant. Quem
+ * declara o vínculo é o `PlatformFixtures` da fundação — caminho oficial de fixture,
+ * auditado e sem `runAsPlatform` no código do app (portanto sem exceção de kit).
+ *
+ * O isolamento continua sendo medido pelo BelongsToTenant: sob o tenant A, o vínculo com
+ * a unidade de B não é sequer lido (o UnidadeScope filtra o pivot pelo tenant do contexto).
+ */
+function kitVinculandoOAtor(Closure $criar): Closure
+{
+    return function () use ($criar) {
+        $registro = $criar();
+        $unidadeId = $registro instanceof Unidade ? $registro->getKey() : $registro->unidade_id;
+        $ator = auth()->user();
+
+        PlatformFixtures::member($ator, (string) TenantContext::requireId('kit'), User::SCOPE_CORPORATE);
+
+        $ator->unidades()->syncWithoutDetaching([
+            $unidadeId => ['perfil' => Perfil::Almoxarife->value, 'nivel_alcada' => null],
+        ]);
+
+        return $registro;
+    };
+}
 
 $revalidadoNoTenant = 'select do cliente; revalidado a cada uso com Rule::exists(...)->where(tenant_id) e/ou findOrFail escopado pelo BelongsToTenant';
 $filtroEscopado = 'filtro de listagem do cliente; só restringe uma consulta/coleção já escopada ao tenant (BelongsToTenant ou where tenant_id explícito) e ao vínculo do usuário — id alheio resulta em lista vazia';
@@ -185,17 +225,20 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowUncatalogedPermission('aprovacao.acessar', $aguardandoCatalogo.': painel de aprovação por vínculo (Aprovador na unidade da requisição, mesmo tenant)')
     ->allowUncatalogedPermission('aprovacao.decidir', $aguardandoCatalogo.': decisão por vínculo + nível de alçada da etapa atual')
 
-    // (h) permissão do catálogo sem papel além do admin
-    ->allowUnassignedPermission('users.manage', 'DECISÃO DE PRODUTO PENDENTE: gestão de usuários do Compras segue exclusiva do admin do tenant (rotas /admin com middleware admin); delegar a um papel é escolha da fundação/produto')
+    // (h) permissão do catálogo sem papel além do admin — `users.manage` e
+    //     `channels.manage` saíram daqui na fundação v0.7.0: são ADMIN_ONLY do catálogo
+    //     (Permission::ADMIN_ONLY), decisão da fundação, e o kit já as dispensa. Repetir
+    //     a exceção aqui virava uma linha MORTA (reprovada pelo allowlist_hygiene).
 
     // (r) universo vazio declarado (v0.3.0: vazio = INCONCLUSIVO, não aprovado)
     ->acceptEmpty('jobs_carry_tenant', 'o Compras não tem jobs próprios — o diretório app/Jobs não existe. O único processamento fora de request é o comando cotacoes:capturar-respostas, que roda síncrono e estabelece o tenant com runFor (ver allowTenantlessCommand acima). O primeiro job do app remove esta linha')
 
-    // (i) isolamento cross-tenant dos transacionais principais
-    ->isolate(Unidade::class)
+    // (i) isolamento cross-tenant dos transacionais principais. Os três que carregam o
+    //     UnidadeScope recebem a fábrica que liga o ator à unidade do registro (acima).
+    ->isolate(Unidade::class, kitVinculandoOAtor(fn () => Unidade::factory()->create()))
     ->isolate(Fornecedor::class)
-    ->isolate(Requisicao::class)
+    ->isolate(Requisicao::class, kitVinculandoOAtor(fn () => Requisicao::factory()->create()))
     ->isolate(Cotacao::class)
-    ->isolate(PedidoCompra::class);
+    ->isolate(PedidoCompra::class, kitVinculandoOAtor(fn () => PedidoCompra::factory()->create()));
 
 $kit->register();

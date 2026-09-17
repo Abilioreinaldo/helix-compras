@@ -80,17 +80,36 @@ it('trocar o e-mail para o de conta de OUTRO cliente responde com mensagem gené
 
     $erro = $tela->errors()->first('email');
 
-    // A unique GLOBAL de users.email traduzida pela fundação: a mensagem não afirma
-    // existência nem repete o e-mail (e não é a do validador, "já está em uso").
-    expect($erro)->toBe(IdentityConflictException::forEmailChange()->getMessage())
+    // Fundação v0.7.0 (4ª auditoria, FUNDACAO-1): a recusa não é mais "esse e-mail não
+    // dá" (que ainda dependia de a conta existir) — é "o e-mail não é seu para trocar".
+    // A mensagem vale para QUALQUER endereço, então deixou de ser oráculo por completo:
+    // não afirma existência, não repete o e-mail e não é a do validador ("já está em uso").
+    expect($erro)->toBe(IdentityConflictException::forEmailNotOwned()->getMessage())
         ->and($erro)->not->toContain('em uso')
         ->and($erro)->not->toContain('segredo@bravo.test')
         ->and($local->fresh()->email)->toBe('local@alfa.test');
 });
 
+it('a recusa de trocar e-mail é IDÊNTICA para endereço existente e inexistente (sem oráculo)', function () {
+    $local = User::factory()->create(['tenant_id' => $this->tenantA->id, 'email' => 'local@alfa.test']);
+
+    $tentativa = fn (string $email) => Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('abrirEditar', $local->id)
+        ->set('email', $email)
+        ->call('salvar')
+        ->errors()->first('email');
+
+    // `segredo@bravo.test` tem conta em OUTRO cliente; `ninguem@alfa.test` não existe
+    // em lugar nenhum. Até a v0.5.x a primeira caía na unique GLOBAL (forEmailChange) e a
+    // segunda gravava: a diferença ENTRE as duas respostas era o oráculo.
+    expect($tentativa('segredo@bravo.test'))->toBe($tentativa('ninguem@alfa.test'))
+        ->and($local->fresh()->email)->toBe('local@alfa.test');
+});
+
 // ───────── Achado 8: identidade usada em outro tenant ─────────
 
-it('não edita nome nem e-mail de quem também é membro ativo de outra empresa', function (string $campo, string $valor) {
+it('não edita nome nem e-mail de quem também é membro ativo de outra empresa', function (string $campo, string $valor, string $mensagem) {
     // Home AQUI (não é convidado), mas trabalha também no tenant B.
     $compartilhado = User::factory()->create([
         'tenant_id' => $this->tenantA->id, 'name' => 'Nome Original', 'email' => 'comp@alfa.test',
@@ -111,13 +130,17 @@ it('não edita nome nem e-mail de quem também é membro ativo de outra empresa'
     // noutros clientes a partir de um campo de formulário).
     $erro = $tela->errors()->first($campo);
 
-    expect($erro)->toBe(IdentityConflictException::forSharedIdentity()->getMessage())
+    // v0.7.0: o NOME segue barrado pela identidade compartilhada (forSharedIdentity); o
+    // E-MAIL é barrado ANTES disso, por não ser do admin para trocar (forEmailNotOwned) —
+    // uma guarda que não depende de a pessoa participar de outra empresa. Nenhuma das
+    // duas mensagens revela vínculo noutro cliente.
+    expect($erro)->toBe($mensagem)
         ->and($erro)->not->toContain('outra empresa')
         ->and($compartilhado->fresh()->name)->toBe('Nome Original')
         ->and($compartilhado->fresh()->email)->toBe('comp@alfa.test');
 })->with([
-    'nome' => ['name', 'Renomeado pelo A'],
-    'e-mail' => ['email', 'sequestrado@alfa.test'],
+    'nome' => ['name', 'Renomeado pelo A', IdentityConflictException::forSharedIdentity()->getMessage()],
+    'e-mail' => ['email', 'sequestrado@alfa.test', IdentityConflictException::forEmailNotOwned()->getMessage()],
 ]);
 
 it('ainda permite ajustar o vínculo (admin/papéis) de quem participa de outra empresa', function () {
@@ -137,19 +160,40 @@ it('ainda permite ajustar o vínculo (admin/papéis) de quem participa de outra 
     expect($compartilhado->fresh()->name)->toBe('Nome Original');
 });
 
-it('segue editando nome e e-mail de quem só pertence a esta empresa', function () {
+it('segue editando o nome de quem só pertence a esta empresa', function () {
     $soDaqui = User::factory()->create(['tenant_id' => $this->tenantA->id, 'name' => 'So Daqui', 'email' => 'so@alfa.test']);
 
     Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
         ->call('abrirEditar', $soDaqui->id)
         ->set('name', 'So Daqui Renomeado')
-        ->set('email', 'novo@alfa.test')
         ->call('salvar')
         ->assertHasNoErrors();
 
     expect($soDaqui->fresh()->name)->toBe('So Daqui Renomeado')
-        ->and($soDaqui->fresh()->email)->toBe('novo@alfa.test');
+        ->and($soDaqui->fresh()->email)->toBe('so@alfa.test');
+});
+
+it('o e-mail NÃO é editável nem quando a pessoa só pertence a esta empresa', function () {
+    // Até a v0.6.x este era o caso "permitido": quem só trabalha aqui tinha nome E e-mail
+    // editáveis pelo admin. A 4ª auditoria mostrou o que isso vale — trocar o e-mail e
+    // pedir o link de senha é tomar a conta —, e a v0.7.0 fechou para TODO MUNDO: o
+    // e-mail é a chave da identidade, e só a própria pessoa o troca, confirmando o novo.
+    $soDaqui = User::factory()->create(['tenant_id' => $this->tenantA->id, 'name' => 'So Daqui', 'email' => 'so@alfa.test']);
+
+    $tela = Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('abrirEditar', $soDaqui->id)
+        ->set('name', 'So Daqui Renomeado')
+        ->set('email', 'novo@alfa.test')
+        ->call('salvar');
+
+    $tela->assertHasErrors('email');
+
+    expect($tela->errors()->first('email'))->toBe(IdentityConflictException::forEmailNotOwned()->getMessage())
+        ->and($soDaqui->fresh()->email)->toBe('so@alfa.test')
+        // A recusa é da chamada INTEIRA (transação da fundação): o nome também não passou.
+        ->and($soDaqui->fresh()->name)->toBe('So Daqui');
 });
 
 // ───────── v0.4.0: vínculo externo SUSPENSO também é identidade compartilhada ─────────

@@ -79,6 +79,32 @@ return [
             'transport' => 'array',
         ],
 
+        /*
+         * Mailer de SISTEMA (fundação v0.7.0, decisão 13).
+         *
+         * Convite, link de redefinição de senha, confirmação de troca de e-mail e
+         * alertas da suíte saem POR AQUI — nunca pelo mailer do app, que fala em nome
+         * do cliente. O remetente é um subdomínio da SUÍTE (HELIX_SYSTEM_MAIL_FROM_*),
+         * com SPF/DKIM/DMARC dela, e o `SystemChannelGuard` CANCELA qualquer mensagem
+         * que saia com esse remetente sem implementar `Contracts\SystemMessage`.
+         *
+         * FAIL-CLOSED: sem este mailer declarado, o envio de sistema lança
+         * `InvalidArgumentException: Mailer [system] is not defined` em vez de cair no
+         * mailer comercial — e o `helix:doctor` reprova produção.
+         *
+         * Em `testing` o transporte cai para `array` (o MAIL_MAILER da suíte), e é isso
+         * que o Mail::fake/assertQueued lê.
+         */
+        'system' => [
+            'transport' => env('HELIX_SYSTEM_MAIL_TRANSPORT', 'smtp'),
+            'host' => env('HELIX_SYSTEM_MAIL_HOST'),
+            'port' => env('HELIX_SYSTEM_MAIL_PORT', 587),
+            'username' => env('HELIX_SYSTEM_MAIL_USERNAME'),
+            'password' => env('HELIX_SYSTEM_MAIL_PASSWORD'),
+            'encryption' => env('HELIX_SYSTEM_MAIL_ENCRYPTION', 'tls'),
+            'timeout' => null,
+        ],
+
         'failover' => [
             'transport' => 'failover',
             'mailers' => [

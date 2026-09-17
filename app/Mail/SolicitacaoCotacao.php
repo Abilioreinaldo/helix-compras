@@ -17,8 +17,15 @@ use Illuminate\Support\Carbon;
  * leva `[COT-{referencia}]`, a referência PÚBLICA do link: serve só para correlacionar
  * uma eventual resposta por e-mail, que vira aviso ao comprador e nunca grava nada.
  *
- * O token em claro vive só neste Mailable: ele NÃO implementa ShouldQueue — enfileirá-lo
- * gravaria a URL com o token no payload da fila.
+ * CANAL (fundação v0.7.0, decisão 13): é mensagem COMERCIAL — quem pede preço é a
+ * EMPRESA, não a suíte. Sai pelo canal do tenant (`CommercialMessenger::sendEmail`), com
+ * o domínio de envio dele. Nunca pelo mailer de sistema: não é (nem pode virar) um
+ * `Helix\Foundation\Contracts\SystemMessage`.
+ *
+ * O token em claro vive só neste Mailable, e por isso ele NÃO implementa ShouldQueue —
+ * enfileirá-lo por conta própria (Mail::queue) gravaria a URL com o token EM CLARO no
+ * payload da fila. Quem enfileira é o `SendCommercialMessage` da fundação, que é
+ * `ShouldBeEncrypted`: ali o payload inteiro vai cifrado.
  */
 class SolicitacaoCotacao extends Mailable
 {

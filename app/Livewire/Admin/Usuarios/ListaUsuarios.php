@@ -150,6 +150,14 @@ class ListaUsuarios extends Component
         // vínculo (admin/papéis) de uma identidade compartilhada segue editável aqui.
         // A tela não diz POR QUE recusou (antes: "participa de outra empresa"): a
         // mensagem é a genérica da fundação, sem revelar vínculos noutros clientes.
+        //
+        // v0.7.0 (4ª auditoria, FUNDACAO-1): o E-MAIL é a chave da identidade — quem o
+        // troca passa a receber os links de redefinição e os convites da pessoa. Terceiro
+        // não troca NEM COM PERMISSÃO, e nem a própria pessoa troca "no seco" (o caminho é
+        // o EmailChangeService, com confirmação no endereço NOVO). O campo saiu do
+        // formulário de edição; o payload continua levando o e-mail divergente de
+        // propósito, para que a recusa venha da GUARDA DA FUNDAÇÃO — e não de uma cópia
+        // caseira dela nesta tela, que envelheceria sozinha.
         $dados = ['is_admin' => $this->isAdmin];
         $alterados = [];
 
@@ -166,7 +174,10 @@ class ListaUsuarios extends Component
         try {
             $users->updateUser($usuario, $dados, $this->papeis, auth()->user());
         } catch (IdentityConflictException $e) {
-            $this->addError($alterados[0] ?? 'email', $e->getMessage());
+            // Com e-mail no payload a recusa é SEMPRE sobre ele (a fundação lança antes de
+            // olhar os demais campos): o erro tem de pousar no campo do e-mail, senão a
+            // tela aponta o dedo para o "nome" numa edição que mexeu nos dois.
+            $this->addError(array_key_exists('email', $dados) ? 'email' : ($alterados[0] ?? 'email'), $e->getMessage());
 
             return;
         } catch (UniqueConstraintViolationException) {
@@ -246,8 +257,11 @@ class ListaUsuarios extends Component
     {
         abort_unless(auth()->user()->can('users.manage'), 403);
 
-        $usuario = $this->usuariosDoTenant()->findOrFail($id);
-        abort_unless(auth()->user()->can('operar', $usuario), 403);
+        // Revogar alcança também o vínculo SUSPENSO (fundação v0.7.0, `membersOf` com
+        // status): quem está suspenso aqui continua tendo uma porta para esta empresa, e
+        // era exatamente quem o admin não conseguia tirar.
+        $usuario = $this->usuariosGerenciaveis()->findOrFail($id);
+        abort_unless(auth()->user()->can('revogar', $usuario), 403);
         $tenantId = auth()->user()->getActiveTenantId();
 
         // CONVIDADO (home noutro tenant) nunca tem a IDENTIDADE apagada por este admin —
@@ -261,7 +275,12 @@ class ListaUsuarios extends Component
         // Fundação v0.4.0: o vínculo externo conta EM QUALQUER STATUS. Quem tem home aqui e
         // um vínculo SUSPENSO/INATIVO noutra empresa caía no deleteUser e perdia a
         // identidade — a conta com que a outra empresa o reativaria.
-        if ($this->ehConvidado($usuario) || $this->temVinculoForaDaqui($usuario)) {
+        //
+        // Fundação v0.7.0: o vínculo SUSPENSO aqui também cai neste ramo. `deleteUser`
+        // exige membro ATIVO (e apagaria a IDENTIDADE); sobre quem já não tem acesso a
+        // esta empresa o que o admin daqui pode — e precisa — fazer é fechar a porta,
+        // revogando o vínculo. A identidade não é dele para apagar.
+        if ($this->ehConvidado($usuario) || $this->temVinculoForaDaqui($usuario) || ! $this->ehMembroAtivo($usuario, (string) $tenantId)) {
             // Vínculos por unidade deste tenant caem junto (o pivot é escopado).
             DB::table('unidade_user')
                 ->where('user_id', $usuario->getKey())
@@ -351,6 +370,47 @@ class ListaUsuarios extends Component
     }
 
     /**
+     * Base da LISTAGEM e da REVOGAÇÃO: vínculos ativos E suspensos (fundação v0.7.0,
+     * `membersOf($t, $statuses)`).
+     *
+     * `membersOf()` sozinho só traz vínculo ATIVO — e quem está SUSPENSO nesta empresa
+     * ficava INVISÍVEL para o admin dela: ele não via que a pessoa ainda tem uma porta
+     * aberta aqui e, pior, não conseguia tirá-la (o `excluir` resolvia pela consulta de
+     * ativos e respondia 404). Suspender é operação do console hoje; revogar o vínculo
+     * tem de continuar sendo desta tela.
+     *
+     * As demais ações (editar, papéis, vínculos por unidade, alcance) seguem só sobre
+     * vínculo ATIVO, por desenho: reativar alguém é decisão de produto pendente, e
+     * fail-closed é o default certo enquanto ela não existe.
+     */
+    private function usuariosGerenciaveis()
+    {
+        return User::membersOf((string) auth()->user()->getActiveTenantId(), ['active', 'suspended']);
+    }
+
+    /**
+     * Ids (desta página) cujo vínculo com esta empresa está SUSPENSO — o pivot já vem
+     * pré-carregado pelo membersOf, sem consulta por linha.
+     *
+     * @param  iterable<int, User>  $usuarios
+     * @return array<int, int>
+     */
+    private function suspensosNoTenant(iterable $usuarios, string $tenantId): array
+    {
+        $ids = [];
+
+        foreach ($usuarios as $usuario) {
+            $vinculo = $usuario->memberships->firstWhere('id', $tenantId);
+
+            if ($vinculo !== null && ($vinculo->pivot->status ?? null) === 'suspended') {
+                $ids[] = (int) $usuario->id;
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * Vínculos DESTA empresa aguardando alcance (`pending_scope`, fundação v0.5.0):
      * pessoa criada por atalho sem alcance declarado, ou cuja filial legada não valia
      * para este tenant (backfill da migration). Não dá acesso até o admin definir.
@@ -403,6 +463,16 @@ class ListaUsuarios extends Component
             ->exists();
     }
 
+    /** O vínculo com ESTA empresa está ativo? (suspenso ≠ membro) */
+    private function ehMembroAtivo(User $usuario, string $tenantId): bool
+    {
+        return DB::table('tenant_user')
+            ->where('user_id', $usuario->getKey())
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'active')
+            ->exists();
+    }
+
     /** Admin DESTE tenant (pivot), não a coluna global `users.is_admin`. */
     private function ehAdminNoTenant(User $usuario, ?string $tenantId): bool
     {
@@ -418,7 +488,7 @@ class ListaUsuarios extends Component
     {
         $tenantId = auth()->user()->getActiveTenantId();
 
-        $usuarios = $this->usuariosDoTenant()
+        $usuarios = $this->usuariosGerenciaveis()
             // Papéis são POR TENANT (pivot user_role.tenant_id): sem o filtro, a tela
             // mostraria a um admin daqui os papéis que o convidado tem na empresa dele.
             ->with(['roles' => fn ($q) => $q->where('user_role.tenant_id', $tenantId)])
@@ -435,6 +505,9 @@ class ListaUsuarios extends Component
             ->filter(fn (User $u) => $u->isAdminIn((string) $tenantId))
             ->pluck('id')->map(fn ($id) => (int) $id)->all();
         $convidados = $usuarios->filter(fn (User $u) => $this->ehConvidado($u))->pluck('id')->all();
+        // Vínculo SUSPENSO: a linha aparece (senão o admin não sabe que a porta existe),
+        // mas a única ação oferecida é revogar — reativar é decisão de produto pendente.
+        $suspensos = $this->suspensosNoTenant($usuarios->getCollection(), (string) $tenantId);
 
         $usuarioVinculos = $this->usuarioVinculosId
             ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScope(UnidadeScope::class)->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
@@ -456,6 +529,7 @@ class ListaUsuarios extends Component
             'niveisAlcada',
             'adminsDoTenant',
             'convidados',
+            'suspensos',
             'pendentes',
         ))->layout('components.layouts.app');
     }

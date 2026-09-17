@@ -25,6 +25,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 | Request::HEADER_X_FORWARDED_PROTO,
         );
 
+        // Hosts confiáveis (fundação v0.7.0, FUNDACAO-2): sem isto o Laravel aceita
+        // qualquer cabeçalho Host e um link montado com url()/route() leva a vítima
+        // para o host do atacante. A lista vem de config('trustedproxy.hosts')
+        // (TRUSTED_HOSTS, ou o host do APP_URL) — em closure, porque o middleware é
+        // registrado antes do .env valer e para sobreviver ao config:cache.
+        $middleware->trustHosts(at: static fn (): array => (array) config('trustedproxy.hosts', []), subdomains: false);
+
         // Degradação isolada (auditoria multitenant 2026-09-15): teto de requisições
         // por tenant+usuário em todo o grupo web (inclui /livewire/update e as rotas
         // da fundação). O login continua com o limiter próprio da fundação (por e-mail).

@@ -142,7 +142,14 @@ class UserFactory extends Factory
     private function atribuirPapel(User $user, string $slug, string $name): void
     {
         $tenant = Tenant::findOrFail($user->getAttributes()['tenant_id']);
-        app(EntitlementService::class)->seedRbac($tenant, 'compras');
+
+        // Fundação v0.7.0 (4ª auditoria, FUNDACAO-6): semear RBAC é escrita de
+        // GOVERNANÇA — a fundação passou a exigir autoridade (plataforma, superadmin ou
+        // admin daquele tenant) mesmo sem `RbacWriteGuard` bindado. A factory é seed, e
+        // roda com quem estiver autenticado no teste (às vezes um usuário comum): sem
+        // declarar plataforma ela seria recusada — e, pior, até a v0.6.x a MESMA
+        // chamada passava a partir de um usuário comum, que era o achado.
+        TenantContext::runAsPlatform(fn () => app(EntitlementService::class)->seedRbac($tenant, 'compras'));
 
         // Role usa BelongsToTenant: lê sob o tenant do usuário, não o do contexto.
         $role = TenantContext::runFor((string) $tenant->id, fn () => Role::where('tenant_id', $tenant->id)->where('slug', $slug)->firstOrFail());

@@ -11,10 +11,12 @@ use App\Models\Fornecedor;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
 use App\Services\CotacaoLinkService;
+use Helix\Foundation\Exceptions\ChannelException;
 use Helix\Foundation\Livewire\Concerns\AuthorizesOnHydrate;
+use Helix\Foundation\Models\Platform\Channels\TenantChannelCredential;
+use Helix\Foundation\Services\Platform\Channels\CommercialMessenger;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
@@ -172,6 +174,10 @@ class GestaoCotacoes extends Component
             'prazoResposta.*' => 'Informe um prazo de resposta entre hoje e 90 dias.',
         ]);
 
+        if ($this->semCanalDeEmail()) {
+            return;
+        }
+
         $existentes = $this->requisicao->cotacoes()->whereNull('deleted_at')->get()->keyBy('fornecedor_id');
 
         $enviados = 0;
@@ -193,7 +199,16 @@ class GestaoCotacoes extends Component
                 'criada_por' => auth()->id(),
             ]);
 
-            $this->enviarLink($cotacao);
+            try {
+                $this->enviarLink($cotacao);
+            } catch (ChannelException) {
+                // Canal suspenso ENTRE a conferência e o envio (ou cota do minuto
+                // estourada): para aqui em vez de seguir emitindo links que ninguém
+                // recebe. O que já saiu, saiu; o resto o comprador reenvia depois.
+                $this->erroDeCanal();
+                break;
+            }
+
             $enviados++;
         }
 
@@ -223,6 +238,10 @@ class GestaoCotacoes extends Component
             return;
         }
 
+        if ($this->semCanalDeEmail()) {
+            return;
+        }
+
         $this->enviarLink($cotacao);
         $this->recarregar();
         $this->dispatch('notify', mensagem: 'Link de cotação reenviado.');
@@ -243,13 +262,49 @@ class GestaoCotacoes extends Component
         $this->dispatch('notify', mensagem: $revogados > 0 ? 'Link revogado.' : 'Não havia link ativo para revogar.');
     }
 
+    /**
+     * A solicitação de cotação é uma mensagem COMERCIAL (decisão 13, fundação v0.7.0):
+     * quem fala com o fornecedor é a EMPRESA, não a suíte. Por isso ela sai pelo canal
+     * do TENANT (domínio de envio dele, com SPF/DKIM/DMARC dele), pelo
+     * `CommercialMessenger` — e não pelo mailer do app nem, muito menos, pelo remetente
+     * de sistema. Sem canal ativo NÃO HÁ QUEDA para o canal da suíte: falha fechado.
+     *
+     * O `CommercialMessenger` enfileira internamente (`SendCommercialMessage`, que é
+     * `ShouldBeEncrypted`) — o que também resolve a ressalva antiga deste mailable: o
+     * token em claro da URL viaja no payload da fila CIFRADO, e a credencial é
+     * reconferida no worker (canal suspenso entre o clique e a entrega não envia).
+     */
     private function enviarLink(Cotacao $cotacao): void
     {
         $emitido = app(CotacaoLinkService::class)->emitir($cotacao, Carbon::parse($this->prazoResposta));
         $link = $emitido['link'];
 
-        Mail::to($cotacao->fornecedor->contato_email)
-            ->send(new SolicitacaoCotacao($cotacao, $emitido['url'], $link->referencia, $link->expires_at));
+        app(CommercialMessenger::class)->sendEmail(
+            (string) $cotacao->fornecedor->contato_email,
+            new SolicitacaoCotacao($cotacao, $emitido['url'], $link->referencia, $link->expires_at),
+        );
+    }
+
+    /**
+     * O tenant tem canal de e-mail ATIVO? Conferido ANTES de criar cotação e emitir
+     * link: sem isso a tela deixaria para trás cotações "aguardando" com link emitido e
+     * nenhum e-mail enviado — um estado que o comprador não tem como distinguir de
+     * "fornecedor não respondeu".
+     */
+    private function semCanalDeEmail(): bool
+    {
+        if (app(CommercialMessenger::class)->hasActiveChannel(TenantChannelCredential::CHANNEL_EMAIL)) {
+            return false;
+        }
+
+        $this->erroDeCanal();
+
+        return true;
+    }
+
+    private function erroDeCanal(): void
+    {
+        $this->addError('cotacoes', 'Não foi possível enviar a solicitação pelo canal de e-mail desta empresa. A cotação sai pelo domínio dela, não pelo da plataforma: peça ao administrador para conferir o canal em Canais de comunicação e tente novamente.');
     }
 
     /** @return array<int, string> */

@@ -28,6 +28,12 @@
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
+        <!-- Canal de SISTEMA (fundação v0.7.0): convite, link de senha e troca de e-mail
+             saem pelo mailer `system`, declarado em config/mail.php. Na suíte ele usa o
+             transporte `array` (é o que Mail::fake/assertQueued lê) e um remetente do
+             subdomínio de sistema, para os testes medirem a postura real. -->
+        <env name="HELIX_SYSTEM_MAIL_TRANSPORT" value="array"/>
+        <env name="HELIX_SYSTEM_MAIL_FROM_ADDRESS" value="no-reply@sistema.helix.test"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>

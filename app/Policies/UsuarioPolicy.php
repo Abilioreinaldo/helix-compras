@@ -28,6 +28,27 @@ class UsuarioPolicy
     }
 
     /**
+     * REVOGAR o vínculo com esta empresa (fundação v0.7.0).
+     *
+     * É o único caso, além do alcance pendente, em que o alvo pode não ser membro
+     * ATIVO: quem está SUSPENSO aqui continua tendo uma porta para esta empresa, e
+     * fechá-la é justamente o que o admin precisa poder fazer. Enquanto `membersOf()`
+     * só trazia ativos, o suspenso sumia da tela E do `excluir` — a porta ficava aberta
+     * sem ninguém com autoridade para vê-la. O recorte continua sendo por tenant: o
+     * vínculo tem de ser DESTA empresa.
+     */
+    public function revogar(User $ator, User $alvo): bool
+    {
+        $ativo = TenantContext::id() ?? $ator->getActiveTenantId();
+
+        return $ativo !== null && DB::table('tenant_user')
+            ->where('user_id', $alvo->getKey())
+            ->where('tenant_id', $ativo)
+            ->whereIn('status', ['active', 'suspended'])
+            ->exists();
+    }
+
+    /**
      * Definir o ALCANCE de um vínculo (fundação v0.5.0). É o único caso em que o alvo
      * NÃO é membro ativo: `pending_scope` é exatamente o vínculo que ainda não dá
      * acesso. O recorte continua sendo por tenant — o vínculo pendente tem de ser
