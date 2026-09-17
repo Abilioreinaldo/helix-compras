@@ -7,12 +7,13 @@ use App\Enums\StatusPedidoCompra;
 use App\Models\Aprovacao;
 use App\Models\PedidoCompra;
 use App\Models\Scopes\UnidadeScope;
+use App\Support\AuditoriaDownload;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 
 class BaixarPdfPedidoCompraController extends Controller
 {
-    public function __invoke(int $id): Response
+    public function __invoke(int $id, AuditoriaDownload $auditoria): Response
     {
         abort_unless(auth()->user()->temPerfil(Perfil::CompradoraSenior), 403);
 
@@ -56,7 +57,16 @@ class BaixarPdfPedidoCompraController extends Controller
         // não pode virar ".pdf" (o browser salvaria sem extensão).
         $nomeArquivo = $pedido->numero ?: 'pedido-compra-'.$pedido->id;
 
-        return response($pdf->output(), 200, [
+        $conteudo = $pdf->output();
+
+        // COMPRAS-2 (4ª auditoria): o PDF leva fornecedor, preços e aprovadores — a saída
+        // fica na trilha (quem, quando, de onde), depois de renderizar e antes de entregar.
+        $auditoria->registrar('compras.pedido_pdf_baixado', $pedido, [
+            'numero' => $pedido->numero,
+            'fornecedor_id' => $pedido->fornecedor_id,
+        ]);
+
+        return response($conteudo, 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => "attachment; filename=\"{$nomeArquivo}.pdf\"",
         ]);

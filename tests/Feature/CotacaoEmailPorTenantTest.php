@@ -1,12 +1,14 @@
 <?php
 
 use App\Actions\ProcessarRespostaCotacaoAction;
+use App\Enums\StatusRequisicao;
 use App\Imap\MensagemEmail;
 use App\Mail\RespostaCotacaoPorEmailRecebida;
 use App\Mail\SolicitacaoCotacao;
 use App\Models\Cotacao;
 use App\Models\CotacaoLink;
 use App\Models\Fornecedor;
+use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\CotacaoLinkService;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
@@ -57,6 +59,8 @@ function cotacaoNoTenant(string $tenantId, string $emailFornecedor, string $emai
         $compradora = User::factory()->create(['tenant_id' => $tenantId, 'email' => $emailCompradora]);
 
         $cotacao = Cotacao::factory()->create([
+            // 4ª auditoria (COMPRAS-4): só cotação com requisição EM COTAÇÃO recebe aviso.
+            'requisicao_id' => Requisicao::factory()->create(['status' => StatusRequisicao::EmCotacao])->id,
             'fornecedor_id' => $fornecedor->id,
             'criada_por' => $compradora->id,
             'valor' => null,

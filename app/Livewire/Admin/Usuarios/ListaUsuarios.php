@@ -37,6 +37,9 @@ class ListaUsuarios extends Component
 {
     use WithPagination;
 
+    /** Resposta ÚNICA da exclusão — apague-se a identidade ou só o vínculo (sem oráculo). */
+    private const MENSAGEM_REMOVIDO = 'Usuário removido desta empresa.';
+
     public string $busca = '';
 
     public bool $mostrarModal = false;
@@ -184,7 +187,10 @@ class ListaUsuarios extends Component
             // (TenantMismatchException) — antes a tela só olhava vínculo ATIVO e o
             // inativar/reativar da identidade compartilhada passava daqui.
             if ($this->temVinculoForaDaqui($usuario)) {
-                $this->addError('status', 'Este usuário também participa de outra empresa: inativá-lo aqui derrubaria o acesso dele lá. Remova o vínculo com esta empresa.');
+                // COMPRAS-3 (4ª auditoria): a mensagem NÃO diz por que recusou (antes: "também
+                // participa de outra empresa" — oráculo de vínculos de um e-mail na suíte).
+                // Mesmo tom do IdentityConflictException: o que fazer, não o motivo.
+                $this->addError('status', 'Não foi possível alterar o status deste usuário por aqui. Para tirar o acesso dele a esta empresa, use "Excluir".');
 
                 return;
             }
@@ -263,13 +269,16 @@ class ListaUsuarios extends Component
                 ->delete();
 
             $users->removeMembership($usuario, (string) $tenantId, auth()->user());
-            $this->dispatch('notify', mensagem: 'Usuário removido desta empresa (segue ativo nas demais).');
+            // COMPRAS-3 (4ª auditoria): MESMA mensagem dos dois ramos. "Segue ativo nas
+            // demais" contava ao admin daqui que a pessoa tem vínculo noutra empresa (e
+            // ainda mentia quando o vínculo de lá estava suspenso).
+            $this->dispatch('notify', mensagem: self::MENSAGEM_REMOVIDO);
 
             return;
         }
 
         $users->deleteUser($usuario, auth()->user());
-        $this->dispatch('notify', mensagem: 'Usuário removido.');
+        $this->dispatch('notify', mensagem: self::MENSAGEM_REMOVIDO);
     }
 
     public function abrirVinculos(int $id): void

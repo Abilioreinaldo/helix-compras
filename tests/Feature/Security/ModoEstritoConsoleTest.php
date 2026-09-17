@@ -86,6 +86,8 @@ it('captura IMAP resolve o tenant pela referência do link (sem contexto) e só 
 
     [$cotacao, $referencia] = TenantContext::runFor($this->tenants[1], function () {
         $cotacao = Cotacao::factory()->create([
+            // 4ª auditoria (COMPRAS-4): só cotação com requisição EM COTAÇÃO recebe aviso.
+            'requisicao_id' => Requisicao::factory()->create(['status' => StatusRequisicao::EmCotacao])->id,
             'fornecedor_id' => Fornecedor::factory()->create(['contato_email' => 'fornecedor@estrito.test'])->id,
             'valor' => null,
         ]);

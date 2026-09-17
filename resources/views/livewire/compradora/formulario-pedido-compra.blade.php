@@ -69,18 +69,24 @@
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    wire:model.blur="itens.{{ $index }}.valor_unitario"
+                                    @if($item['preco_cotado'] !== null) max="{{ $item['preco_cotado'] }}" @endif
+                                    wire:model.blur="valores.{{ $index }}"
                                     wire:change="atualizarTotal({{ $index }})"
                                     class="input-dark w-full"
                                 />
+                                @if($item['preco_cotado'] !== null)
+                                    <p class="mt-1 text-xs text-slate-500">Cotado: R$ {{ number_format((float) $item['preco_cotado'], 2, ',', '.') }}</p>
+                                @endif
+                                @error('valores.'.$index) <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                             </td>
                             <td class="px-4 py-3 text-right font-mono text-slate-300">
-                                R$ {{ number_format((float)$item['valor_total'], 2, ',', '.') }}
+                                {{-- Total derivado: quantidade (do banco, trancada) × unitário digitado. --}}
+                                R$ {{ number_format(round((float) $item['quantidade'] * (float) ($valores[$index] ?? 0), 2), 2, ',', '.') }}
                             </td>
                             <td class="px-4 py-3">
                                 <input
                                     type="text"
-                                    wire:model.blur="itens.{{ $index }}.destino"
+                                    wire:model.blur="destinos.{{ $index }}"
                                     placeholder="Ex: Unidade Centro"
                                     class="input-dark w-full"
                                 />

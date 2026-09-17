@@ -33,6 +33,12 @@ class RegistrarRecebimentoAction
     public function execute(PedidoCompra $pedido, User $almoxarife, array $quantidades, ?string $observacoes = null, array $lotes = []): Recebimento
     {
         $recebimento = DB::transaction(function () use ($pedido, $almoxarife, $quantidades, $observacoes, $lotes) {
+            // COMPRAS-V3 (4ª auditoria): lock pessimista no pedido E nos itens ANTES de somar o
+            // já recebido. Sem ele, dois almoxarifes simultâneos liam jaRecebido = 0 (MySQL,
+            // REPEATABLE READ), os dois passavam na checagem de saldo e a entrada de estoque
+            // (e o custo médio) saía em dobro. O lock serializa por pedido; a soma abaixo é
+            // lida depois dele, já enxergando o recebimento que chegou primeiro.
+            PedidoCompra::withoutGlobalScope(UnidadeScope::class)->lockForUpdate()->findOrFail($pedido->id);
             $pedido->refresh();
 
             if ($pedido->status !== StatusPedidoCompra::Emitido) {
@@ -41,7 +47,7 @@ class RegistrarRecebimentoAction
                 ]);
             }
 
-            $itens = $pedido->itens()->get()->keyBy('id');
+            $itens = $pedido->itens()->lockForUpdate()->get()->keyBy('id');
 
             $itensComQtd = collect($quantidades)->filter(fn ($qty) => (float) $qty > 0);
 

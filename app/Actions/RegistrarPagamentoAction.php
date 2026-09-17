@@ -18,9 +18,6 @@ use Illuminate\Validation\ValidationException;
  */
 class RegistrarPagamentoAction
 {
-    /** Tolerância sobre o total devido (juros/multa de última hora). */
-    private const TOLERANCIA = 1.10;
-
     /**
      * @throws ValidationException
      */
@@ -59,20 +56,28 @@ class RegistrarPagamentoAction
             // Total efetivamente devido (com juros/multa/desconto) — base do teto e do status.
             $totalDevido = $pagamento->calcularTotal();
 
-            $teto = round($totalDevido * self::TOLERANCIA, 2);
-            if (round($valorPago, 2) > $teto) {
+            // COMPRAS-V2 (4ª auditoria): o lançamento SOMA ao que já foi pago (lido sob o lock
+            // acima). Antes, `valor_pago` era sobrescrito: 600 + 400 virava 400/parcial, e o
+            // teto de 110% valia por lançamento — cabiam 2.100 numa dívida de 1.000.
+            $valorLancamento = round($valorPago, 2);
+            $jaPago = round((float) $pagamento->valor_pago, 2);
+            $acumulado = round($jaPago + $valorLancamento, 2);
+
+            $teto = round($totalDevido * (float) config('compras.pagamento.teto_total_pago', 1.10), 2);
+            if ($acumulado > $teto) {
+                $cabe = max(0.0, round($teto - $jaPago, 2));
                 throw ValidationException::withMessages([
-                    'valorPago' => 'O valor pago não pode exceder o total devido + 10% (máx. R$ '.number_format($teto, 2, ',', '.').').',
+                    'valorPago' => 'O total pago não pode exceder o total devido mais a tolerância (máx. R$ '.number_format($teto, 2, ',', '.')
+                        .'). Já pago: R$ '.number_format($jaPago, 2, ',', '.').'; este lançamento pode ser de no máximo R$ '.number_format($cabe, 2, ',', '.').'.',
                 ]);
             }
 
-            $valorPago = round($valorPago, 2);
-            $status = $valorPago >= round($totalDevido, 2)
+            $status = $acumulado >= round($totalDevido, 2)
                 ? StatusPagamento::Pago
                 : StatusPagamento::Parcial;
 
             $pagamento->update([
-                'valor_pago' => $valorPago,
+                'valor_pago' => $acumulado,
                 'data_pagamento' => Carbon::parse($dataPagamento)->toDateString(),
                 'metodo_pagamento' => $metodo,
                 'banco_id' => $metodo->exigeBanco() ? $banco?->id : null,
@@ -84,7 +89,8 @@ class RegistrarPagamentoAction
 
             Log::info('Pagamento registrado.', [
                 'pagamento_id' => $pagamento->id,
-                'valor_pago' => $valorPago,
+                'valor_lancamento' => $valorLancamento,
+                'valor_pago_acumulado' => $acumulado,
                 'status' => $status->value,
                 'por' => $usuario->id,
             ]);
@@ -92,7 +98,19 @@ class RegistrarPagamentoAction
             // ESCOPO (D10, ponte dual): dual-write da foundation.
             app(ActivityRecorder::class)->record('compras.pagamento_registrado', $pagamento, $pagamento->tenant_id, [
                 'actor_id' => $usuario->id,
-                'metadata' => ['valor_pago' => $valorPago, 'status' => $status->value],
+                // Sem tabela de baixas, a trilha de auditoria É o histórico de cada lançamento
+                // parcial (valor, data, método e referência de CADA baixa).
+                'metadata' => [
+                    'valor_lancamento' => $valorLancamento,
+                    'valor_pago_anterior' => $jaPago,
+                    'valor_pago_acumulado' => $acumulado,
+                    'total_devido' => $totalDevido,
+                    'data_pagamento' => Carbon::parse($dataPagamento)->toDateString(),
+                    'metodo' => $metodo->value,
+                    'referencia_banco' => $referenciaBanco ?: null,
+                    'numero_cheque' => $metodo === MetodoPagamento::Cheque ? $numeroCheque : null,
+                    'status' => $status->value,
+                ],
             ]);
 
             return $pagamento->fresh();

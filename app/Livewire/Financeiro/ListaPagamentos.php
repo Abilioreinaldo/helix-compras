@@ -100,7 +100,9 @@ class ListaPagamentos extends Component
         $this->authorize('operar', $pag);
 
         $this->pagamentoId = $id;
-        $this->valorPago = (string) $pag->valor_total;
+        // COMPRAS-V2: o modal abre com o SALDO (devido − já pago). Pré-preencher o valor
+        // total num pagamento parcial induzia a pagar a dívida inteira de novo.
+        $this->valorPago = number_format(max(0.0, $pag->calcularTotal() - (float) $pag->valor_pago), 2, '.', '');
         $this->dataPagamento = now()->toDateString();
         $this->metodo = '';
         $this->bancoId = '';

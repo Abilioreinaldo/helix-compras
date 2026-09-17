@@ -5,6 +5,7 @@ namespace App\Livewire\Compradora;
 use App\Actions\CancelarPedidoCompraAction;
 use App\Actions\EmitirPedidoCompraAction;
 use App\Enums\ModalidadeEntrega;
+use App\Models\ItemCotacao;
 use App\Models\PedidoCompra;
 use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
@@ -27,8 +28,24 @@ class FormularioPedidoCompra extends Component
 
     public string $modalidadeEntrega = '';
 
-    /** @var array<int, array{id: int, descricao: string, quantidade: string, unidade_medida: string, valor_unitario: string, valor_total: string, destino: string}> */
+    /**
+     * Linhas do pedido — SOMENTE EXIBIÇÃO, trancadas (COMPRAS-1, 4ª auditoria).
+     *
+     * Era uma propriedade aberta: a compradora mandava `itens.0.quantidade = 0.01` no
+     * snapshot e o `valor_total` (base do teto de alçada e do contas a pagar) saía 1000×
+     * menor que o pedido real. Agora o cliente só edita `$valores` e `$destinos`, casados
+     * por ÍNDICE com esta lista trancada; quantidade, descrição e id vêm do banco.
+     *
+     * @var array<int, array{id: int, descricao: string, quantidade: string, unidade_medida: string, preco_cotado: string|null}>
+     */
+    #[Locked]
     public array $itens = [];
+
+    /** @var array<int, string> valor unitário digitado, por índice de `$itens` */
+    public array $valores = [];
+
+    /** @var array<int, string> destino digitado, por índice de `$itens` */
+    public array $destinos = [];
 
     public bool $mostrarModalCancelar = false;
 
@@ -51,24 +68,32 @@ class FormularioPedidoCompra extends Component
         $this->prazoEntrega = $pedido->prazo_entrega?->format('Y-m-d') ?? '';
         $this->modalidadeEntrega = $pedido->modalidade_entrega?->value ?? '';
 
-        $this->itens = $pedido->itens->map(fn ($item) => [
-            'id' => $item->id,
-            'descricao' => $item->descricao,
-            'quantidade' => (string) $item->quantidade,
-            'unidade_medida' => $item->unidade_medida ?? '',
-            'valor_unitario' => (string) $item->valor_unitario,
-            'valor_total' => (string) $item->valor_total,
-            'destino' => $item->destino ?? '',
-        ])->toArray();
+        $cotados = ItemCotacao::whereIn('cotacao_id', $pedido->itens->pluck('cotacao_id')->filter()->unique())
+            ->get()
+            ->keyBy(fn (ItemCotacao $linha) => $linha->cotacao_id.':'.$linha->item_requisicao_id);
+
+        foreach ($pedido->itens->values() as $indice => $item) {
+            $cotado = $cotados->get($item->cotacao_id.':'.$item->item_requisicao_id);
+
+            $this->itens[$indice] = [
+                'id' => $item->id,
+                'descricao' => $item->descricao,
+                'quantidade' => (string) $item->quantidade,
+                'unidade_medida' => $item->unidade_medida ?? '',
+                'preco_cotado' => $cotado ? (string) $cotado->valor_unitario : null,
+            ];
+            $this->valores[$indice] = (string) $item->valor_unitario;
+            $this->destinos[$indice] = $item->destino ?? '';
+        }
     }
 
+    /**
+     * Recalcula o total exibido depois de editar um unitário. O total é derivado no
+     * `render()` (quantidade do banco × unitário digitado) — aqui só se força o ciclo.
+     */
     public function atualizarTotal(int $index): void
     {
         abort_unless(auth()->user()->can('compras.manage'), 403);
-
-        $qtd = (float) ($this->itens[$index]['quantidade'] ?? 0);
-        $unit = (float) ($this->itens[$index]['valor_unitario'] ?? 0);
-        $this->itens[$index]['valor_total'] = number_format($qtd * $unit, 2, '.', '');
     }
 
     public function salvar(): void
@@ -83,9 +108,10 @@ class FormularioPedidoCompra extends Component
             'observacoes' => 'nullable|string|max:2000',
             'prazoEntrega' => 'nullable|date',
             'modalidadeEntrega' => ['nullable', Rule::enum(ModalidadeEntrega::class)],
-            'itens' => 'array|min:1',
-            'itens.*.valor_unitario' => 'numeric|min:0',
-            'itens.*.destino' => 'nullable|string|max:255',
+            'valores' => 'array',
+            'valores.*' => 'required|numeric|min:0|max:99999999.99',
+            'destinos' => 'array',
+            'destinos.*' => 'nullable|string|max:255',
         ]);
 
         $pedido->update([
@@ -95,13 +121,23 @@ class FormularioPedidoCompra extends Component
             'modalidade_entrega' => $this->modalidadeEntrega ?: null,
         ]);
 
-        foreach ($this->itens as $itemData) {
-            $qtd = (float) $itemData['quantidade'];
-            $unit = (float) $itemData['valor_unitario'];
-            $pedido->itens()->where('id', $itemData['id'])->update([
-                'valor_unitario' => $unit,
-                'valor_total' => $qtd * $unit,
-                'destino' => $itemData['destino'] ?: null,
+        // Quantidade e identidade da linha vêm do BANCO; do cliente só o unitário e o
+        // destino, casados pelo índice da lista trancada. `valor_total` é sempre derivado.
+        $itensDoBanco = $pedido->itens->keyBy('id');
+
+        foreach ($this->itens as $indice => $linha) {
+            $item = $itensDoBanco->get($linha['id']);
+
+            if ($item === null) {
+                continue;
+            }
+
+            $unitario = round((float) ($this->valores[$indice] ?? 0), 2);
+
+            $item->update([
+                'valor_unitario' => $unitario,
+                'valor_total' => round((float) $item->quantidade * $unitario, 2),
+                'destino' => ($this->destinos[$indice] ?? '') ?: null,
             ]);
         }
 

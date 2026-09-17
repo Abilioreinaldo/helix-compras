@@ -84,6 +84,10 @@ it('a migration aborta com a query de diagnóstico diante de vínculo órfão, s
 it('a migration aborta diante de vínculo cruzado (tenant do vínculo ≠ tenant da unidade)', function () {
     $migration = migrationFkUnidadeUser();
     $migration->down();
+    // 4ª auditoria (COMPRAS-5): a FK composta (unidade_id, tenant_id) → unidades, criada
+    // DEPOIS desta migration, hoje recusa o vínculo cruzado no insert. Para reproduzir o
+    // estado LEGADO que esta migration tem de diagnosticar, ela também sai de cena aqui.
+    (require database_path('migrations/2026_09_22_000001_fk_composta_cotacao_links_e_unidade_user_para_a_mae.php'))->down();
 
     $usuario = User::factory()->create();
     $usuario->memberships()->syncWithoutDetaching([$this->tenantB => ['status' => 'active', 'is_admin' => false, 'access_scope' => 'corporate']]);

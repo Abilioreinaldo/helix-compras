@@ -68,7 +68,15 @@ class CriarRascunhoPedidoAction
                 // Itens rejeitados na decisão por linha da aprovação ficam fora do pedido.
                 $itens = $requisicao->itens()->whereNull('rejeitado_em')->get();
 
+                // COMPRAS-V1 (4ª auditoria): o rascunho nasce com o PREÇO COTADO do item na
+                // cotação vencedora — não com zero para a compradora digitar qualquer valor.
+                // A emissão confere de novo (EmitirPedidoCompraAction): preço acima do cotado
+                // não passa. Cotação legada (só valor total) não tem preço por item: fica 0.
+                $precosCotados = $cotacao->itensCotacao()->pluck('valor_unitario', 'item_requisicao_id');
+
                 foreach ($itens as $item) {
+                    $unitario = round((float) ($precosCotados[$item->id] ?? 0), 2);
+
                     $pedido->itens()->create([
                         'requisicao_id' => $requisicao->id,
                         'item_requisicao_id' => $item->id,
@@ -76,8 +84,8 @@ class CriarRascunhoPedidoAction
                         'descricao' => $item->descricao,
                         'quantidade' => $item->quantidade,
                         'unidade_medida' => $item->unidade_medida,
-                        'valor_unitario' => 0,
-                        'valor_total' => 0,
+                        'valor_unitario' => $unitario,
+                        'valor_total' => round((float) $item->quantidade * $unitario, 2),
                         'destino' => null,
                         'item_catalogo_id' => $item->item_catalogo_id,
                         'avulso' => $item->avulso,

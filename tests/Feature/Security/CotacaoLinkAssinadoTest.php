@@ -241,6 +241,16 @@ it('recusa token adulterado (assinatura quebrada) e token desconhecido com assin
 });
 
 it('link de OUTRO tenant não alcança a cotação apontada (cotacao_id adulterado)', function () {
+    // 4ª auditoria (COMPRAS-5): o banco hoje RECUSA esta linha cruzada (FK composta
+    // cotacao_links → cotacoes/fornecedores; ver Auditoria4CotacaoCanalPublicoTest). Este
+    // teste segue valendo para a SEGUNDA camada — a aplicação — e por isso reproduz o estado
+    // legado derrubando a FK. DDL no meio do teste só isola em SQLite (no MySQL faz commit
+    // implícito e fura o RefreshDatabase); lá a linha cruzada nem chega a existir.
+    if (DB::getDriverName() !== 'sqlite') {
+        $this->markTestSkipped('Linha cruzada é impossível com a FK composta; o cenário legado só é reproduzível em SQLite.');
+    }
+    (require database_path('migrations/2026_09_22_000001_fk_composta_cotacao_links_e_unidade_user_para_a_mae.php'))->down();
+
     $a = cenarioLink($this->tenantA);
     $b = cenarioLink($this->tenantB);
 

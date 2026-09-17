@@ -2,11 +2,13 @@
 
 namespace App\Actions;
 
+use App\Enums\StatusRequisicao;
 use App\Imap\MensagemEmail;
 use App\Imap\VerificadorAutenticidadeEmail;
 use App\Mail\RespostaCotacaoPorEmailRecebida;
 use App\Models\Cotacao;
 use App\Models\CotacaoLink;
+use App\Models\Scopes\UnidadeScope;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Support\Facades\Log;
@@ -57,11 +59,55 @@ class ProcessarRespostaCotacaoAction
         return CotacaoLink::withoutTenantScope()->where('referencia', $referencia)->first();
     }
 
+    /**
+     * Dois baldes por cotação/dia (limites LITERAIS em config/compras.php):
+     *  - fornecedor VERDADEIRO (remetente = e-mail do cadastro E SPF/DKIM/DMARC aprovados):
+     *    balde próprio, que o flood de estranhos não consome;
+     *  - qualquer outro remetente (inclusive o From forjado do fornecedor, sem autenticação):
+     *    1 aviso por remetente + teto baixo por cotação.
+     * Contadores no cache POR TENANT (a chave é prefixada pelo tenant do contexto).
+     */
+    private function dentroDoLimiteDeAvisos(Cotacao $cotacao, string $remetente, bool $fornecedorVerdadeiro): bool
+    {
+        $dia = now()->format('Ymd');
+        $base = "compras:imap-aviso:cotacao:{$cotacao->id}:{$dia}";
+
+        if ($fornecedorVerdadeiro) {
+            return $this->consumir("{$base}:fornecedor", (int) config('compras.cotacao_email.avisos_do_fornecedor_por_cotacao_dia', 5));
+        }
+
+        return $this->consumir("{$base}:remetente:".hash('sha256', $remetente), (int) config('compras.cotacao_email.avisos_por_remetente_dia', 1))
+            && $this->consumir("{$base}:estranhos", (int) config('compras.cotacao_email.avisos_de_estranhos_por_cotacao_dia', 3));
+    }
+
+    private function consumir(string $chave, int $maximo): bool
+    {
+        $cache = tenantCache();
+        $cache->add($chave, 0, now()->addDay());
+
+        return (int) $cache->increment($chave) <= $maximo;
+    }
+
     private function avisarNoTenant(MensagemEmail $mensagem, CotacaoLink $link): ?Cotacao
     {
-        $cotacao = Cotacao::query()->with(['fornecedor', 'criador'])->find($link->cotacao_id);
+        $cotacao = Cotacao::query()
+            // Sem usuário no console o UnidadeScope é fail-closed; a posse aqui é do link e o
+            // tenant já está fixado pelo runFor (mesmo desenho do CotacaoLinkService).
+            ->with(['fornecedor', 'criador', 'requisicao' => fn ($q) => $q->withoutGlobalScope(UnidadeScope::class)])
+            ->find($link->cotacao_id);
         if ($cotacao === null) {
             Log::info('Resposta IMAP para cotação inexistente.', ['cotacao_id' => $link->cotacao_id]);
+
+            return null;
+        }
+
+        // COMPRAS-4 (4ª auditoria): a referência [COT-ULID] é PÚBLICA. Cotação que já não
+        // espera resposta (link revogado, cotação cancelada, requisição fora de cotação) não
+        // avisa ninguém — só log.
+        if ($link->revogado_em !== null
+            || $cotacao->cancelada_em !== null
+            || $cotacao->requisicao?->status !== StatusRequisicao::EmCotacao) {
+            Log::info('Resposta IMAP ignorada (cotação não espera mais resposta).', ['cotacao_id' => $cotacao->id]);
 
             return null;
         }
@@ -78,6 +124,18 @@ class ProcessarRespostaCotacaoAction
         $remetenteConfere = $emailFornecedor !== '' && $remetente === $emailFornecedor;
         // Sinal informativo (RFC 8601): NÃO decide nada, só qualifica o aviso.
         $autenticado = $emailFornecedor !== '' && $this->verificador->autentica($mensagem, $emailFornecedor);
+
+        // COMPRAS-4: teto de avisos ANTES da trilha e do e-mail (o flood também inundava a
+        // auditoria). O dedupe por Message-ID acima é controlado pelo remetente — não basta.
+        if (! $this->dentroDoLimiteDeAvisos($cotacao, $remetente, $remetenteConfere && $autenticado)) {
+            Log::warning('Resposta IMAP sem aviso: limite diário de avisos da cotação atingido.', [
+                'cotacao_id' => $cotacao->id,
+                'remetente_confere' => $remetenteConfere,
+                'autenticidade_verificada' => $autenticado,
+            ]);
+
+            return null;
+        }
 
         app(ActivityRecorder::class)->record('compras.cotacao_resposta_email_recebida', $cotacao, null, [
             'metadata' => [

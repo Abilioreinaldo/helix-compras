@@ -25,6 +25,9 @@ class CancelarPedidoCompraAction
     public function execute(PedidoCompra $pedido, User $usuario, string $motivo): void
     {
         DB::transaction(function () use ($pedido, $usuario, $motivo) {
+            // Irmão do COMPRAS-V3: cancelar relê o pedido COM LOCK — cancelamento e recebimento
+            // (ou emissão) simultâneos decidiam sobre o mesmo status lido sem serialização.
+            PedidoCompra::withoutGlobalScope(UnidadeScope::class)->lockForUpdate()->findOrFail($pedido->id);
             $pedido->refresh();
 
             if ($pedido->status === StatusPedidoCompra::Cancelado) {

@@ -9,7 +9,6 @@ use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Livewire\Almoxarife\MapaEstoque;
 use App\Livewire\Almoxarife\SaldosEstoque;
 use App\Livewire\Aprovacoes\FilaAprovacoes;
-use App\Livewire\Compradora\FormularioPedidoCompra;
 use App\Livewire\Compradora\GestaoCotacoes;
 use App\Livewire\Compradora\ItensARepor;
 use App\Livewire\Compradora\PedidosLoja;
@@ -104,7 +103,6 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     // (d2) propriedades públicas que o cliente edita por desenho (não são id de registro)
     ->allowUnlockedId(ListaCatalogoItens::class.'::codigo', 'campo de FORMULÁRIO digitado pelo usuário (código interno do item), não referência a registro; unicidade é por tenant (catalogo_itens_tenant_codigo_uq) e o registro editado vem do $editandoId, que é #[Locked]')
     ->allowUnlockedId(ListaCentrosCusto::class.'::codigo', 'campo de FORMULÁRIO digitado pelo usuário (código do centro de custo), não referência a registro; o registro editado vem do $editandoId, que é #[Locked]')
-    ->allowUnlockedId(FormularioPedidoCompra::class.'::itens', 'linhas do formulário editadas pelo cliente (quantidade/valor/destino); o `id` de cada linha só é usado dentro de $pedido->itens(), já escopado pelo pedido (tenant + unidade) — id alheio não casa nenhuma linha')
     ->allowUnlockedId(FormularioRequisicao::class.'::itens', 'linhas do formulário editadas pelo cliente; `item_catalogo_id` é revalidado a cada submit com Rule::exists(catalogo_itens)->where(tenant_id) e autorizado com can(operar, $catalogoItem) em selecionarItemCatalogo; as linhas são recriadas sob $requisicao->itens()')
 
     // (e) exists: em tabela global

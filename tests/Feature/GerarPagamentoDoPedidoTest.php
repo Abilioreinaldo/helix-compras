@@ -20,8 +20,12 @@ it('gera pagamento pendente do pedido (total = soma dos itens, vencimento +30d)'
         'emitido_em' => now(),
         'fornecedor_id' => $fornecedor->id,
     ]);
-    ItemPedidoCompra::factory()->create(['pedido_compra_id' => $pedido->id, 'valor_total' => 300]);
-    ItemPedidoCompra::factory()->create(['pedido_compra_id' => $pedido->id, 'valor_total' => 200]);
+    // 4ª auditoria (COMPRAS-1): a dívida nasce de quantidade × unitário — o `valor_total`
+    // persistido NÃO conta (antes o teste fixava só o valor_total, com quantidade/unitário
+    // aleatórios da factory, e o pagamento saía do total gravado). O segundo item leva um
+    // valor_total adulterado de propósito: tem de ser ignorado.
+    ItemPedidoCompra::factory()->create(['pedido_compra_id' => $pedido->id, 'quantidade' => 3, 'valor_unitario' => 100, 'valor_total' => 300]);
+    ItemPedidoCompra::factory()->create(['pedido_compra_id' => $pedido->id, 'quantidade' => 2, 'valor_unitario' => 100, 'valor_total' => 2]);
 
     $pagamento = app(GerarPagamentoDoPedidoAction::class)->execute($pedido->fresh(), $emissor);
 

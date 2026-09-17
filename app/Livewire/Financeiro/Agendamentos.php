@@ -4,6 +4,7 @@ namespace App\Livewire\Financeiro;
 
 use App\Enums\StatusPagamento;
 use App\Models\Pagamento;
+use App\Support\AuditoriaDownload;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -41,6 +42,14 @@ class Agendamentos extends Component
         $this->authorize('viewAny', Pagamento::class);
 
         $pagamentos = $this->proximos();
+
+        // COMPRAS-2 (irmão, 4ª auditoria): a lista para o banco (fornecedor, vencimento e
+        // valor de todas as contas dos próximos 30 dias) é exportação sensível — auditada.
+        // Não há UM registro exportado: o recurso da trilha é quem exportou.
+        app(AuditoriaDownload::class)->registrar('compras.agendamentos_exportados', auth()->user(), [
+            'linhas' => $pagamentos->count(),
+            'valor_total' => round((float) $pagamentos->sum(fn ($p) => (float) $p->valor_total - (float) $p->valor_pago), 2),
+        ]);
 
         return response()->streamDownload(function () use ($pagamentos) {
             $saida = fopen('php://output', 'w');

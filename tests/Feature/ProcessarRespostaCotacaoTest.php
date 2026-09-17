@@ -1,12 +1,14 @@
 <?php
 
 use App\Actions\ProcessarRespostaCotacaoAction;
+use App\Enums\StatusRequisicao;
 use App\Imap\LeitorCaixaCotacoes;
 use App\Imap\MensagemEmail;
 use App\Mail\RespostaCotacaoPorEmailRecebida;
 use App\Models\Cotacao;
 use App\Models\CotacaoLink;
 use App\Models\Fornecedor;
+use App\Models\Requisicao;
 use App\Models\User;
 use App\Services\CotacaoLinkService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,6 +36,10 @@ function cotacaoTeste(array $attrs = []): Cotacao
     $compradora = User::factory()->create(['email' => 'compradora@exemplo.com']);
 
     $cotacao = Cotacao::factory()->create(array_merge([
+        // 4ª auditoria (COMPRAS-4): o aviso só sai para cotação que AINDA espera resposta —
+        // requisição EM COTAÇÃO. A factory criava a requisição em Rascunho (estado em que
+        // não existe cotação aguardando no fluxo real); o cenário agora é o verdadeiro.
+        'requisicao_id' => Requisicao::factory()->create(['status' => StatusRequisicao::EmCotacao])->id,
         'fornecedor_id' => $fornecedor->id,
         'criada_por' => $compradora->id,
         'valor' => null,

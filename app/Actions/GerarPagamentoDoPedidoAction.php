@@ -26,7 +26,10 @@ class GerarPagamentoDoPedidoAction
             return $existente;
         }
 
-        $valorTotal = round((float) $pedido->itens()->whereNull('deleted_at')->sum('valor_total'), 2);
+        // COMPRAS-1 (4ª auditoria): a dívida nasce de quantidade × unitário, nunca do
+        // `valor_total` persistido (que já veio adulterado da tela).
+        $valorTotal = round((float) $pedido->itens()->whereNull('deleted_at')->get()
+            ->sum(fn ($item) => round((float) $item->quantidade * (float) $item->valor_unitario, 2)), 2);
         $emissao = $pedido->emitido_em ? Carbon::parse($pedido->emitido_em) : Carbon::now();
 
         $pagamento = Pagamento::create([

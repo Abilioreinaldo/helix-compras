@@ -5,11 +5,13 @@ namespace App\Http\Controllers;
 use App\Mail\RespostaCotacaoRecebida;
 use App\Models\Cotacao;
 use App\Models\CotacaoLink;
+use App\Models\ItemRequisicao;
 use App\Services\CotacaoLinkService;
 use Closure;
 use Helix\Foundation\Services\Platform\Support\ActivityRecorder;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -27,6 +29,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PropostaCotacaoPublicaController extends Controller
 {
+    /** Recusas por incoerência com a requisição toleradas por link a cada 24h (anti-sondagem do orçamento). */
+    private const TENTATIVAS_INCOERENTES_POR_LINK = 3;
+
     public function __construct(
         private CotacaoLinkService $links,
         private ActivityRecorder $atividade,
@@ -56,13 +61,24 @@ class PropostaCotacaoPublicaController extends Controller
             $itens = $cotacao->requisicao->itens;
             $usaItens = $itens->isNotEmpty();
 
+            // COMPRAS-8 (4ª auditoria): tetos LITERAIS de config/compras.php. Antes o unitário
+            // aceitava 9.999.999.999 e o total não tinha teto (119.999.999.988 gravados).
+            $limites = (array) config('compras.proposta_publica');
+            $unitarioMaximo = (float) ($limites['valor_unitario_maximo'] ?? 99999999.99);
+            $totalMaximo = (float) ($limites['valor_total_maximo'] ?? 999999999.99);
+            $validadeMaxima = now()->addYears((int) ($limites['validade_maxima_anos'] ?? 2))->toDateString();
+
             $dados = $request->validate([
                 'precos' => $usaItens ? ['required', 'array'] : ['prohibited'],
-                'precos.*' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
-                'valor' => $usaItens ? ['prohibited'] : ['required', 'numeric', 'min:0.01', 'max:9999999999999'],
+                'precos.*' => ['nullable', 'numeric', 'min:0', 'max:'.$unitarioMaximo],
+                'valor' => $usaItens ? ['prohibited'] : ['required', 'numeric', 'min:0.01', 'max:'.$totalMaximo],
                 'prazo_entrega_dias' => ['nullable', 'integer', 'min:1', 'max:365'],
-                'validade_proposta' => ['nullable', 'date', 'after_or_equal:today'],
+                'validade_proposta' => ['nullable', 'date', 'after_or_equal:today', 'before_or_equal:'.$validadeMaxima],
                 'observacoes' => ['nullable', 'string', 'max:2000'],
+            ], [
+                'precos.*.max' => 'Valor unitário acima do máximo aceito. Confira o preço informado.',
+                'valor.max' => 'Valor acima do máximo aceito. Confira o valor informado.',
+                'validade_proposta.before_or_equal' => 'A validade da proposta está distante demais. Confira a data.',
             ]);
 
             // Preços por item: SÓ os itens desta requisição (lida sob o tenant do link);
@@ -86,6 +102,10 @@ class PropostaCotacaoPublicaController extends Controller
                 $total = (float) $dados['valor'];
             }
             $total = round($total, 2);
+
+            // Teto do TOTAL (unitário × quantidade) e coerência com a requisição — ANTES de
+            // consumir o link: erro de digitação volta como validação e o fornecedor corrige.
+            $this->recusarTotalForaDoAceitavel($link, $itens, $linhas, $total, $totalMaximo, (float) ($limites['multiplo_maximo_do_estimado'] ?? 100));
 
             $gravou = DB::transaction(function () use ($link, $cotacao, $linhas, $total, $dados) {
                 // Uso único: sem esta linha a mesma URL regravaria a proposta.
@@ -129,6 +149,55 @@ class PropostaCotacaoPublicaController extends Controller
 
             return response()->view('cotacao-publica.recebida', ['cotacao' => $cotacao]);
         });
+    }
+
+    /**
+     * COMPRAS-8: teto absoluto do total e coerência com o valor ESTIMADO da requisição
+     * (só dos itens cotados que têm estimativa). A mensagem é a MESMA nos dois casos e não
+     * cita o estimado; e as recusas por coerência são CONTADAS por link — sem isso o
+     * fornecedor descobriria o orçamento do comprador por tentativa e erro (cada recusa
+     * diz "acima de N × estimado" e não consome o link). Estourado o número de tentativas,
+     * o link deixa de aceitar proposta por 24h, com a mesma mensagem.
+     *
+     * @param  Collection<int, ItemRequisicao>  $itens
+     * @param  array<int, float>  $linhas
+     *
+     * @throws ValidationException
+     */
+    private function recusarTotalForaDoAceitavel(CotacaoLink $link, Collection $itens, array $linhas, float $total, float $totalMaximo, float $multiplo): void
+    {
+        $recusa = fn () => ValidationException::withMessages([
+            'precos' => 'O valor total da proposta está fora do intervalo aceito para esta cotação. Confira se informou o valor UNITÁRIO de cada item (e não o total da linha).',
+        ]);
+
+        if ($total > $totalMaximo) {
+            throw $recusa();
+        }
+
+        $chaveTentativas = 'compras:proposta-publica:incoerente:'.$link->id;
+        if ((int) tenantCache()->get($chaveTentativas, 0) >= self::TENTATIVAS_INCOERENTES_POR_LINK) {
+            throw $recusa();
+        }
+
+        $estimado = 0.0;
+        $cotadoComEstimativa = 0.0;
+        foreach ($itens as $item) {
+            $estimativa = (float) ($item->valor_unitario_estimado ?? 0);
+            if ($estimativa <= 0 || ! isset($linhas[$item->id])) {
+                continue;
+            }
+            $estimado += $estimativa * (float) $item->quantidade;
+            $cotadoComEstimativa += $linhas[$item->id] * (float) $item->quantidade;
+        }
+
+        if ($multiplo > 0 && $estimado > 0 && $cotadoComEstimativa > $estimado * $multiplo) {
+            tenantCache()->add($chaveTentativas, 0, now()->addDay());
+            tenantCache()->increment($chaveTentativas);
+
+            Log::warning('Proposta pública recusada por incoerência com a requisição.', ['cotacao_link_id' => $link->id]);
+
+            throw $recusa();
+        }
     }
 
     /**
