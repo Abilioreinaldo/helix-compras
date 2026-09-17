@@ -86,12 +86,21 @@ class AprovacaoPolicy
             ->where('perfil', Perfil::Aprovador->value);
     }
 
+    /**
+     * COMPRAS-6 (4ª auditoria, sonda P4-U8): além de conferir o tenant, a policy exige
+     * VÍNCULO ATIVO (`tenant_user.status = active`) nele. Sem isso, quem foi SUSPENSO na
+     * empresa mas ainda tem linha viva em `unidade_user` recebia `true` da policy chamada
+     * direto — pela web o middleware `tenant.ativo` já devolvia 403, então não havia
+     * caminho vivo, mas qualquer job/comando/API futuro que chamasse a policy sem passar
+     * pelo middleware herdaria o buraco. A policy falha FECHADA por conta própria.
+     */
     private function mesmoTenant(User $user, Requisicao $requisicao): bool
     {
         $tenantAtivo = TenantContext::id() ?? $user->getActiveTenantId();
 
         return $tenantAtivo !== null
             && $requisicao->tenant_id !== null
-            && (string) $requisicao->tenant_id === (string) $tenantAtivo;
+            && (string) $requisicao->tenant_id === (string) $tenantAtivo
+            && $user->belongsToTenant((string) $requisicao->tenant_id);
     }
 }

@@ -29,9 +29,6 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PropostaCotacaoPublicaController extends Controller
 {
-    /** Recusas por incoerência com a requisição toleradas por link a cada 24h (anti-sondagem do orçamento). */
-    private const TENTATIVAS_INCOERENTES_POR_LINK = 3;
-
     public function __construct(
         private CotacaoLinkService $links,
         private ActivityRecorder $atividade,
@@ -105,7 +102,7 @@ class PropostaCotacaoPublicaController extends Controller
 
             // Teto do TOTAL (unitário × quantidade) e coerência com a requisição — ANTES de
             // consumir o link: erro de digitação volta como validação e o fornecedor corrige.
-            $this->recusarTotalForaDoAceitavel($link, $itens, $linhas, $total, $totalMaximo, (float) ($limites['multiplo_maximo_do_estimado'] ?? 100));
+            $this->recusarTotalForaDoAceitavel($request, $link, $itens, $linhas, $total, $totalMaximo, (float) ($limites['multiplo_maximo_do_estimado'] ?? 100));
 
             $gravou = DB::transaction(function () use ($link, $cotacao, $linhas, $total, $dados) {
                 // Uso único: sem esta linha a mesma URL regravaria a proposta.
@@ -154,17 +151,21 @@ class PropostaCotacaoPublicaController extends Controller
     /**
      * COMPRAS-8: teto absoluto do total e coerência com o valor ESTIMADO da requisição
      * (só dos itens cotados que têm estimativa). A mensagem é a MESMA nos dois casos e não
-     * cita o estimado; e as recusas por coerência são CONTADAS por link — sem isso o
-     * fornecedor descobriria o orçamento do comprador por tentativa e erro (cada recusa
-     * diz "acima de N × estimado" e não consome o link). Estourado o número de tentativas,
-     * o link deixa de aceitar proposta por 24h, com a mesma mensagem.
+     * cita o estimado; e as recusas por coerência são CONTADAS — sem isso o fornecedor
+     * descobriria o orçamento do comprador por tentativa e erro (cada recusa diz "acima de
+     * N × estimado" e não consome o link). Estourado o número de tentativas, o link deixa
+     * de aceitar proposta por 24h, com a mesma mensagem.
+     *
+     * COMPRAS-4r: a contagem é por ORIGEM (IP) com teto global por link. Quem floodou
+     * tentativas incoerentes trava a si mesmo; o fornecedor legítimo, de outra origem,
+     * continua conseguindo mandar a proposta coerente no mesmo dia.
      *
      * @param  Collection<int, ItemRequisicao>  $itens
      * @param  array<int, float>  $linhas
      *
      * @throws ValidationException
      */
-    private function recusarTotalForaDoAceitavel(CotacaoLink $link, Collection $itens, array $linhas, float $total, float $totalMaximo, float $multiplo): void
+    private function recusarTotalForaDoAceitavel(Request $request, CotacaoLink $link, Collection $itens, array $linhas, float $total, float $totalMaximo, float $multiplo): void
     {
         $recusa = fn () => ValidationException::withMessages([
             'precos' => 'O valor total da proposta está fora do intervalo aceito para esta cotação. Confira se informou o valor UNITÁRIO de cada item (e não o total da linha).',
@@ -174,9 +175,14 @@ class PropostaCotacaoPublicaController extends Controller
             throw $recusa();
         }
 
-        $chaveTentativas = 'compras:proposta-publica:incoerente:'.$link->id;
-        if ((int) tenantCache()->get($chaveTentativas, 0) >= self::TENTATIVAS_INCOERENTES_POR_LINK) {
-            throw $recusa();
+        $baldes = [
+            'compras:proposta-publica:incoerente:'.$link->id.':origem:'.hash('sha256', (string) $request->ip()) => (int) config('compras.proposta_publica.tentativas_incoerentes_por_origem_dia', 3),
+            'compras:proposta-publica:incoerente:'.$link->id => (int) config('compras.proposta_publica.tentativas_incoerentes_por_link_dia', 10),
+        ];
+        foreach ($baldes as $chave => $maximo) {
+            if ((int) tenantCache()->get($chave, 0) >= $maximo) {
+                throw $recusa();
+            }
         }
 
         $estimado = 0.0;
@@ -191,10 +197,15 @@ class PropostaCotacaoPublicaController extends Controller
         }
 
         if ($multiplo > 0 && $estimado > 0 && $cotadoComEstimativa > $estimado * $multiplo) {
-            tenantCache()->add($chaveTentativas, 0, now()->addDay());
-            tenantCache()->increment($chaveTentativas);
+            foreach (array_keys($baldes) as $chave) {
+                tenantCache()->add($chave, 0, now()->addDay());
+                tenantCache()->increment($chave);
+            }
 
-            Log::warning('Proposta pública recusada por incoerência com a requisição.', ['cotacao_link_id' => $link->id]);
+            Log::warning('Proposta pública recusada por incoerência com a requisição.', [
+                'cotacao_link_id' => $link->id,
+                'ip' => $request->ip(),
+            ]);
 
             throw $recusa();
         }

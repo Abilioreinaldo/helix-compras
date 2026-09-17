@@ -60,6 +60,19 @@ return [
     'mandatory_2fa_roles' => ['compras', 'financeiro'],
 
     /*
+     * COMPRAS-9 (4ª auditoria, sonda P4-T4) — as rotas de governança do admin da
+     * empresa que o PACOTE registra (/admin/papeis) nascem com o grupo padrão da
+     * fundação, que não conhece o entitlement deste app: `feature:compras` ficava
+     * de fora e o tenant SEM o entitlement ainda abria a tela de papéis.
+     *
+     * Aqui o registro do pacote é DESLIGADO e a mesma tela é registrada pelo
+     * routes/web.php deste app, dentro do grupo completo (inclusive
+     * `feature:compras`). O nome da rota (`admin.papeis`) e o componente são os
+     * mesmos — o que muda é só o grupo de middleware.
+     */
+    'tenant_admin_routes' => false,
+
+    /*
      * v0.7.0 (decisão 13) — CANAIS DE COMUNICAÇÃO.
      *
      * ATENÇÃO: o mergeConfigFrom é RASO. Declarar `channels` aqui SUBSTITUI o bloco

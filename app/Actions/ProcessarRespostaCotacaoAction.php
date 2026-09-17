@@ -60,20 +60,36 @@ class ProcessarRespostaCotacaoAction
     }
 
     /**
-     * Dois baldes por cotação/dia (limites LITERAIS em config/compras.php):
+     * TRÊS baldes por cotação/dia (limites LITERAIS em config/compras.php):
      *  - fornecedor VERDADEIRO (remetente = e-mail do cadastro E SPF/DKIM/DMARC aprovados):
      *    balde próprio, que o flood de estranhos não consome;
-     *  - qualquer outro remetente (inclusive o From forjado do fornecedor, sem autenticação):
-     *    1 aviso por remetente + teto baixo por cotação.
+     *  - remetente do CADASTRO sem autenticação (fornecedor legítimo cujo domínio ainda não
+     *    publica SPF/DKIM — o caso comum no varejo): balde PRÓPRIO também (COMPRAS-4r);
+     *  - remetente ESTRANHO (não é o e-mail do cadastro): 1 aviso por remetente + teto baixo
+     *    por cotação, que é o que fechou o flood.
+     *
+     * COMPRAS-4r (verificação da 4ª auditoria, sonda R4-N4): os dois últimos dividiam o
+     * MESMO balde. Três estranhos com a referência pública [COT-ULID] esgotavam a cota do
+     * dia e CALAVAM por 24h o aviso do fornecedor de verdade que responde sem SPF/DKIM —
+     * o teto anti-flood virava uma forma de silenciar a resposta legítima. Balde separado
+     * por CLASSE de remetente mantém o teto global dos estranhos sem esse efeito colateral.
+     *
      * Contadores no cache POR TENANT (a chave é prefixada pelo tenant do contexto).
      */
-    private function dentroDoLimiteDeAvisos(Cotacao $cotacao, string $remetente, bool $fornecedorVerdadeiro): bool
+    private function dentroDoLimiteDeAvisos(Cotacao $cotacao, string $remetente, bool $remetenteConfere, bool $autenticado): bool
     {
         $dia = now()->format('Ymd');
         $base = "compras:imap-aviso:cotacao:{$cotacao->id}:{$dia}";
 
-        if ($fornecedorVerdadeiro) {
+        if ($remetenteConfere && $autenticado) {
             return $this->consumir("{$base}:fornecedor", (int) config('compras.cotacao_email.avisos_do_fornecedor_por_cotacao_dia', 5));
+        }
+
+        // Remetente do cadastro SEM autenticação: pode ser o fornecedor de verdade (domínio
+        // sem SPF/DKIM) ou um From forjado. Não dá para distinguir — por isso o balde é
+        // próprio (o estranho não o consome) e BAIXO (o forjador não inunda por ele).
+        if ($remetenteConfere) {
+            return $this->consumir("{$base}:fornecedor-sem-auth", (int) config('compras.cotacao_email.avisos_do_fornecedor_sem_autenticacao_por_cotacao_dia', 3));
         }
 
         return $this->consumir("{$base}:remetente:".hash('sha256', $remetente), (int) config('compras.cotacao_email.avisos_por_remetente_dia', 1))
@@ -127,7 +143,7 @@ class ProcessarRespostaCotacaoAction
 
         // COMPRAS-4: teto de avisos ANTES da trilha e do e-mail (o flood também inundava a
         // auditoria). O dedupe por Message-ID acima é controlado pelo remetente — não basta.
-        if (! $this->dentroDoLimiteDeAvisos($cotacao, $remetente, $remetenteConfere && $autenticado)) {
+        if (! $this->dentroDoLimiteDeAvisos($cotacao, $remetente, $remetenteConfere, $autenticado)) {
             Log::warning('Resposta IMAP sem aviso: limite diário de avisos da cotação atingido.', [
                 'cotacao_id' => $cotacao->id,
                 'remetente_confere' => $remetenteConfere,

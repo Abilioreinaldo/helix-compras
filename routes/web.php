@@ -46,6 +46,7 @@ use App\Livewire\Requisicoes\DetalheRequisicao;
 use App\Livewire\Requisicoes\FormularioRequisicao;
 use App\Livewire\Requisicoes\ListaRequisicoes;
 use App\Livewire\Solicitante\RequisicoesMaterial;
+use Helix\Foundation\Livewire\Rbac\PapeisPermissoes;
 use Illuminate\Support\Facades\Route;
 
 // Login/logout/senha-trocar/2FA vêm da fundação (helix/foundation).
@@ -128,6 +129,14 @@ Route::middleware(['auth', 'ativo', 'tenant.ctx', 'tenant.ativo', 'troca.senha',
         Route::get('/centros-custo', ListaCentrosCusto::class)->name('centros-custo');
         Route::get('/catalogo-itens', ListaCatalogoItens::class)->name('catalogo-itens');
         Route::get('/reconciliacao-saldos', ReconciliacaoSaldos::class)->name('reconciliacao-saldos');
+
+        // COMPRAS-9 (4ª auditoria) — governança de papéis/permissões do tenant, tela da
+        // FUNDAÇÃO. O registro do pacote (`foundation.tenant_admin_routes`, desligado no
+        // config/foundation.php daqui) não conhece o entitlement deste app: era a única
+        // rota de negócio sem `feature:compras`, e tenant sem o entitlement ainda abria a
+        // tela. Registrada aqui, herda o grupo COMPLETO (auth/ativo/tenant.ctx/
+        // tenant.ativo/troca.senha/2fa.enforce/feature:compras/admin).
+        Route::get('/papeis', PapeisPermissoes::class)->name('papeis');
     });
 });
 
@@ -168,6 +177,11 @@ Route::helixEmailChange();
 // admin da empresa cadastra e ativa o domínio de envio dela: sem canal ATIVO, o e-mail
 // COMERCIAL (a solicitação de cotação ao fornecedor) falha fechado — nunca sai pelo
 // canal da suíte.
-Route::helixChannels();
+//
+// COMPRAS-9: o middleware é declarado (o default do pacote não conhece entitlement) para
+// que a tela também caia com `feature:compras` — tenant sem o entitlement não configura
+// canal de um app que não assinou. A permissão `channels.manage` continua sendo a
+// autorização fina, dentro do componente.
+Route::helixChannels('/admin/canais', ['web', 'auth', 'ativo', 'tenant.ctx', 'tenant.ativo', 'troca.senha', '2fa.enforce', 'feature:compras', 'throttle:30,1']);
 
 Route::redirect('/', '/login');

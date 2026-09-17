@@ -37,6 +37,10 @@ return [
         'avisos_por_remetente_dia' => 1,
         'avisos_de_estranhos_por_cotacao_dia' => 3,
         'avisos_do_fornecedor_por_cotacao_dia' => 5,
+        // COMPRAS-4r: o remetente do CADASTRO sem SPF/DKIM tem balde PRÓPRIO. Antes ele
+        // dividia o balde dos estranhos, e três mensagens forjadas com a referência
+        // pública calavam por 24h o fornecedor de verdade cujo domínio não autentica.
+        'avisos_do_fornecedor_sem_autenticacao_por_cotacao_dia' => 3,
     ],
 
     'proposta_publica' => [
@@ -48,6 +52,14 @@ return [
         'valor_total_maximo' => 999999999.99,
         'multiplo_maximo_do_estimado' => 100,
         'validade_maxima_anos' => 2,
+
+        // COMPRAS-4r: recusas por incoerência toleradas a cada 24h. O teto era ÚNICO por
+        // link — três tentativas incoerentes de QUALQUER origem trancavam o link por 24h,
+        // inclusive para a proposta COERENTE do fornecedor legítimo. Agora quem erra paga
+        // (balde por ORIGEM) e o teto por link segue barrando a sondagem do orçamento por
+        // tentativa e erro, só que sem virar botão de "calar o fornecedor".
+        'tentativas_incoerentes_por_origem_dia' => 3,
+        'tentativas_incoerentes_por_link_dia' => 10,
     ],
 
 ];
