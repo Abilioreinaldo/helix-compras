@@ -122,6 +122,36 @@ saldos duplicados. Ordem mandatória (item A3 do PLANO):
 
 > Se inverter a ordem num banco com duplicatas, a criação do índice falha (1062) e o deploy trava.
 
+### 3c. Fundação v0.5.0 — alcance do vínculo e tokens sem carimbo (uma vez, na subida para a v0.5.0)
+Guia completo: `vendor/helix/foundation/docs/MIGRACAO-v0.5.0.md`.
+
+1. **Antes** do `migrate`, liste quem ficará `pending_scope` (filial legada de outro tenant ou
+   inexistente) — essas pessoas perdem o acesso ao tenant até o admin definir o alcance:
+   ```sql
+   select tu.user_id, tu.tenant_id, u.branch_id
+     from tenant_user tu join users u on u.id = tu.user_id
+    where u.branch_id is not null
+      and not exists (select 1 from branches b where b.id = u.branch_id and b.tenant_id = tu.tenant_id);
+   ```
+2. `php artisan migrate --force` (incremental; **nunca** `migrate:fresh` em base viva).
+3. **Passo de deploy obrigatório — expurgo de tokens sem carimbo de tenant** (idempotente, auditado):
+   ```bash
+   php artisan platform:tokens-purge-unstamped --dry-run   # confira a lista
+   php artisan platform:tokens-purge-unstamped
+   ```
+   Apaga todo `personal_access_token` sem a ability `tenant:{id}`; quem usava um desses tokens
+   precisa de um novo (`issueToken`). Tokens carimbados que ainda têm `*` só são relatados.
+4. Resolva os `pending_scope` do passo 1 em **Admin → Usuários → Vínculos aguardando alcance**
+   (ação "Definir alcance", auditada). No Compras o alcance é sempre **corporativo**: o recorte
+   por unidade é o vínculo unidade × perfil (`unidade_user`), não a filial da fundação.
+
+**CI:** o doctor roda pela receita oficial `Doctor::CI_RECIPE` (SQLite descartável migrada antes;
+não existe `--skip-schema`) — step "Helix doctor (produção simulada, Doctor::CI_RECIPE)" em
+`.github/workflows/ci.yml`:
+```bash
+touch database/doctor.sqlite && DB_CONNECTION=sqlite DB_DATABASE=database/doctor.sqlite php artisan migrate --force && DB_CONNECTION=sqlite DB_DATABASE=database/doctor.sqlite php artisan helix:doctor --strict-env=production
+```
+
 ---
 
 ## 4. Cache de produção

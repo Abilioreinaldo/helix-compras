@@ -3,12 +3,15 @@
 use App\Enums\Perfil;
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
+use Helix\Foundation\Mail\TenantInvitationMail;
 use Helix\Foundation\Models\Platform\Identity\Permission;
 use Helix\Foundation\Models\Platform\Identity\Role;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Identity\EntitlementService;
+use Helix\Foundation\Services\Platform\Identity\InvitationService;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -52,24 +55,40 @@ it('compradora e financeiro são graduados por permissão, não por slug', funct
         ->and($compradora->fresh()->can('compras.manage'))->toBeFalse();
 });
 
-it('tela de usuários atribui papéis do catálogo e passa pelo UserService', function () {
+it('tela de usuários atribui papéis do catálogo pelo convite e pelo UserService', function () {
+    Mail::fake();
     User::factory()->compradora()->create(['tenant_id' => $this->tenant->id]); // semeia o RBAC do tenant
     $financeiro = TenantContext::runFor($this->tenant->id, fn () => Role::where('tenant_id', $this->tenant->id)->where('slug', 'financeiro')->firstOrFail());
 
+    // v0.5.0: criar virou CONVITE — os papéis viajam no convite e valem no aceite.
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)
         ->call('abrirCriar')
-        ->set('name', 'Paulo Financeiro')
         ->set('email', 'paulo@alpha.test')
         ->set('papeis', [$financeiro->id])
         ->call('salvar')
         ->assertHasNoErrors();
 
+    $url = null;
+    Mail::assertQueued(TenantInvitationMail::class, function (TenantInvitationMail $mail) use (&$url) {
+        $url = $mail->url;
+
+        return $mail->hasTo('paulo@alpha.test');
+    });
+
+    TenantContext::forget();
+    app(InvitationService::class)->acceptAsNewUser(
+        basename(parse_url((string) $url, PHP_URL_PATH)),
+        'Paulo Financeiro',
+        'S3nha-Da-Propria-Pessoa!',
+    );
+    TenantContext::set($this->tenant->id);
+
     $paulo = User::where('email', 'paulo@alpha.test')->firstOrFail();
 
     expect($paulo->hasRole('financeiro'))->toBeTrue()
         ->and($paulo->podeVerPagamentos())->toBeTrue()
-        ->and($paulo->precisa_trocar_senha)->toBeTrue()
+        ->and($paulo->precisa_trocar_senha)->toBeFalse()
         ->and($paulo->belongsToTenant($this->tenant->id))->toBeTrue();
 
     // Editar: remover o papel.
@@ -93,7 +112,6 @@ it('recusa papel de outro tenant', function () {
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)
         ->call('abrirCriar')
-        ->set('name', 'X')
         ->set('email', 'x@alpha.test')
         ->set('papeis', [$alheio->id])
         ->call('salvar')

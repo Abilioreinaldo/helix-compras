@@ -24,7 +24,7 @@
         </x-filter-bar.field>
         <div class="flex items-end">
             <button wire:click="abrirCriar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
-                Novo Usuário
+                Convidar usuário
             </button>
         </div>
     </x-filter-bar>
@@ -90,25 +90,43 @@
         </div>
     </x-report-card>
 
-    {{-- Senha provisória gerada --}}
-    @if ($senhaProvisoria)
-        <div class="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
-            Usuário criado. Senha provisória: <span class="font-mono font-semibold">{{ $senhaProvisoria }}</span>
-        </div>
+    {{-- Fundação v0.5.0: vínculos sem alcance (pending_scope) não dão acesso até o admin definir --}}
+    @if ($pendentes->isNotEmpty())
+        <x-report-card padding="p-0" class="mt-4">
+            <div class="border-b border-slate-800 px-4 py-3">
+                <h3 class="text-sm font-semibold text-amber-300">Vínculos aguardando alcance</h3>
+                <p class="text-xs text-slate-500">Estas pessoas estão ligadas a esta empresa, mas ainda sem acesso: defina o alcance para liberar. No Compras o alcance é corporativo; o acesso por unidade continua nos Vínculos de cada usuário.</p>
+            </div>
+            <table class="min-w-full text-sm">
+                <tbody class="divide-y divide-slate-800">
+                    @foreach ($pendentes as $pendente)
+                        <tr wire:key="pendente-{{ $pendente->id }}">
+                            <td class="px-4 py-3 text-slate-300">{{ $pendente->name }}</td>
+                            <td class="px-4 py-3 text-slate-400">{{ $pendente->email }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button wire:click="definirAlcance({{ $pendente->id }})" wire:confirm="Liberar o acesso desta pessoa a esta empresa (alcance corporativo)?" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-slate-700 transition-colors">Definir alcance</button>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </x-report-card>
     @endif
 
     {{-- Modal Criar/Editar --}}
     @if ($mostrarModal)
         <div class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
             <div class="bg-slate-900 border border-slate-800 text-slate-100 rounded-xl shadow-xl w-full max-w-md p-6">
-                <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Usuário' : 'Novo Usuário' }}</h2>
+                <h2 class="text-lg font-bold text-slate-100 mb-4">{{ $editandoId ? 'Editar Usuário' : 'Convidar usuário' }}</h2>
 
                 <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Nome</label>
-                        <input type="text" wire:model="name" class="input-dark w-full @error('name') border-rose-500 @enderror">
-                        @error('name') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
-                    </div>
+                    @if ($editandoId)
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Nome</label>
+                            <input type="text" wire:model="name" class="input-dark w-full @error('name') border-rose-500 @enderror">
+                            @error('name') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
 
                     <div>
                         <label class="block text-sm font-medium text-slate-300 mb-1">E-mail</label>
@@ -116,13 +134,16 @@
                         @error('email') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Status</label>
-                        <select wire:model="status" class="input-dark w-full">
-                            <option value="active">Ativo</option>
-                            <option value="inactive">Inativo</option>
-                        </select>
-                    </div>
+                    @if ($editandoId)
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Status</label>
+                            <select wire:model="status" class="input-dark w-full">
+                                <option value="active">Ativo</option>
+                                <option value="inactive">Inativo</option>
+                            </select>
+                            @error('status') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
 
                     <label class="flex items-center gap-2 text-sm text-slate-300">
                         <input type="checkbox" wire:model="isAdmin" class="rounded border-slate-700 bg-slate-800">
@@ -150,7 +171,7 @@
                     </div>
 
                     @if (! $editandoId)
-                        <p class="text-xs text-slate-500">Uma senha provisória será gerada automaticamente e o usuário deverá trocá-la no primeiro acesso.</p>
+                        <p class="text-xs text-slate-500">A pessoa recebe por e-mail um link de uso único (válido por tempo limitado) e cria a própria senha — ou entra na conta que já tem na suíte. Ninguém além dela conhece a senha.</p>
                     @endif
                 </div>
 
@@ -159,7 +180,7 @@
                         Cancelar
                     </button>
                     <button wire:click="salvar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
-                        Salvar
+                        {{ $editandoId ? 'Salvar' : 'Enviar convite' }}
                     </button>
                 </div>
             </div>

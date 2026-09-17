@@ -37,7 +37,7 @@ it('remover a membership remove o acesso às unidades daquele tenant (e só dele
     $usuario->unidades()->attach($unidadeA->id, ['perfil' => Perfil::Aprovador->value]);
 
     // O mesmo usuário também é membro do tenant B, com vínculo lá.
-    $usuario->memberships()->syncWithoutDetaching([$this->tenantB => ['status' => 'active', 'is_admin' => false]]);
+    $usuario->memberships()->syncWithoutDetaching([$this->tenantB => ['status' => 'active', 'is_admin' => false, 'access_scope' => 'corporate']]);
     $unidadeB = TenantContext::runFor($this->tenantB, fn () => Unidade::factory()->create());
     TenantContext::runFor($this->tenantB, fn () => $usuario->unidades()->attach($unidadeB->id, ['perfil' => Perfil::Aprovador->value]));
 
@@ -86,7 +86,7 @@ it('a migration aborta diante de vínculo cruzado (tenant do vínculo ≠ tenant
     $migration->down();
 
     $usuario = User::factory()->create();
-    $usuario->memberships()->syncWithoutDetaching([$this->tenantB => ['status' => 'active', 'is_admin' => false]]);
+    $usuario->memberships()->syncWithoutDetaching([$this->tenantB => ['status' => 'active', 'is_admin' => false, 'access_scope' => 'corporate']]);
     $unidadeA = Unidade::factory()->create();
 
     DB::table('unidade_user')->insert([

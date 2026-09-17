@@ -12,6 +12,8 @@ use App\Models\Fornecedor;
 use App\Models\Obra;
 use App\Models\Unidade;
 use App\Models\User;
+use Helix\Foundation\Mail\TenantInvitationMail;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
@@ -101,21 +103,23 @@ test('admin homologa fornecedor e campos sao preenchidos corretamente', function
 
 // ─── CRUD Usuário ─────────────────────────────────────────────────────────────
 
-test('admin cria usuario com precisa_trocar_senha true e senha nao nula', function () {
+// Fundação v0.5.0 (decisão 9): o admin CONVIDA — não cria identidade nem define senha
+// (era `Str::random(10)` + precisa_trocar_senha, com a senha exibida na tela). O ciclo
+// completo do convite/aceite está em tests/Feature/Admin/UsuariosCadastroTest.php.
+test('admin convida usuario: nenhuma identidade e nenhuma senha nascem pelo admin', function () {
+    Mail::fake();
     $admin = User::factory()->admin()->create();
 
     Livewire::actingAs($admin)
         ->test(ListaUsuarios::class)
         ->call('abrirCriar')
-        ->set('name', 'Novo Usuário Teste')
         ->set('email', 'novo@comendador.com.br')
-        ->call('salvar');
+        ->call('salvar')
+        ->assertHasNoErrors();
 
-    $usuario = User::where('email', 'novo@comendador.com.br')->first();
+    expect(User::where('email', 'novo@comendador.com.br')->first())->toBeNull();
 
-    expect($usuario)->not->toBeNull()
-        ->and($usuario->precisa_trocar_senha)->toBeTrue()
-        ->and($usuario->password)->not->toBeNull();
+    Mail::assertQueued(TenantInvitationMail::class);
 });
 
 // ─── CRUD Centro de Custo ─────────────────────────────────────────────────────

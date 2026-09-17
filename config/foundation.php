@@ -46,6 +46,10 @@ return [
             // Compras hoje é `cotacoes.email_token`, já coberto pelo piso por nome;
             // tabela nova com certificado/segredo fora desse padrão entra aqui.
             'export_redact_columns' => [],
+            // v0.5.0 — diretórios de models extras varridos atrás de cast encrypted*/hashed.
+            // Só amplia: app/Models e as models da fundação são varridos sempre, e todas as
+            // models do Compras moram em app/Models.
+            'model_paths' => [],
         ],
     ],
 

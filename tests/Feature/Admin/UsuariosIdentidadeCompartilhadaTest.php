@@ -3,10 +3,12 @@
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
 use Helix\Foundation\Exceptions\IdentityConflictException;
+use Helix\Foundation\Mail\TenantInvitationMail;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -36,26 +38,38 @@ beforeEach(function () {
 
 // ───────── Achado 7: oráculo de e-mail global ─────────
 
-it('criar com e-mail de conta de OUTRO cliente não confirma que a conta existe', function () {
-    $tela = Livewire::actingAs($this->adminA)
+it('convidar o e-mail de conta de OUTRO cliente responde IGUAL a convidar um desconhecido', function () {
+    Mail::fake();
+
+    $conhecido = Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
         ->call('abrirCriar')
-        ->set('name', 'Sonda')
         ->set('email', 'segredo@bravo.test')
-        ->set('status', 'active')
         ->call('salvar');
 
-    $erro = $tela->errors()->first('email');
+    $desconhecido = Livewire::actingAs($this->adminA)
+        ->test(ListaUsuarios::class)
+        ->call('abrirCriar')
+        ->set('email', 'ninguem@alfa.test')
+        ->call('salvar');
 
-    // A resposta é a mensagem genérica da fundação — que não afirma existência
-    // nem repete o e-mail — e não a do validador ("já está em uso").
-    expect($erro)->toBe(IdentityConflictException::forEmail()->getMessage())
-        ->and($erro)->not->toContain('em uso')
-        ->and($erro)->not->toContain('segredo@bravo.test')
-        ->and(User::where('email', 'segredo@bravo.test')->count())->toBe(1);
+    // Fundação v0.5.0 (decisão 9): o convite NÃO consulta se o e-mail tem conta — a
+    // resposta é byte a byte a mesma, exista ou não a conta noutro cliente. Antes, a
+    // criação com senha respondia com a mensagem de conflito só quando a conta existia.
+    $conhecido->assertHasNoErrors()->assertSet('mostrarModal', false);
+    $desconhecido->assertHasNoErrors()->assertSet('mostrarModal', false);
+    expect($conhecido->effects['dispatches'])->toBe($desconhecido->effects['dispatches']);
+
+    // E nada aconteceu com a identidade nem com o vínculo do outro cliente.
+    expect(User::where('email', 'segredo@bravo.test')->count())->toBe(1)
+        ->and(DB::table('tenant_user')
+            ->where('user_id', $this->deOutroCliente->id)
+            ->where('tenant_id', $this->tenantA->id)->exists())->toBeFalse();
+
+    Mail::assertQueued(TenantInvitationMail::class, 2);
 });
 
-it('trocar o e-mail para o de conta de OUTRO cliente responde com a MESMA mensagem genérica', function () {
+it('trocar o e-mail para o de conta de OUTRO cliente responde com mensagem genérica', function () {
     $local = User::factory()->create(['tenant_id' => $this->tenantA->id, 'email' => 'local@alfa.test']);
 
     $tela = Livewire::actingAs($this->adminA)
@@ -64,7 +78,13 @@ it('trocar o e-mail para o de conta de OUTRO cliente responde com a MESMA mensag
         ->set('email', 'segredo@bravo.test')
         ->call('salvar');
 
-    expect($tela->errors()->first('email'))->toBe(IdentityConflictException::forEmail()->getMessage())
+    $erro = $tela->errors()->first('email');
+
+    // A unique GLOBAL de users.email traduzida pela fundação: a mensagem não afirma
+    // existência nem repete o e-mail (e não é a do validador, "já está em uso").
+    expect($erro)->toBe(IdentityConflictException::forEmailChange()->getMessage())
+        ->and($erro)->not->toContain('em uso')
+        ->and($erro)->not->toContain('segredo@bravo.test')
         ->and($local->fresh()->email)->toBe('local@alfa.test');
 });
 
@@ -75,16 +95,25 @@ it('não edita nome nem e-mail de quem também é membro ativo de outra empresa'
     $compartilhado = User::factory()->create([
         'tenant_id' => $this->tenantA->id, 'name' => 'Nome Original', 'email' => 'comp@alfa.test',
     ]);
-    $compartilhado->memberships()->syncWithoutDetaching([$this->tenantB->id => ['is_admin' => false, 'status' => 'active']]);
+    $compartilhado->memberships()->syncWithoutDetaching([$this->tenantB->id => ['is_admin' => false, 'status' => 'active', 'access_scope' => 'corporate']]);
 
-    Livewire::actingAs($this->adminA)
+    $tela = Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
         ->call('abrirEditar', $compartilhado->id)
         ->set($campo, $valor)
-        ->call('salvar')
-        ->assertHasErrors($campo);
+        ->call('salvar');
 
-    expect($compartilhado->fresh()->name)->toBe('Nome Original')
+    $tela->assertHasErrors($campo);
+
+    // Fundação v0.5.0 (decisão 8): a guarda é do UserService e a mensagem é a GENÉRICA
+    // dele — a tela não conta ao admin daqui que a pessoa participa de outra empresa
+    // (antes: "Este usuário também participa de outra empresa", um oráculo de vínculos
+    // noutros clientes a partir de um campo de formulário).
+    $erro = $tela->errors()->first($campo);
+
+    expect($erro)->toBe(IdentityConflictException::forSharedIdentity()->getMessage())
+        ->and($erro)->not->toContain('outra empresa')
+        ->and($compartilhado->fresh()->name)->toBe('Nome Original')
         ->and($compartilhado->fresh()->email)->toBe('comp@alfa.test');
 })->with([
     'nome' => ['name', 'Renomeado pelo A'],
@@ -95,7 +124,7 @@ it('ainda permite ajustar o vínculo (admin/papéis) de quem participa de outra 
     $compartilhado = User::factory()->create([
         'tenant_id' => $this->tenantA->id, 'name' => 'Nome Original', 'email' => 'comp@alfa.test',
     ]);
-    $compartilhado->memberships()->syncWithoutDetaching([$this->tenantB->id => ['is_admin' => false, 'status' => 'active']]);
+    $compartilhado->memberships()->syncWithoutDetaching([$this->tenantB->id => ['is_admin' => false, 'status' => 'active', 'access_scope' => 'corporate']]);
 
     Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)

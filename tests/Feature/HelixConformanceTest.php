@@ -26,10 +26,7 @@ use App\Models\Requisicao;
 use App\Models\Unidade;
 use App\Models\UnidadeUser;
 use App\Models\User;
-use Helix\Foundation\Livewire\Synthesizers\TenantAwareEloquentCollectionSynth;
-use Helix\Foundation\Livewire\Synthesizers\TenantAwareModelSynth;
 use Helix\Foundation\Testing\Conformance\HelixConformance;
-use Livewire\Mechanisms\HandleSynths\HandleSynths;
 
 /*
 |--------------------------------------------------------------------------
@@ -201,35 +198,6 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     ->isolate(Fornecedor::class)
     ->isolate(Requisicao::class)
     ->isolate(Cotacao::class)
-    ->isolate(PedidoCompra::class)
-
-    // (v0.4.0) DEFEITO DA FUNDAÇÃO, não do app: a verificação procura o synth em
-    // HandleComponents::$propertySynthesizers (Livewire 4.3); no Livewire 4.4 do app
-    // os synths moraram para HandleSynths::$synthesizers, a reflexão lança e o kit
-    // conclui "synth NÃO ativo" para TODO componente com Model — inclusive os que usam
-    // AuthorizesOnHydrate. O synth ESTÁ ativo (provado logo abaixo e em
-    // LivewireHydrationGuardTest). A verificação continua rodando no teste abaixo, só
-    // sem a linha falsa da detecção do synth. Remover quando a fundação corrigir.
-    ->skip('livewire_models_authorized_on_hydrate', 'falso negativo da fundação v0.4.0 na detecção do synth (Livewire 4.4 mudou HandleComponents::$propertySynthesizers para HandleSynths::$synthesizers); a verificação roda em "livewire_models_authorized_on_hydrate (sem a detecção quebrada do synth)" neste arquivo');
+    ->isolate(PedidoCompra::class);
 
 $kit->register();
-
-it('livewire_models_authorized_on_hydrate (sem a detecção quebrada do synth)', function () use ($kit) {
-    $synths = (new ReflectionProperty(HandleSynths::class, 'synthesizers'))->getValue(app(HandleSynths::class));
-    $porChave = [];
-    foreach ($synths as $synth) {
-        $porChave[$synth::getKey()] ??= $synth; // o primeiro com a chave vence (unshift)
-    }
-
-    expect($porChave['mdl'] ?? null)->toBe(TenantAwareModelSynth::class)
-        ->and($porChave['elcln'] ?? null)->toBe(TenantAwareEloquentCollectionSynth::class);
-
-    $resultado = $kit->checks()->run('livewire_models_authorized_on_hydrate');
-    $violacoes = array_values(array_filter(
-        $resultado->violations,
-        fn (string $v) => ! str_ends_with($v, ' — o synth global TenantAwareModelSynth da fundação NÃO está ativo: o Livewire reidrata Model sem escopo de tenant'),
-    ));
-
-    expect($resultado->inconclusive)->toBeNull()
-        ->and($violacoes)->toBe([], $resultado->fix);
-});

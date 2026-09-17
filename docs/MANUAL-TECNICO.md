@@ -137,6 +137,10 @@ npm ci && npm run build
 # 5. Migrations (ver aviso abaixo)
 php artisan migrate --force
 
+# 5b. Fundação v0.5.0 — passo de deploy (uma vez, idempotente; RUNBOOK-GO-LIVE §3c)
+php artisan platform:tokens-purge-unstamped --dry-run
+php artisan platform:tokens-purge-unstamped
+
 # 6. Cache de produção
 php artisan config:cache
 php artisan route:cache

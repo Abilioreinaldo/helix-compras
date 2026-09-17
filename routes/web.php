@@ -139,4 +139,9 @@ Route::middleware('throttle:cotacao-link')->group(function () {
     Route::post('/cotacao/proposta/{token}', [PropostaCotacaoPublicaController::class, 'store'])->name('cotacao.proposta.enviar');
 });
 
+// Fundação v0.5.0 — aceite de convite (GET /convite/{token}, nome convite.aceitar). Público
+// por desenho (o convidado pode não ter conta) e FORA do grupo auth; sem esta rota o
+// InvitationService::invite falha fechado.
+Route::helixInvitations();
+
 Route::redirect('/', '/login');

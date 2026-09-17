@@ -64,7 +64,7 @@ function hg_compradoraComOutraEmpresa(): array
 {
     $compradora = User::factory()->compradora()->create();
     $tenantB = Tenant::create(['slug' => 'hg-b-'.uniqid(), 'name' => 'B', 'status' => 'active']);
-    $compradora->memberships()->syncWithoutDetaching([$tenantB->id => ['is_admin' => false, 'status' => 'active']]);
+    $compradora->memberships()->syncWithoutDetaching([$tenantB->id => ['is_admin' => false, 'status' => 'active', 'access_scope' => 'corporate']]);
 
     return [$compradora, $tenantB];
 }

@@ -9,11 +9,13 @@ use App\Models\Unidade;
 use App\Models\User;
 use Helix\Foundation\Exceptions\IdentityConflictException;
 use Helix\Foundation\Models\Platform\Identity\Role;
+use Helix\Foundation\Services\Platform\Identity\InvitationService;
+use Helix\Foundation\Services\Platform\Identity\MembershipService;
 use Helix\Foundation\Services\Platform\Identity\UserService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
@@ -23,7 +25,13 @@ use Livewire\WithPagination;
  * Usuários do tenant, pelo admin da empresa. Papéis são os do catálogo da
  * fundação (o que cada um pode fazer se ajusta em Papéis & Permissões); o
  * vínculo unidade × perfil operacional × alçada é domínio do Compras.
- * Criação/edição passam pelo UserService (membership, papéis, evento + auditoria).
+ * Edição passa pelo UserService (membership, papéis, evento + auditoria).
+ *
+ * Fundação v0.5.0 (decisão 9): NOVO usuário é CONVITE (InvitationService) — o admin
+ * nunca define nem vê a senha de ninguém; o dono do e-mail cria a própria senha (ou
+ * entra na conta que já tem) pelo link. Alcance do vínculo: sempre CORPORATIVO,
+ * declarado — o recorte por unidade do Compras é o vínculo unidade × perfil
+ * (unidade_user), não a filial da fundação.
  */
 class ListaUsuarios extends Component
 {
@@ -36,8 +44,6 @@ class ListaUsuarios extends Component
     // Locked: identidades de usuário vêm do servidor (abrirEditar/abrirVinculos); o cliente não reaponta.
     #[Locked]
     public ?int $editandoId = null;
-
-    public string $senhaProvisoria = '';
 
     // Campos do formulário principal
     public string $name = '';
@@ -99,7 +105,7 @@ class ListaUsuarios extends Component
         $this->mostrarModal = true;
     }
 
-    public function salvar(UserService $users): void
+    public function salvar(UserService $users, InvitationService $convites): void
     {
         abort_unless(auth()->user()->can('users.manage'), 403);
 
@@ -108,102 +114,121 @@ class ListaUsuarios extends Component
         // SEM `Rule::unique('users','email')` (3ª auditoria adversarial): `users.email`
         // é unique GLOBAL da suíte, e o validador rodando ANTES do UserService respondia
         // "Este e-mail já está em uso." — oráculo de quem tem conta em QUALQUER cliente.
-        // O conflito agora só aparece como a mensagem genérica da fundação
-        // (IdentityConflictException), igual na criação e na edição.
-        $this->validate([
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255'],
+        $regrasPapeis = [
             'isAdmin' => 'boolean',
             'papeis' => 'array',
             'papeis.*' => [Rule::exists('roles', 'id')->where('tenant_id', $tenantId)->whereNull('deleted_at')],
+        ];
+
+        if (! $this->editandoId) {
+            $this->convidar($convites, (string) $tenantId, $regrasPapeis);
+
+            return;
+        }
+
+        $this->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'email', 'max:255'],
             'status' => 'required|in:active,inactive',
-        ], [
+        ] + $regrasPapeis, [
             'name.required' => 'O nome é obrigatório.',
             'email.required' => 'O e-mail é obrigatório.',
         ]);
 
-        if ($this->editandoId) {
-            $usuario = $this->usuariosDoTenant()->findOrFail($this->editandoId);
-            abort_unless(auth()->user()->can('operar', $usuario), 403);
-            abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
-            $statusAntigo = $usuario->status;
+        $usuario = $this->usuariosDoTenant()->findOrFail($this->editandoId);
+        abort_unless(auth()->user()->can('operar', $usuario), 403);
+        abort_if($this->ehConvidado($usuario), 403, 'Usuário convidado de outro tenant: gerencie apenas o vínculo.');
+        $statusAntigo = $usuario->status;
 
-            // IDENTIDADE COMPARTILHADA (3ª auditoria adversarial): nome e e-mail moram em
-            // `users`, que a outra empresa também usa (o e-mail é o LOGIN lá). Barrar só o
-            // convidado não bastava — o home daqui renomeava/trocava o login de quem
-            // trabalha também noutro tenant. Com qualquer outro vínculo (ativo ou não:
-            // um suspenso volta com o mesmo login), só o VÍNCULO é editável aqui.
-            if ($this->temVinculoForaDaqui($usuario)) {
-                foreach (['name' => $usuario->name, 'email' => $usuario->email] as $campo => $atual) {
-                    if (mb_strtolower(trim((string) $this->{$campo})) !== mb_strtolower(trim((string) $atual))) {
-                        $this->addError($campo, 'Este usuário também participa de outra empresa: nome e e-mail só podem ser alterados por ele mesmo ou pelo suporte da plataforma.');
+        // IDENTIDADE COMPARTILHADA (fundação v0.5.0, decisão 8): nome, e-mail e telefone
+        // são da PESSOA. Quem participa de mais de uma empresa (vínculo em qualquer status)
+        // só os altera ela mesma; a guarda é do UserService, que recusa a chamada inteira
+        // com IdentityConflictException. Só os campos ALTERADOS vão na chamada — o
+        // vínculo (admin/papéis) de uma identidade compartilhada segue editável aqui.
+        // A tela não diz POR QUE recusou (antes: "participa de outra empresa"): a
+        // mensagem é a genérica da fundação, sem revelar vínculos noutros clientes.
+        $dados = ['is_admin' => $this->isAdmin];
+        $alterados = [];
 
-                        return;
-                    }
-                }
-            }
-
-            try {
-                $users->updateUser($usuario, [
-                    // Com vínculo externo, grava a identidade EXATAMENTE como está.
-                    'name' => $this->temVinculoForaDaqui($usuario) ? $usuario->name : $this->name,
-                    'email' => $this->temVinculoForaDaqui($usuario) ? $usuario->email : $this->email,
-                    'is_admin' => $this->isAdmin,
-                ], $this->papeis, auth()->user());
-            } catch (IdentityConflictException|UniqueConstraintViolationException) {
-                // Fundação v0.4.0 traduz a unique global na edição (IdentityConflictException);
-                // a resposta continua a MESMA da criação: não confirma que o e-mail tem conta
-                // noutro cliente.
-                $this->addError('email', IdentityConflictException::forEmail()->getMessage());
-
-                return;
-            }
-
-            // `status` mora na IDENTIDADE (users.status), não na membership: inativar
-            // aqui derrubaria o acesso do usuário em TODOS os tenants dele. Só é
-            // permitido quando este tenant é o único vínculo — caso contrário, o
-            // caminho correto é remover o vínculo (excluir). A fundação v0.4.0 já oferece
-            // `UserService::suspendMembership` (tenant_user.status); expô-lo nesta tela é
-            // decisão de produto pendente.
-            if ($statusAntigo !== $this->status) {
-                // Qualquer vínculo externo, EM QUALQUER STATUS (fundação v0.4.0): um vínculo
-                // suspenso noutra empresa ainda é uma porta para ela, e o UserService recusa
-                // (TenantMismatchException) — antes a tela só olhava vínculo ATIVO e o
-                // inativar/reativar da identidade compartilhada passava daqui.
-                if ($this->temVinculoForaDaqui($usuario)) {
-                    $this->addError('status', 'Este usuário também participa de outra empresa: inativá-lo aqui derrubaria o acesso dele lá. Remova o vínculo com esta empresa.');
-
-                    return;
-                }
-
-                $users->changeStatus($usuario, $this->status, auth()->user());
-            }
-
-            $this->mostrarModal = false;
-            $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
-        } else {
-            $senha = Str::random(10);
-
-            try {
-                $users->createUser([
-                    'name' => $this->name,
-                    'email' => $this->email,
-                    'password' => $senha,
-                    'tenant_id' => $tenantId,
-                    'is_admin' => $this->isAdmin,
-                    'status' => $this->status,
-                    'precisa_trocar_senha' => true,
-                ], $this->papeis, auth()->user());
-            } catch (IdentityConflictException $e) {
-                // Mensagem genérica da fundação: não afirma que a conta existe nem repete o e-mail.
-                $this->addError('email', $e->getMessage());
-
-                return;
-            }
-
-            $this->senhaProvisoria = $senha;
-            $this->mostrarModal = false;
+        if (trim($this->name) !== (string) $usuario->name) {
+            $dados['name'] = trim($this->name);
+            $alterados[] = 'name';
         }
+
+        if (strcasecmp(trim($this->email), (string) $usuario->email) !== 0) {
+            $dados['email'] = trim($this->email);
+            $alterados[] = 'email';
+        }
+
+        try {
+            $users->updateUser($usuario, $dados, $this->papeis, auth()->user());
+        } catch (IdentityConflictException $e) {
+            $this->addError($alterados[0] ?? 'email', $e->getMessage());
+
+            return;
+        } catch (UniqueConstraintViolationException) {
+            $this->addError('email', IdentityConflictException::forEmailChange()->getMessage());
+
+            return;
+        }
+
+        // `status` mora na IDENTIDADE (users.status), não na membership: inativar
+        // aqui derrubaria o acesso do usuário em TODOS os tenants dele. Só é
+        // permitido quando este tenant é o único vínculo — caso contrário, o
+        // caminho correto é remover o vínculo (excluir). A fundação v0.4.0 já oferece
+        // `UserService::suspendMembership` (tenant_user.status); expô-lo nesta tela é
+        // decisão de produto pendente.
+        if ($statusAntigo !== $this->status) {
+            // Qualquer vínculo externo, EM QUALQUER STATUS (fundação v0.4.0): um vínculo
+            // suspenso noutra empresa ainda é uma porta para ela, e o UserService recusa
+            // (TenantMismatchException) — antes a tela só olhava vínculo ATIVO e o
+            // inativar/reativar da identidade compartilhada passava daqui.
+            if ($this->temVinculoForaDaqui($usuario)) {
+                $this->addError('status', 'Este usuário também participa de outra empresa: inativá-lo aqui derrubaria o acesso dele lá. Remova o vínculo com esta empresa.');
+
+                return;
+            }
+
+            $users->changeStatus($usuario, $this->status, auth()->user());
+        }
+
+        $this->mostrarModal = false;
+        $this->dispatch('notify', mensagem: 'Usuário salvo com sucesso.');
+    }
+
+    /**
+     * NOVO usuário = CONVITE (fundação v0.5.0, decisão 9). O admin informa só e-mail,
+     * papéis e se é admin; a pessoa define a própria senha no aceite (ou entra na conta
+     * que já tem). Sem oráculo: a resposta é a MESMA exista ou não conta com o e-mail.
+     *
+     * @param  array<string, mixed>  $regrasPapeis
+     */
+    private function convidar(InvitationService $convites, string $tenantId, array $regrasPapeis): void
+    {
+        $this->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ] + $regrasPapeis, [
+            'email.required' => 'O e-mail é obrigatório.',
+        ]);
+
+        try {
+            $convites->invite(
+                $tenantId,
+                $this->email,
+                array_map('strval', $this->papeis),
+                User::SCOPE_CORPORATE,
+                null,
+                auth()->user(),
+                isAdmin: $this->isAdmin,
+            );
+        } catch (ThrottleRequestsException $e) {
+            $this->addError('email', $e->getMessage());
+
+            return;
+        }
+
+        $this->mostrarModal = false;
+        $this->dispatch('notify', mensagem: 'Convite enviado. A pessoa recebe por e-mail o link para acessar esta empresa.');
     }
 
     /**
@@ -306,8 +331,22 @@ class ListaUsuarios extends Component
      * dele nas outras empresas), e quem trabalha aqui com home noutra empresa ficava
      * INVISÍVEL para o admin desta. Membership ativa é a única definição de "é gente
      * desta empresa" — a mesma que a autorização usa (User::belongsToTenant).
+     *
+     * Fundação v0.5.0: `User::membersOf` é a consulta canônica (vínculo ATIVO, com o
+     * vínculo pré-carregado para isAdminIn sem N+1). Vínculo `pending_scope` NÃO é
+     * ativo: fica fora daqui e aparece em vinculosPendentes().
      */
     private function usuariosDoTenant()
+    {
+        return User::membersOf((string) auth()->user()->getActiveTenantId());
+    }
+
+    /**
+     * Vínculos DESTA empresa aguardando alcance (`pending_scope`, fundação v0.5.0):
+     * pessoa criada por atalho sem alcance declarado, ou cuja filial legada não valia
+     * para este tenant (backfill da migration). Não dá acesso até o admin definir.
+     */
+    private function vinculosPendentes()
     {
         $tenantId = auth()->user()->getActiveTenantId();
 
@@ -316,7 +355,28 @@ class ListaUsuarios extends Component
             ->from('tenant_user')
             ->whereColumn('tenant_user.user_id', 'users.id')
             ->where('tenant_user.tenant_id', $tenantId)
-            ->where('tenant_user.status', 'active'));
+            ->where('tenant_user.status', User::MEMBERSHIP_PENDING_SCOPE));
+    }
+
+    /**
+     * Define o alcance de um vínculo `pending_scope` desta empresa (e o ativa). No
+     * Compras o alcance é sempre CORPORATIVO — escolha explícita, auditada pelo
+     * MembershipService (user.membership_scope_changed; step-up se houver guarda): o
+     * recorte por unidade continua sendo o vínculo unidade × perfil.
+     */
+    public function definirAlcance(int $id, MembershipService $vinculos): void
+    {
+        abort_unless(auth()->user()->can('users.manage'), 403);
+
+        // Anti-IDOR: só vínculo PENDENTE deste tenant; id de outra empresa (ou de quem
+        // já está ativo/suspenso aqui) não casa e responde 404. A policy confere o
+        // MESMO recorte sobre o registro (UsuarioPolicy::definirAlcance), antes da escrita.
+        $usuario = $this->vinculosPendentes()->findOrFail($id);
+        abort_unless(auth()->user()->can('definirAlcance', $usuario), 403);
+
+        $vinculos->setScope($usuario, (string) auth()->user()->getActiveTenantId(), User::SCOPE_CORPORATE, null, auth()->user());
+
+        $this->dispatch('notify', mensagem: 'Alcance definido: o usuário já pode acessar esta empresa.');
     }
 
     /** O usuário é CONVIDADO aqui? (participa deste tenant, mas sua identidade mora noutro). */
@@ -360,19 +420,18 @@ class ListaUsuarios extends Component
             ->orderBy('name')
             ->paginate(15);
 
-        // Admin e "convidado" são propriedades do VÍNCULO com este tenant, lidas do pivot.
-        $idsPagina = $usuarios->pluck('id')->all();
-        $adminsDoTenant = DB::table('tenant_user')
-            ->whereIn('user_id', $idsPagina)
-            ->where('tenant_id', $tenantId)
-            ->where('status', 'active')
-            ->where('is_admin', true)
-            ->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        // Admin e "convidado" são propriedades do VÍNCULO com este tenant: o pivot já vem
+        // pré-carregado pelo membersOf (sem consulta por linha).
+        $adminsDoTenant = $usuarios->getCollection()
+            ->filter(fn (User $u) => $u->isAdminIn((string) $tenantId))
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
         $convidados = $usuarios->filter(fn (User $u) => $this->ehConvidado($u))->pluck('id')->all();
 
         $usuarioVinculos = $this->usuarioVinculosId
             ? $this->usuariosDoTenant()->with(['unidades' => fn ($q) => $q->withoutGlobalScope(UnidadeScope::class)->where('unidades.tenant_id', $tenantId)])->find($this->usuarioVinculosId)
             : null;
+
+        $pendentes = $this->vinculosPendentes()->orderBy('name')->get(['id', 'name', 'email']);
 
         $todasUnidades = Unidade::withoutGlobalScope(UnidadeScope::class)->where('tenant_id', $tenantId)->orderBy('nome')->get();
         $papeisDisponiveis = Role::where('tenant_id', $tenantId)->orderByDesc('is_system')->orderBy('name')->get();
@@ -388,6 +447,7 @@ class ListaUsuarios extends Component
             'niveisAlcada',
             'adminsDoTenant',
             'convidados',
+            'pendentes',
         ))->layout('components.layouts.app');
     }
 }

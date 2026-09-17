@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Posse de USUÁRIO — a identidade é COMPARTILHADA pela suíte e não tem "um tenant
@@ -24,5 +25,22 @@ class UsuarioPolicy
         $ativo = TenantContext::id() ?? $ator->getActiveTenantId();
 
         return $ativo !== null && $alvo->belongsToTenant((string) $ativo);
+    }
+
+    /**
+     * Definir o ALCANCE de um vínculo (fundação v0.5.0). É o único caso em que o alvo
+     * NÃO é membro ativo: `pending_scope` é exatamente o vínculo que ainda não dá
+     * acesso. O recorte continua sendo por tenant — o vínculo pendente tem de ser
+     * DESTA empresa, senão o admin daqui liberaria acesso a uma empresa que não é sua.
+     */
+    public function definirAlcance(User $ator, User $alvo): bool
+    {
+        $ativo = TenantContext::id() ?? $ator->getActiveTenantId();
+
+        return $ativo !== null && DB::table('tenant_user')
+            ->where('user_id', $alvo->getKey())
+            ->where('tenant_id', $ativo)
+            ->where('status', User::MEMBERSHIP_PENDING_SCOPE)
+            ->exists();
     }
 }

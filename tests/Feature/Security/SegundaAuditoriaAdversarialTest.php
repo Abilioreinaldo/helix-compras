@@ -71,6 +71,7 @@ function usr2a_convidado(string $home, string $convidadoEm, string $nome): User
         'tenant_id' => $convidadoEm,
         'is_admin' => false,
         'status' => 'active',
+        'access_scope' => 'corporate',
         'created_at' => now(),
         'updated_at' => now(),
     ]);

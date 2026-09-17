@@ -2,27 +2,33 @@
 
 use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
+use Helix\Foundation\Mail\TenantInvitationMail;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
+use Helix\Foundation\Models\Platform\Identity\TenantInvitation;
+use Helix\Foundation\Services\Platform\Identity\InvitationService;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
 /**
- * Usuário criado pela tela de administração precisa nascer com a membership
- * tenant_user (achado ALTO do Compras): sem ela, SetActiveTenant não acha
- * tenant ativo e o usuário toma 403 no primeiro login.
+ * Cadastro de usuário pela tela de administração.
+ *
+ * Fundação v0.5.0 (decisão 9): criar usuário virou CONVITE. O admin nunca define nem
+ * vê a senha de ninguém (antes: `Str::random(10)` mostrada na tela como "senha
+ * provisória"); a pessoa prova a posse do e-mail pelo link e cria a própria senha. O
+ * vínculo nasce no aceite — ativo, com alcance CORPORATIVO declarado (achado ALTO
+ * original: sem membership o login dava 403).
  */
 beforeEach(function () {
     $this->tenant = Tenant::create(['slug' => 'alpha', 'name' => 'Alpha', 'status' => 'active']);
 
     // O beforeEach global (tests/Pest.php) deixa no contexto o tenant canônico
-    // "comendador"; este arquivo trabalha em `alpha`. Desde a fundação v0.2.0 o
-    // UserService recusa um tenant_id divergente do contexto (o tenant nunca vem
-    // do chamador), então o contexto tem de ser o do admin — que é exatamente o
-    // que o SetActiveTenant faz no request real.
+    // "comendador"; este arquivo trabalha em `alpha` — o que o SetActiveTenant faz no request real.
     TenantContext::set($this->tenant->id);
 
     $this->admin = User::factory()->admin()->create([
@@ -30,37 +36,74 @@ beforeEach(function () {
     ]);
 });
 
-it('cria usuário com membership ativa no tenant do admin', function () {
+/** Token do convite enfileirado para o e-mail (só existe no link do e-mail). */
+function cad_tokenDoConvite(string $email): string
+{
+    $url = null;
+    Mail::assertQueued(TenantInvitationMail::class, function (TenantInvitationMail $mail) use ($email, &$url) {
+        if (! $mail->hasTo($email)) {
+            return false;
+        }
+        $url = $mail->url;
+
+        return true;
+    });
+
+    return basename(parse_url((string) $url, PHP_URL_PATH));
+}
+
+it('novo usuário vira convite: o admin não cria identidade nem conhece senha', function () {
+    Mail::fake();
+
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)
         ->call('abrirCriar')
-        ->set('name', 'Novo Usuário')
         ->set('email', 'novo@alpha.test')
-        ->set('status', 'active')
         ->set('isAdmin', false)
-        ->call('salvar');
+        ->call('salvar')
+        ->assertHasNoErrors()
+        ->assertSet('mostrarModal', false)
+        ->assertDispatched('notify');
 
-    $novo = User::where('email', 'novo@alpha.test')->firstOrFail();
+    // Nada de identidade (logo, nada de senha) antes de a pessoa aceitar.
+    expect(User::where('email', 'novo@alpha.test')->exists())->toBeFalse()
+        ->and(property_exists(ListaUsuarios::class, 'senhaProvisoria'))->toBeFalse();
 
-    // membership ativa no tenant certo — sem isto o login daria 403
-    expect(DB::table('tenant_user')->where('user_id', $novo->id)
-        ->where('tenant_id', $this->tenant->id)->where('status', 'active')->exists())->toBeTrue()
-        ->and($novo->isAdminForActiveTenant())->toBeFalse();
+    $convite = TenantContext::runFor($this->tenant->id, fn () => TenantInvitation::query()->where('email', 'novo@alpha.test')->firstOrFail());
+    expect($convite->access_scope)->toBe(User::SCOPE_CORPORATE)
+        ->and($convite->branch_id)->toBeNull()
+        ->and((bool) $convite->is_admin)->toBeFalse();
+
+    // A pessoa aceita com a senha DELA: o vínculo nasce ativo e corporativo.
+    TenantContext::forget();
+    $novo = app(InvitationService::class)->acceptAsNewUser(cad_tokenDoConvite('novo@alpha.test'), 'Novo Usuário', 'S3nha-Da-Propria-Pessoa!');
+
+    expect(DB::table('tenant_user')->where('user_id', $novo->id)->where('tenant_id', $this->tenant->id)->first())
+        ->status->toBe('active')
+        ->access_scope->toBe(User::SCOPE_CORPORATE)
+        ->and(Hash::check('S3nha-Da-Propria-Pessoa!', $novo->password))->toBeTrue()
+        ->and($novo->precisa_trocar_senha)->toBeFalse()
+        ->and($novo->isAdminIn($this->tenant->id))->toBeFalse();
+
+    // Nenhuma trilha de senha definida por admin.
+    expect(DB::table('audit_logs')->where('action', 'user.created')->where('metadata', 'like', '%password_set_by_admin%')->exists())->toBeFalse();
 });
 
-it('cria admin com is_admin refletido no pivot (não só na coluna)', function () {
+it('convite de admin reflete is_admin no pivot após o aceite (não só na coluna)', function () {
+    Mail::fake();
+
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)
         ->call('abrirCriar')
-        ->set('name', 'Novo Admin')
         ->set('email', 'novoadmin@alpha.test')
-        ->set('status', 'active')
         ->set('isAdmin', true)
-        ->call('salvar');
+        ->call('salvar')
+        ->assertHasNoErrors();
 
-    $novo = User::where('email', 'novoadmin@alpha.test')->firstOrFail();
+    TenantContext::forget();
+    $novo = app(InvitationService::class)->acceptAsNewUser(cad_tokenDoConvite('novoadmin@alpha.test'), 'Novo Admin', 'S3nha-Da-Propria-Pessoa!');
 
-    expect($novo->isAdminForActiveTenant())->toBeTrue();
+    expect($novo->isAdminIn($this->tenant->id))->toBeTrue();
 });
 
 it('editar is_admin sincroniza o pivot (revogar desescala de verdade)', function () {

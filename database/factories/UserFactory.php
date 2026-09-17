@@ -86,6 +86,11 @@ class UserFactory extends Factory
      * Todo usuário criado ganha a membership no seu tenant home (como em produção,
      * via UserService::createUser) — com is_admin espelhando a flag. Sem isto o
      * EnsureTenantActive/AdminMiddleware (que leem o pivot) barrariam o acesso.
+     *
+     * Fundação v0.5.0: o vínculo tem ALCANCE, e usuário criado por atalho sem alcance
+     * nasce `pending_scope` (sem acesso). A factory DECLARA o alcance: corporativo por
+     * escolha explícita — o Compras não recorta por filial da fundação (o recorte por
+     * unidade é o vínculo unidade_user). Vínculo pendente em teste: User::forceCreate.
      */
     public function configure(): static
     {
@@ -94,6 +99,8 @@ class UserFactory extends Factory
                 $user->getAttributes()['tenant_id'] => [
                     'is_admin' => (bool) ($user->getAttributes()['is_admin'] ?? false),
                     'status' => 'active',
+                    'access_scope' => User::SCOPE_CORPORATE,
+                    'branch_id' => null,
                 ],
             ]);
         });

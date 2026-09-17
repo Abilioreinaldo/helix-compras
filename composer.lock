@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6d5b02f05f28972e73be77ee8db39dff",
+    "content-hash": "8ad50e1fae19fb581cff7e943c7064d7",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -1397,16 +1397,16 @@
         },
         {
             "name": "helix/foundation",
-            "version": "v0.4.0",
+            "version": "v0.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Abilioreinaldo/helix-foundation",
-                "reference": "ca2cdb01797323c268847301055f7d10ff43aa79"
+                "reference": "52880f1922dd7f108b12c8e8ec0c740ba7e6dda6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Abilioreinaldo/helix-foundation/zipball/ca2cdb01797323c268847301055f7d10ff43aa79",
-                "reference": "ca2cdb01797323c268847301055f7d10ff43aa79",
+                "url": "https://api.github.com/repos/Abilioreinaldo/helix-foundation/zipball/52880f1922dd7f108b12c8e8ec0c740ba7e6dda6",
+                "reference": "52880f1922dd7f108b12c8e8ec0c740ba7e6dda6",
                 "shasum": ""
             },
             "require": {
@@ -1454,7 +1454,7 @@
                 "proprietary"
             ],
             "description": "HELIX shared foundation: identity, 2FA, RBAC, company, audit, events, notifications, documents, flow.",
-            "time": "2026-09-16T19:59:14+00:00"
+            "time": "2026-09-16T20:57:25+00:00"
         },
         {
             "name": "laravel/framework",

@@ -36,7 +36,7 @@ beforeEach(function () {
 /** Concede (ou revoga) a membership de $user em $tenant. */
 function vinculo(User $user, string $tenantId, string $status = 'active', bool $isAdmin = false): void
 {
-    $user->memberships()->syncWithoutDetaching([$tenantId => ['is_admin' => $isAdmin, 'status' => $status]]);
+    $user->memberships()->syncWithoutDetaching([$tenantId => ['is_admin' => $isAdmin, 'status' => $status, 'access_scope' => 'corporate']]);
 }
 
 // ─── Leitura por membership ──────────────────────────────────────────────────

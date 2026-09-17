@@ -151,8 +151,16 @@ class ComprasTesteEmpresaASeeder extends Seeder
 
         $user->forceFill(['email_verified_at' => now()])->saveQuietly();
 
+        // Fundação v0.5.0: o vínculo declara o ALCANCE (sem ele nasce `pending_scope`, sem
+        // acesso). O Compras recorta por unidade (unidade_user), não por filial da
+        // fundação: corporativo é a escolha explícita.
         $user->memberships()->syncWithoutDetaching([
-            $tenant->id => ['is_admin' => $isAdmin, 'status' => 'active'],
+            $tenant->id => [
+                'is_admin' => $isAdmin,
+                'status' => 'active',
+                'access_scope' => User::SCOPE_CORPORATE,
+                'branch_id' => null,
+            ],
         ]);
 
         return $user;
