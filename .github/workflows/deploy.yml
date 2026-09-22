@@ -1,0 +1,82 @@
+name: Deploy (Forge)
+
+# Deploy MANUAL do site no Laravel Forge, gated pelo CI.
+#
+# Como funciona:
+#   1. Actions -> "Deploy (Forge)" -> Run workflow (na branch que o site do Forge
+#      acompanha). Nada roda sozinho: não há gatilho por push.
+#   2. O job exige que o workflow CI do MESMO commit tenha concluído com sucesso
+#      (SQLite + MySQL + Pint + doctor + gitleaks). CI vermelho ou ainda rodando
+#      = deploy recusado.
+#   3. Chama a "Deployment Trigger URL" do site (Forge -> site -> Deployments), guardada
+#      no secret FORGE_DEPLOY_URL do repositório. O script de deploy do site no Forge
+#      é quem faz git pull, composer install, migrate --force e o restart do PHP-FPM;
+#      o resultado e o log ficam no painel do Forge.
+#
+# Uma vez só: Settings -> Secrets and variables -> Actions -> New repository secret
+#   FORGE_DEPLOY_URL = a URL completa do gatilho (com o token) do site deste app.
+#
+# O job roda no environment `producao`: para exigir aprovação humana antes de cada
+# deploy, crie o environment em Settings -> Environments com Required reviewers.
+
+on:
+  workflow_dispatch:
+    inputs:
+      motivo:
+        description: 'Motivo do deploy (só para o log)'
+        required: false
+        default: ''
+
+concurrency:
+  group: deploy-forge
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  deploy:
+    name: Disparar deploy no Forge
+    runs-on: ubuntu-latest
+    environment: producao
+
+    steps:
+      - name: Exige CI verde neste commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="${{ github.sha }}"
+          run=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${sha}&per_page=1" \
+            --jq '.workflow_runs[0] | if . == null then "none none none" else "\(.status) \(.conclusion // "-") \(.html_url)" end')
+          read -r status conclusion url <<<"$run"
+          echo "CI em ${sha}: status=${status} conclusion=${conclusion} ${url}"
+          if [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
+            echo "::error::O CI deste commit não está verde (status=${status}, conclusion=${conclusion}). Deploy recusado."
+            exit 1
+          fi
+
+      - name: Dispara o deploy pela Deployment Trigger URL do site
+        env:
+          FORGE_DEPLOY_URL: ${{ secrets.FORGE_DEPLOY_URL }}
+          MOTIVO: ${{ inputs.motivo }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FORGE_DEPLOY_URL:-}" ]; then
+            echo "::error::Secret FORGE_DEPLOY_URL ausente. Copie a Deployment Trigger URL do site no Forge e cadastre em Settings -> Secrets -> Actions."
+            exit 1
+          fi
+          case "$FORGE_DEPLOY_URL" in
+            https://forge.laravel.com/*) ;;
+            *) echo "::error::FORGE_DEPLOY_URL não é uma URL do forge.laravel.com."; exit 1 ;;
+          esac
+          [ -n "$MOTIVO" ] && echo "Motivo: $MOTIVO"
+          code=$(curl -sS -X POST -o /tmp/forge.out -w '%{http_code}' "$FORGE_DEPLOY_URL")
+          echo "Forge respondeu HTTP ${code}"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            cat /tmp/forge.out || true
+            echo "::error::O Forge não aceitou o gatilho (HTTP ${code}). Confira a URL/token no painel."
+            exit 1
+          fi
+          echo "Deploy de ${{ github.repository }}@${{ github.sha }} disparado. Acompanhe o log em Forge -> site -> Deployments."
