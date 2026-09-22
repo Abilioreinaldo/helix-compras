@@ -92,5 +92,6 @@ it('COMPRAS-2 (irmão): o CSV de agendamentos (lista para o banco) deixa trilha 
     expect($trilha)->toHaveCount(1)
         ->and((string) $trilha[0]->actor_id)->toBe((string) $financeiro->id)
         ->and($trilha[0]->tenant_id)->toBe(TenantContext::id())
-        ->and($trilha[0]->metadata)->toContain('"linhas":2');
+        // decodifica em vez de comparar texto: o MySQL normaliza a coluna JSON com espaços.
+        ->and(json_decode((string) $trilha[0]->metadata, true)['linhas'] ?? null)->toBe(2);
 });

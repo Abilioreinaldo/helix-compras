@@ -205,7 +205,16 @@ $kit = HelixConformance::forProduct('Compras', feature: 'compras')
     ->allowGlobalUnique('saldos_estoque.unidade_id+deposito+descricao_normalizada', 'unidade_id é FK para unidades (escopada): a identidade do saldo já é única por unidade, logo por tenant')
     ->allowGlobalUnique('catalogo_itens.uuid', 'UUID é identificador GLOBAL por desenho (chave estável do item entre apps da suíte); a chave de negócio do catálogo já é por tenant (catalogo_itens_tenant_codigo_uq)')
     ->allowGlobalUnique('itens_inventario.sessao_inventario_id+saldo_estoque_id', 'sessao_inventario_id é FK para sessoes_inventario (escopada)')
-    ->allowGlobalUnique('lotes_estoque.saldo_estoque_id+numero_lote', 'saldo_estoque_id é FK para saldos_estoque (escopada). Índice PARCIAL (fundido_para_id IS NULL) no SQLite / coluna gerada no MySQL')
+    // lotes_estoque: o índice é driver-aware (migration 2026_06_18_182549) — no SQLite é
+    // parcial sobre (saldo_estoque_id, numero_lote); no MySQL é sobre a coluna gerada
+    // lote_chave_unica (CONCAT dos dois campos, NULL no tombstone). O kit rotula o unique
+    // pelas colunas que o banco devolve, então a exceção acompanha o driver — uma só,
+    // para a higiene do kit não acusar exceção sem uso no outro driver.
+    ->allowGlobalUnique(
+        // (a config é montada na carga do arquivo, antes do app: o driver vem do env do phpunit/CI)
+        (getenv('DB_CONNECTION') ?: 'sqlite') === 'sqlite' ? 'lotes_estoque.saldo_estoque_id+numero_lote' : 'lotes_estoque.lote_chave_unica',
+        'saldo_estoque_id é FK para saldos_estoque (escopada). Índice PARCIAL (fundido_para_id IS NULL) no SQLite / coluna gerada lote_chave_unica = saldo_estoque_id + numero_lote no MySQL'
+    )
     ->allowGlobalUnique('rateio_unidades.rateio_central_id+unidade_id', 'rateio_central_id é FK para rateios_centrais (escopada, unique por tenant+mês+ano)')
     ->allowGlobalUnique('itens_cotacao.cotacao_id+item_requisicao_id', 'cotacao_id é FK para cotacoes (escopada)')
     ->allowGlobalUnique('precos_homologados.uuid', 'UUID é identificador GLOBAL por desenho; a chave de negócio (item+fornecedor) é escopada pelo item de catálogo')
