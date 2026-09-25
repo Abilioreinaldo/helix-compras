@@ -25,6 +25,15 @@ Passo a passo para colocar a v1 em produção (MySQL). Validado contra MySQL 8.0
 
 ## 1. Configuração (.env de produção)
 
+> **Suíte HELIX (console + apps): `DB_*` e `APP_KEY` IGUAIS aos do console.** O banco
+> de identidade (tenants, usuários, convites, 2FA, passkeys) é um só, compartilhado; o
+> Compras só acrescenta as tabelas de domínio nele. Com banco diferente o convite do
+> console dá "Convite indisponível"; com `APP_KEY` diferente o desafio de 2FA quebra
+> ("The MAC is invalid") e o aceite do convite é recusado. Depois de trocar a chave num
+> site já publicado, rode `php artisan optimize` (o Livewire 4 deriva a rota dos seus
+> assets da chave; só `config:cache` deixa o cache de rotas antigo e o login para de
+> responder). Detalhes: fundação, `docs/foundation-contract.md` §0.
+
 ```dotenv
 APP_ENV=production
 APP_DEBUG=false
@@ -163,6 +172,7 @@ php artisan view:cache
 ```
 
 > Se mexer no `.env` depois, rode `php artisan config:clear && php artisan config:cache`.
+> Se a mudança for no `APP_KEY`, rode `php artisan optimize` (rotas do Livewire dependem da chave).
 
 ---
 
