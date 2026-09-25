@@ -57,7 +57,7 @@
                                 <td class="px-4 py-3 text-slate-300">{{ $item->numero_documento }}</td>
                                 <td class="px-4 py-3 text-right text-slate-300">R$ {{ number_format((float) $item->valor, 2, ',', '.') }}</td>
                                 <td class="px-4 py-3 text-slate-400">{{ $item->data_transacao?->format('d/m/Y') ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-400">{{ $item->pagamento?->fornecedor?->nome_fantasia ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-400">{{ $item->pagamento?->fornecedor?->nome ?? '—' }}</td>
                                 <td class="px-4 py-3">
                                     @if ($item->status === 'conciliado')
                                         <span class="inline-flex rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-400">✓ Conciliado</span>

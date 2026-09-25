@@ -1,7 +1,7 @@
 <x-mail::message>
 # Solicitação de cotação
 
-Olá, {{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_social ?? 'fornecedor' }}.
+Olá, {{ $cotacao->fornecedor?->nome ?? $cotacao->fornecedor?->razao_social ?? 'fornecedor' }}.
 
 A **HELIX Compras** gostaria de receber sua cotação para a {{ $cotacao->requisicao?->codigo ? 'requisição '.$cotacao->requisicao->codigo : 'requisição em aberto' }}.
 

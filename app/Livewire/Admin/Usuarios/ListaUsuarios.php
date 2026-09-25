@@ -328,25 +328,41 @@ class ListaUsuarios extends Component
 
         $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
         abort_unless(auth()->user()->can('operar', $usuario), 403);
-        $usuario->unidades()->syncWithoutDetaching([
-            $this->vincularUnidadeId => [
+
+        // O vínculo é por (unidade, PERFIL): a pessoa pode ser solicitante E aprovadora
+        // da mesma unidade (unique tenant+user+unidade+perfil). `syncWithoutDetaching`
+        // indexado pela unidade tratava o segundo perfil como UPDATE do primeiro — o
+        // perfil anterior sumia sem aviso (aceite 25/09). Mesmo perfil de novo = só o
+        // nível de alçada é atualizado.
+        $existente = $usuario->unidades()
+            ->wherePivot('perfil', $this->vincularPerfil)
+            ->where('unidades.id', $this->vincularUnidadeId)
+            ->exists();
+
+        if ($existente) {
+            $usuario->unidades()
+                ->wherePivot('perfil', $this->vincularPerfil)
+                ->updateExistingPivot($this->vincularUnidadeId, ['nivel_alcada' => $this->vincularNivelAlcada ?: null]);
+        } else {
+            $usuario->unidades()->attach($this->vincularUnidadeId, [
                 'perfil' => $this->vincularPerfil,
                 'nivel_alcada' => $this->vincularNivelAlcada ?: null,
-            ],
-        ]);
+            ]);
+        }
 
         $this->vincularUnidadeId = null;
         $this->vincularPerfil = '';
         $this->vincularNivelAlcada = '';
-        $this->dispatch('notify', mensagem: 'Vínculo adicionado.');
+        $this->dispatch('notify', mensagem: $existente ? 'Nível de alçada do vínculo atualizado.' : 'Vínculo adicionado.');
     }
 
-    public function removerVinculo(int $unidadeId): void
+    public function removerVinculo(int $unidadeId, string $perfil): void
     {
         abort_unless(auth()->user()->can('users.manage'), 403);
         $usuario = $this->usuariosDoTenant()->findOrFail($this->usuarioVinculosId);
         abort_unless(auth()->user()->can('operar', $usuario), 403);
-        $usuario->unidades()->detach($unidadeId);
+        // Remove SÓ o vínculo (unidade, perfil) clicado — os outros perfis da mesma unidade ficam.
+        $usuario->unidades()->wherePivot('perfil', $perfil)->detach($unidadeId);
         $this->dispatch('notify', mensagem: 'Vínculo removido.');
     }
 

@@ -218,7 +218,7 @@
                             <span class="text-sm font-medium text-slate-200">{{ $unidade->nome }}</span>
                             <span class="ml-2 text-xs text-slate-500">{{ \App\Enums\Perfil::tryFrom($unidade->pivot->perfil)?->label() ?? $unidade->pivot->perfil }} / {{ $unidade->pivot->nivel_alcada ?? '—' }}</span>
                         </div>
-                        <button wire:click="removerVinculo({{ $unidade->id }})" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Remover</button>
+                        <button wire:click="removerVinculo({{ $unidade->id }}, '{{ $unidade->pivot->perfil }}')" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1 text-xs font-medium text-rose-400 hover:bg-slate-700 transition-colors">Remover</button>
                     </div>
                 @empty
                     <p class="text-sm text-slate-500 mb-4">Nenhum vínculo cadastrado.</p>

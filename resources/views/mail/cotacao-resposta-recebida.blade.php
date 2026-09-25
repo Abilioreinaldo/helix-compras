@@ -1,7 +1,7 @@
 <x-mail::message>
 # Proposta de cotação recebida
 
-O fornecedor **{{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_social ?? '—' }}** enviou a proposta da cotação **#COT-{{ $cotacao->id }}** pelo link de cotação.
+O fornecedor **{{ $cotacao->fornecedor?->nome ?? $cotacao->fornecedor?->razao_social ?? '—' }}** enviou a proposta da cotação **#COT-{{ $cotacao->id }}** pelo link de cotação.
 
 @if($cotacao->valor_respondido !== null)
 **Valor proposto:** R$ {{ number_format((float) $cotacao->valor_respondido, 2, ',', '.') }}

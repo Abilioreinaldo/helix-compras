@@ -45,9 +45,16 @@
                     <dt class="text-slate-400">Unidade</dt>
                     <dd class="text-slate-200">{{ $requisicao->unidade?->nome ?? '—' }}</dd>
                 </div>
+                @php($vencedora = $requisicao->cotacaoVencedora())
+                @if ($vencedora)
+                    <div class="flex justify-between">
+                        <dt class="text-slate-400">Valor cotado (vencedora)</dt>
+                        <dd class="text-slate-200 font-medium">R$ {{ number_format((float) $vencedora->valor, 2, ',', '.') }}</dd>
+                    </div>
+                @endif
                 <div class="flex justify-between">
                     <dt class="text-slate-400">Valor estimado</dt>
-                    <dd class="text-slate-200">R$ {{ number_format($requisicao->valorTotal(), 2, ',', '.') }}</dd>
+                    <dd class="text-slate-200">{{ $requisicao->valorTotal() > 0 ? 'R$ '.number_format($requisicao->valorTotal(), 2, ',', '.') : '—' }}</dd>
                 </div>
                 <div class="flex justify-between">
                     <dt class="text-slate-400">Urgente</dt>
@@ -69,7 +76,7 @@
         <x-report-card title="Cotações">
             @forelse ($requisicao->cotacoes->whereNull('deleted_at') as $cotacao)
                 <div class="flex items-center justify-between border-b border-slate-800 py-1.5 text-sm last:border-0">
-                    <span class="text-slate-300">{{ $cotacao->fornecedor?->nome_fantasia ?? '—' }}</span>
+                    <span class="text-slate-300">{{ $cotacao->fornecedor?->nome ?? '—' }}</span>
                     <span class="text-slate-200">
                         R$ {{ number_format($cotacao->valor, 2, ',', '.') }}
                         @if ($cotacao->vencedora)
@@ -100,7 +107,8 @@
                         <tr class="{{ $item->estaRejeitado() ? 'opacity-60' : '' }}">
                             <td class="px-4 py-2.5 text-slate-300 {{ $item->estaRejeitado() ? 'line-through' : '' }}">{{ $item->descricao }}</td>
                             <td class="px-4 py-2.5 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
-                            <td class="px-4 py-2.5 text-right text-slate-400">{{ $item->valor_unitario_estimado !== null ? 'R$ '.number_format((float) $item->valor_unitario_estimado, 2, ',', '.') : '—' }}</td>
+                            @php($unitario = $requisicao->valorUnitarioCotado($item) ?? ($item->valor_unitario_estimado !== null ? (float) $item->valor_unitario_estimado : null))
+                            <td class="px-4 py-2.5 text-right text-slate-400">{{ $unitario !== null ? 'R$ '.number_format($unitario, 2, ',', '.') : '—' }}</td>
                             <td class="px-4 py-2.5">
                                 @if ($item->estaRejeitado())
                                     <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-rose-500/15 text-rose-400" title="{{ $item->motivo_rejeicao }}">Rejeitado</span>

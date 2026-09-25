@@ -35,7 +35,7 @@
                                     {{ $pag->data_vencimento?->format('d/m/Y') }}
                                     <span class="block text-xs text-slate-500">{{ $pag->diasAteVencimento() >= 0 ? 'em '.$pag->diasAteVencimento().' dia(s)' : 'vencido' }}</span>
                                 </td>
-                                <td class="px-4 py-3 text-slate-200">{{ $pag->fornecedor?->nome_fantasia ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-200">{{ $pag->fornecedor?->nome ?? '—' }}</td>
                                 <td class="px-4 py-3">
                                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium {{ $pag->status->value === 'agendado' ? 'bg-sky-500/15 text-sky-400' : 'bg-slate-500/15 text-slate-300' }}">{{ $pag->status->rotulo() }}</span>
                                 </td>

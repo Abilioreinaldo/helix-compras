@@ -31,7 +31,7 @@ class MarcarCotacaoVencedoraAction
                 'status_anterior' => $requisicao->status->value,
                 'status_novo' => $requisicao->status->value,
                 'user_id' => auth()->id(),
-                'observacao' => "Cotação vencedora definida: {$cotacao->fornecedor->nome_fantasia} — R$ ".number_format((float) $cotacao->valor, 2, ',', '.'),
+                'observacao' => "Cotação vencedora definida: {$cotacao->fornecedor->nome} — R$ ".number_format((float) $cotacao->valor, 2, ',', '.'),
                 'automatico' => false,
             ]);
         });

@@ -43,6 +43,12 @@
                 Gerenciar Cotações
             </a>
         @endif
+        @if ($requisicao->status->value === 'cotacao_concluida' && auth()->user()->can('compras.manage'))
+            <button wire:click="iniciarAprovacao" wire:loading.attr="disabled"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
+                Iniciar aprovação
+            </button>
+        @endif
         @if ($requisicao->status->value === 'aguardando_aprovacao' && auth()->user()->temPerfil(\App\Enums\Perfil::Aprovador))
             <a href="{{ route('aprovacoes.painel', $requisicao->id) }}"
                 class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
@@ -62,6 +68,9 @@
             </button>
         @endif
     </div>
+    @error('aprovacao')
+        <div class="mb-6 rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">{{ $message }}</div>
+    @enderror
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {{-- Dados gerais --}}
@@ -109,21 +118,25 @@
                     <tr class="border-b border-slate-800 bg-slate-950/40">
                         <th class="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wide text-slate-500">Descrição</th>
                         <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
-                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Valor unit.</th>
+                        @php($vencedora = $requisicao->cotacaoVencedora())
+                        <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">{{ $vencedora ? 'Valor unit. cotado' : 'Valor unit. estimado' }}</th>
                         <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Total</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800">
+                    {{-- Com vencedora definida, o valor é o COTADO (linha da vencedora); antes
+                         disso, o estimado pelo solicitante, que é opcional. --}}
                     @foreach ($requisicao->itens as $item)
+                        @php($unitario = $vencedora ? $requisicao->valorUnitarioCotado($item) : ($item->valor_unitario_estimado ? (float) $item->valor_unitario_estimado : null))
                         <tr class="hover:bg-slate-800/40 transition-colors">
                             <td class="px-4 py-2 text-slate-300">{{ $item->descricao }}</td>
-                            <td class="px-4 py-2 text-right text-slate-400">{{ $item->quantidade }} {{ $item->unidade_medida }}</td>
+                            <td class="px-4 py-2 text-right text-slate-400">{{ rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', '.'), '0'), ',') }} {{ $item->unidade_medida }}</td>
                             <td class="px-4 py-2 text-right text-slate-400">
-                                {{ $item->valor_unitario_estimado ? 'R$ '.number_format($item->valor_unitario_estimado, 2, ',', '.') : '—' }}
+                                {{ $unitario !== null ? 'R$ '.number_format($unitario, 2, ',', '.') : '—' }}
                             </td>
                             <td class="px-4 py-2 text-right text-slate-300 font-medium">
-                                @if ($item->valor_unitario_estimado)
-                                    R$ {{ number_format($item->quantidade * $item->valor_unitario_estimado, 2, ',', '.') }}
+                                @if ($unitario !== null)
+                                    R$ {{ number_format($item->quantidade * $unitario, 2, ',', '.') }}
                                 @else
                                     —
                                 @endif
@@ -133,9 +146,9 @@
                 </tbody>
                 <tfoot>
                     <tr class="border-t border-slate-800">
-                        <td colspan="3" class="px-4 pt-2 pb-3 text-right text-sm font-medium text-slate-400">Total estimado</td>
+                        <td colspan="3" class="px-4 pt-2 pb-3 text-right text-sm font-medium text-slate-400">{{ $vencedora ? 'Total cotado ('.$vencedora->fornecedor?->nome.')' : 'Total estimado' }}</td>
                         <td class="px-4 pt-2 pb-3 text-right text-sm font-bold text-slate-100">
-                            R$ {{ number_format($requisicao->valorTotal(), 2, ',', '.') }}
+                            R$ {{ number_format($vencedora ? (float) $vencedora->valor : $requisicao->valorTotal(), 2, ',', '.') }}
                         </td>
                     </tr>
                 </tfoot>

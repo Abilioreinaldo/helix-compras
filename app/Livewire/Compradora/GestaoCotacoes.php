@@ -5,6 +5,7 @@ namespace App\Livewire\Compradora;
 use App\Actions\ConcluirCotacaoAction;
 use App\Actions\MarcarCotacaoVencedoraAction;
 use App\Actions\RegistrarCotacaoAction;
+use App\Enums\StatusRequisicao;
 use App\Mail\SolicitacaoCotacao;
 use App\Models\Cotacao;
 use App\Models\Fornecedor;
@@ -68,6 +69,15 @@ class GestaoCotacoes extends Component
             ->findOrFail($id);
 
         $this->autorizarRequisicao();
+
+        // Cotação já concluída: esta tela não tem mais o que fazer; o detalhe da
+        // requisição mostra a vencedora e (se a aprovação não iniciou) o botão para
+        // iniciá-la. Antes respondia 403 ao link "Ver detalhes" de /cotacoes.
+        if ($this->requisicao->status === StatusRequisicao::CotacaoConcluida) {
+            $this->redirect(route('requisicoes.detalhe', $this->requisicao->id));
+
+            return;
+        }
 
         abort_unless($this->requisicao->status->value === 'em_cotacao', 403);
 

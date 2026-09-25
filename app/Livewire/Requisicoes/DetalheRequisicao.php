@@ -2,11 +2,13 @@
 
 namespace App\Livewire\Requisicoes;
 
+use App\Actions\IniciarAprovacaoAction;
 use App\Actions\TransicionarStatusRequisicaoAction;
 use App\Enums\StatusRequisicao;
 use App\Models\Requisicao;
 use App\Models\Scopes\UnidadeScope;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -46,11 +48,36 @@ class DetalheRequisicao extends Component
         $this->dispatch('notify', mensagem: 'Requisição cancelada.');
     }
 
+    /**
+     * Cotação concluída SEM aprovação iniciada (não havia aprovador com o nível da
+     * faixa na unidade, ou a faixa estava sem etapas): depois de o admin corrigir o
+     * cadastro, a compradora reinicia daqui. Antes a requisição ficava sem saída — a
+     * tela de cotações respondia 403 fora de "em cotação" e só restava cancelar.
+     */
+    public function iniciarAprovacao(): void
+    {
+        abort_unless(auth()->user()->can('compras.manage'), 403);
+        $requisicao = $this->authorizedRequisicao();
+        abort_unless($requisicao->status === StatusRequisicao::CotacaoConcluida, 403);
+
+        $this->resetErrorBag('aprovacao');
+
+        try {
+            app(IniciarAprovacaoAction::class)->execute($requisicao);
+        } catch (ValidationException $e) {
+            $this->addError('aprovacao', collect($e->errors())->flatten()->first() ?? $e->getMessage());
+
+            return;
+        }
+
+        $this->dispatch('notify', mensagem: 'Aprovação iniciada.');
+    }
+
     /** Carrega a requisição e autoriza (policy `view`) — toda action passa por aqui. */
     private function authorizedRequisicao(): Requisicao
     {
         $requisicao = Requisicao::withoutGlobalScope(UnidadeScope::class)
-            ->with(['solicitante', 'unidade', 'centroCusto', 'obra', 'faixaAlcada.etapas', 'itens', 'logs.usuario'])
+            ->with(['solicitante', 'unidade', 'centroCusto', 'obra', 'faixaAlcada.etapas', 'itens', 'logs.usuario', 'cotacoes.itensCotacao'])
             ->findOrFail($this->id);
 
         // Autorização centralizada na RequisicaoPolicy. Mantém 404 (não 403) para não

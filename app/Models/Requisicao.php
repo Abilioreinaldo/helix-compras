@@ -153,6 +153,24 @@ class Requisicao extends ComprasModel
         return $this->hasMany(Cotacao::class);
     }
 
+    /** A cotação vencedora (definida pela compradora), ou null enquanto não há. */
+    public function cotacaoVencedora(): ?Cotacao
+    {
+        return $this->cotacoes->firstWhere('vencedora', true);
+    }
+
+    /**
+     * Preço unitário COTADO de um item (linha da cotação vencedora), ou null. Depois da
+     * cotação a tela mostrava R$ 0,00 / "—" porque só lia o valor ESTIMADO pelo
+     * solicitante, que é opcional (aceite 25/09).
+     */
+    public function valorUnitarioCotado(ItemRequisicao $item): ?float
+    {
+        $linha = $this->cotacaoVencedora()?->itensCotacao->firstWhere('item_requisicao_id', $item->id);
+
+        return $linha !== null ? (float) $linha->valor_unitario : null;
+    }
+
     /**
      * Etapas de aprovaÃ§Ã£o instanciadas para esta requisiÃ§Ã£o.
      */

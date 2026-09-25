@@ -18,8 +18,10 @@
         <x-filter-bar.field label="Tipo">
             <select wire:model.live="filtroTipo" class="input-dark w-full">
                 <option value="">Todos os tipos</option>
-                @foreach ($tiposUnidade as $tipo)
-                    <option value="{{ $tipo->value }}">{{ ucfirst($tipo->value) }}</option>
+                {{-- $t, não $tipo: o loop sobrescrevia a propriedade `tipo` do componente
+                     e o bloco "Dados da Obra" (@if ($tipo === 'obra')) nunca aparecia. --}}
+                @foreach ($tiposUnidade as $t)
+                    <option value="{{ $t->value }}">{{ ucfirst($t->value) }}</option>
                 @endforeach
             </select>
         </x-filter-bar.field>

@@ -105,6 +105,7 @@ class PainelAprovacao extends Component
                 'faixaAlcada.etapas',
                 'aprovacoes.aprovador',
                 'cotacoes.fornecedor',
+                'cotacoes.itensCotacao',
                 'itens',
             ])
             ->findOrFail($this->id);

@@ -33,7 +33,7 @@
             <select wire:model.live="filtroFornecedorId" class="input-dark">
                 <option value="">Todos</option>
                 @foreach ($fornecedores as $f)
-                    <option value="{{ $f->id }}">{{ $f->nome_fantasia }}</option>
+                    <option value="{{ $f->id }}">{{ $f->nome }}</option>
                 @endforeach
             </select>
         </x-filter-bar.field>
@@ -82,7 +82,7 @@
                             @endphp
                             <tr class="transition-colors hover:bg-slate-800/40">
                                 <td class="px-4 py-3 text-slate-300">{{ $pag->numero_nf ?? '—' }}</td>
-                                <td class="px-4 py-3 text-slate-200">{{ $pag->fornecedor?->nome_fantasia ?? '—' }}</td>
+                                <td class="px-4 py-3 text-slate-200">{{ $pag->fornecedor?->nome ?? '—' }}</td>
                                 <td class="px-4 py-3 {{ $venceu ? 'font-medium text-rose-400' : 'text-slate-400' }}">
                                     {{ $pag->data_vencimento?->format('d/m/Y') }}
                                     @if ($venceu)<span class="block text-xs">vencido</span>@endif

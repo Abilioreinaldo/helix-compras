@@ -39,7 +39,7 @@
                             <th class="px-3 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">Qtd</th>
                             @foreach ($cotacoes as $c)
                                 <th class="px-4 py-2.5 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
-                                    {{ $c->fornecedor->nome_fantasia ?? '—' }}
+                                    {{ $c->fornecedor->nome ?? '—' }}
                                     @if ($c->vencedora)
                                         <span class="ml-1 inline-flex rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">Vencedora</span>
                                     @endif

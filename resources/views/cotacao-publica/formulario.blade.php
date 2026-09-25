@@ -3,7 +3,7 @@
         <div class="rounded-xl border border-slate-800 bg-slate-900/90 p-6 shadow-xl">
             <h1 class="text-xl font-bold text-slate-100">Proposta de cotação</h1>
             <p class="mt-1 text-sm text-slate-400">
-                {{ $cotacao->fornecedor?->nome_fantasia ?? $cotacao->fornecedor?->razao_social }}
+                {{ $cotacao->fornecedor?->nome ?? $cotacao->fornecedor?->razao_social }}
                 — requisição {{ $cotacao->requisicao?->codigo ?? '—' }}
             </p>
             <p class="mt-1 text-xs text-slate-500">

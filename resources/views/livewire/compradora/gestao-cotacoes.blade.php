@@ -66,7 +66,7 @@
                 <select multiple wire:model="fornecedoresSolicitar" size="4" class="input-dark w-full">
                     @foreach ($fornecedores as $f)
                         <option value="{{ $f->id }}" @disabled(! $f->contato_email)>
-                            {{ $f->nome_fantasia }}{{ $f->contato_email ? '' : ' (sem e-mail)' }}
+                            {{ $f->nome }}{{ $f->contato_email ? '' : ' (sem e-mail)' }}
                         </option>
                     @endforeach
                 </select>
@@ -109,7 +109,7 @@
                     @forelse ($cotacoes as $cotacao)
                         <tr class="transition-colors hover:bg-slate-800/40 {{ $cotacao->vencedora ? 'bg-emerald-500/5' : '' }}">
                             <td class="px-4 py-3 text-slate-200">
-                                {{ $cotacao->fornecedor->nome_fantasia ?? '—' }}
+                                {{ $cotacao->fornecedor->nome ?? '—' }}
                                 @if ($cotacao->vencedora)
                                     <span class="ml-2 inline-flex px-1.5 py-0.5 rounded text-xs font-medium bg-emerald-500/15 text-emerald-400">Vencedora</span>
                                 @endif
@@ -219,7 +219,7 @@
                         class="input-dark w-full @error('fornecedorId') border-rose-500 @enderror">
                         <option value="">Selecione...</option>
                         @foreach ($fornecedores as $f)
-                            <option value="{{ $f->id }}">{{ $f->nome_fantasia }}</option>
+                            <option value="{{ $f->id }}">{{ $f->nome }}</option>
                         @endforeach
                     </select>
                     @error('fornecedorId') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
