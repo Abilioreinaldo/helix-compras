@@ -16,6 +16,14 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Criada só se ainda não existir: em produção o banco de IDENTIDADE é
+        // compartilhado entre o console e os apps, e cada app publica esta migration
+        // com nome próprio — o `create` puro reprovava o deploy com "table already
+        // exists" (mesmo padrão das tabelas de cache e fila do console).
+        if (Schema::hasTable('personal_access_tokens')) {
+            return;
+        }
+
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');
