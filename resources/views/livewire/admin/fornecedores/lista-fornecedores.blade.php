@@ -69,7 +69,7 @@
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">
                                 @unless ($fornecedor->homologado)
-                                    <button wire:click="homologar({{ $fornecedor->id }})" wire:confirm="Homologar este fornecedor?" class="text-blue-400 hover:text-blue-300 text-xs">Homologar</button>
+                                    <button wire:click="abrirHomologacao({{ $fornecedor->id }})" wire:loading.attr="disabled" class="text-blue-400 hover:text-blue-300 text-xs">Homologar</button>
                                 @endunless
                                 <button wire:click="abrirEditar({{ $fornecedor->id }})" class="text-blue-400 hover:text-blue-300 text-xs">Editar</button>
                                 <button wire:click="excluir({{ $fornecedor->id }})" wire:confirm="Confirma exclusão?" class="text-rose-400 hover:text-rose-300 text-xs">Excluir</button>
@@ -96,7 +96,7 @@
 
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Razão Social</label>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Razão Social <span class="text-rose-400">*</span></label>
                         <input type="text" wire:model="razaoSocial" class="input-dark w-full @error('razaoSocial') border-rose-500 @enderror">
                         @error('razaoSocial') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                     </div>
@@ -107,7 +107,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">CNPJ (14 dígitos)</label>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">CNPJ (14 dígitos) <span class="text-rose-400">*</span></label>
                         <input type="text" wire:model="cnpj" maxlength="14" class="input-dark w-full @error('cnpj') border-rose-500 @enderror">
                         @error('cnpj') <p class="mt-1 text-sm text-rose-400">{{ $message }}</p> @enderror
                     </div>
@@ -146,6 +146,24 @@
                     <button wire:click="salvar" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Salvar
                     </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal homologar (modal do sistema, não o confirm() do navegador) --}}
+    @if ($homologandoId !== null)
+        @php($homologando = $fornecedores->firstWhere('id', $homologandoId))
+        <div class="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl shadow-xl w-full max-w-md p-6">
+                <h2 class="text-lg font-bold text-slate-100 mb-2">Homologar fornecedor</h2>
+                <p class="text-sm text-slate-400 mb-4">
+                    <span class="text-slate-200 font-medium">{{ $homologando?->nome ?? 'Este fornecedor' }}</span>
+                    passará a receber solicitações de cotação e poderá vencer cotações. A homologação fica registrada na auditoria com o seu nome.
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button wire:click="$set('homologandoId', null)" class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">Voltar</button>
+                    <button wire:click="homologar({{ $homologandoId }})" wire:loading.attr="disabled" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">Homologar</button>
                 </div>
             </div>
         </div>

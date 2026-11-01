@@ -19,6 +19,26 @@ enum StatusRequisicao: string
     case Concluida = 'concluida';
     case Cancelada = 'cancelada';
 
+    /** Rótulo para a tela (acentuado; antes as telas faziam ucwords do value, sem acento). */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Rascunho => 'Rascunho',
+            self::AguardandoTriagem => 'Aguardando triagem',
+            self::EmTriagem => 'Em triagem',
+            self::Devolvida => 'Devolvida',
+            self::EmCotacao => 'Em cotação',
+            self::CotacaoConcluida => 'Cotação concluída',
+            self::AguardandoAprovacao => 'Aguardando aprovação',
+            self::Aprovada => 'Aprovada',
+            self::Reprovada => 'Reprovada',
+            self::EmCompra => 'Em compra',
+            self::Recebida => 'Recebida',
+            self::Concluida => 'Concluída',
+            self::Cancelada => 'Cancelada',
+        };
+    }
+
     /** Verifica se o status encerra o ciclo de vida da requisição. */
     public function ehTerminal(): bool
     {

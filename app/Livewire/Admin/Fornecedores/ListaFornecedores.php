@@ -123,11 +123,25 @@ class ListaFornecedores extends Component
         $this->dispatch('notify', mensagem: 'Fornecedor salvo com sucesso.');
     }
 
+    /** Fornecedor cujo modal de homologação está aberto (null = fechado). */
+    public ?int $homologandoId = null;
+
+    public function abrirHomologacao(int $id): void
+    {
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
+        $fornecedor = Fornecedor::findOrFail($id);
+        abort_unless(auth()->user()->can('operar', $fornecedor), 403);
+
+        $this->homologandoId = $fornecedor->id;
+    }
+
     public function homologar(int $id): void
     {
         abort_unless(auth()->user()->can('admin.gerenciar'), 403);
         $fornecedor = Fornecedor::findOrFail($id);
         abort_unless(auth()->user()->can('operar', $fornecedor), 403);
+
+        $this->homologandoId = null;
 
         if ($fornecedor->homologado) {
             return;

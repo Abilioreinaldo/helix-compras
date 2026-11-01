@@ -7,6 +7,12 @@
 
     <x-page-header title="Fila de Aprovações" icon="check-badge" subtitle="Requisições aguardando sua aprovação." />
 
+    @if (($propriasAguardando ?? 0) > 0)
+        <div class="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            {{ $propriasAguardando === 1 ? '1 requisição sua aguarda aprovação de outro aprovador' : $propriasAguardando.' requisições suas aguardam aprovação de outro aprovador' }} — quem pede não aprova a própria requisição.
+        </div>
+    @endif
+
     <x-filter-bar>
         <x-filter-bar.field label="Unidade">
             <select wire:model.live="filtroUnidadeId" class="input-dark">

@@ -9,6 +9,16 @@ enum StatusAprovacao: string
     case Reprovada = 'reprovada';
     case Pulada = 'pulada';
 
+    public function label(): string
+    {
+        return match ($this) {
+            self::Pendente => 'Pendente',
+            self::Aprovada => 'Aprovada',
+            self::Reprovada => 'Reprovada',
+            self::Pulada => 'Pulada',
+        };
+    }
+
     public function ehTerminal(): bool
     {
         return $this !== self::Pendente;

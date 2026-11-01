@@ -18,7 +18,7 @@
     >
         <x-slot name="actions">
             <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium {{ $statusBadge }}">
-                {{ ucwords(str_replace('_', ' ', $requisicao->status->value)) }}
+                {{ $requisicao->status->label() }}
             </span>
             @if ($requisicao->urgente)
                 <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber-500/15 text-amber-400">Urgente</span>
@@ -87,7 +87,7 @@
                 @if ($requisicao->obra)
                     <div class="flex justify-between">
                         <dt class="text-slate-400">Obra</dt>
-                        <dd class="text-slate-200">{{ $requisicao->obra->id }}</dd>
+                        <dd class="text-slate-200">{{ $requisicao->obra->unidade?->nome ?? $requisicao->unidade?->nome ?? 'Obra #'.$requisicao->obra->id }}@if ($requisicao->obra->iniciada_em) <span class="text-slate-500">· desde {{ $requisicao->obra->iniciada_em->format('d/m/Y') }}</span>@endif</dd>
                     </div>
                     @if ($requisicao->consumo_verba_no_submit)
                         <div class="flex justify-between">
@@ -163,9 +163,9 @@
                 <li class="ml-4">
                     <div class="absolute w-2 h-2 bg-slate-600 rounded-full -left-1 mt-1.5"></div>
                     <p class="text-sm text-slate-200">
-                        <span class="font-medium">{{ ucwords(str_replace('_', ' ', $log->status_novo->value)) }}</span>
+                        <span class="font-medium">{{ $log->status_novo->label() }}</span>
                         @if ($log->status_anterior)
-                            <span class="text-slate-500"> ← {{ ucwords(str_replace('_', ' ', $log->status_anterior->value)) }}</span>
+                            <span class="text-slate-500"> ← {{ $log->status_anterior->label() }}</span>
                         @endif
                     </p>
                     <p class="text-xs text-slate-400">

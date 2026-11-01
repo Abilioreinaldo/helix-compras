@@ -6,7 +6,7 @@
             <select wire:model.live="filtroStatus" class="input-dark">
                 <option value="">Todos os status</option>
                 @foreach ($statusDisponiveis as $s)
-                    <option value="{{ $s->value }}">{{ ucwords(str_replace('_', ' ', $s->value)) }}</option>
+                    <option value="{{ $s->value }}">{{ $s->label() }}</option>
                 @endforeach
             </select>
         </x-filter-bar.field>
@@ -81,7 +81,7 @@
                                         };
                                     @endphp
                                     <span class="inline-flex px-2 py-0.5 rounded text-xs font-medium {{ $badgeClass }}">
-                                        {{ ucwords(str_replace('_', ' ', $statusVal)) }}
+                                        {{ \App\Enums\StatusRequisicao::from($statusVal)->label() }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-slate-400">{{ $req->created_at->format('d/m/Y H:i') }}</td>

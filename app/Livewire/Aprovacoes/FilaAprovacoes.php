@@ -65,9 +65,29 @@ class FilaAprovacoes extends Component
                     : $u->pivot->nivel_alcada,
             ]);
 
+        // Segregação: quem pediu não aprova (AprovarEtapaAction). A própria requisição
+        // sai da fila "para você" e vira um aviso — antes aparecia e o modal recusava.
+        $base = Requisicao::withoutGlobalScope(UnidadeScope::class)
+            ->where('status', StatusRequisicao::AguardandoAprovacao->value)
+            ->where(function ($q) use ($pares) {
+                foreach ($pares as $par) {
+                    $q->orWhere(function ($sub) use ($par) {
+                        $sub->where('unidade_id', $par['unidade_id'])
+                            ->whereHas('aprovacoes', fn ($a) => $a
+                                ->where('status', StatusAprovacao::Pendente->value)
+                                ->where('nivel_exigido', $par['nivel'])
+                                ->whereColumn('ciclo', 'requisicoes.ciclo_aprovacao')
+                            );
+                    });
+                }
+            });
+
+        $propriasAguardando = (clone $base)->where('solicitante_id', $usuario->id)->count();
+
         $requisicoes = Requisicao::withoutGlobalScope(UnidadeScope::class)
             ->with(['solicitante', 'unidade', 'faixaAlcada'])
             ->where('status', StatusRequisicao::AguardandoAprovacao->value)
+            ->where('solicitante_id', '!=', $usuario->id)
             ->where(function ($q) use ($pares) {
                 foreach ($pares as $par) {
                     $q->orWhere(function ($sub) use ($par) {
@@ -94,7 +114,7 @@ class FilaAprovacoes extends Component
 
         $faixas = FaixaAlcada::orderBy('valor_minimo')->get(['id', 'nome']);
 
-        return view('livewire.aprovacoes.fila-aprovacoes', compact('requisicoes', 'unidadesFiltro', 'faixas'))
+        return view('livewire.aprovacoes.fila-aprovacoes', compact('requisicoes', 'unidadesFiltro', 'faixas', 'propriasAguardando'))
             ->layout('components.layouts.app');
     }
 }

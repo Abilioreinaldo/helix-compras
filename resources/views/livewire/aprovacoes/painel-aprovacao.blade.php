@@ -112,6 +112,9 @@
                             <td class="px-4 py-2.5">
                                 @if ($item->estaRejeitado())
                                     <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-rose-500/15 text-rose-400" title="{{ $item->motivo_rejeicao }}">Rejeitado</span>
+                                @elseif ($requisicao->status === \App\Enums\StatusRequisicao::AguardandoAprovacao)
+                                    {{-- ainda não houve decisão: o item está em análise, não "aprovado" --}}
+                                    <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-amber-500/15 text-amber-400">Em análise</span>
                                 @else
                                     <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-400">Aprovado</span>
                                 @endif
@@ -156,7 +159,7 @@
                                     @elseif ($etapa->status === \App\Enums\StatusAprovacao::Pulada) bg-slate-500/15 text-slate-300
                                     @else bg-amber-500/15 text-amber-400
                                     @endif">
-                                    {{ ucfirst($etapa->status->value) }}
+                                    {{ $etapa->status->label() }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-slate-400">
@@ -232,7 +235,7 @@
                         class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="aprovar"
+                    <button wire:click="aprovar" wire:loading.attr="disabled"
                         class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors">
                         Confirmar aprovação
                     </button>
@@ -258,7 +261,7 @@
                         class="rounded-lg bg-slate-800 border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 transition-colors">
                         Cancelar
                     </button>
-                    <button wire:click="reprovar"
+                    <button wire:click="reprovar" wire:loading.attr="disabled"
                         class="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 transition-colors">
                         Confirmar reprovação
                     </button>

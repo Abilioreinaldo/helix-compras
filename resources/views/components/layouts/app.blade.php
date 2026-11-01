@@ -7,6 +7,12 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('brand/helix-symbol-gradient.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
+    {{-- Até o Livewire iniciar, os controles ficam inertes e esmaecidos: o clique
+         dado cedo demais era perdido em silêncio (aceite 25/09). --}}
+    <style>
+        html:not(.lw-ready) [wire\:click], html:not(.lw-ready) [wire\:submit], html:not(.lw-ready) form[wire\:submit] button { pointer-events: none; opacity: .6; }
+    </style>
+    <script>document.addEventListener('livewire:init', () => document.documentElement.classList.add('lw-ready'));</script>
 </head>
 <body class="h-full bg-slate-950 font-sans text-slate-100 antialiased">
 

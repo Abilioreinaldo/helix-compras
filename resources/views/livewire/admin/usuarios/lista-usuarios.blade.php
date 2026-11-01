@@ -72,7 +72,7 @@
                             </td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium {{ $usuario->status === 'active' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400' }}">
-                                    {{ ucfirst($usuario->status) }}
+                                    {{ $usuario->status === 'active' ? 'Ativo' : ($usuario->status === 'inactive' ? 'Inativo' : ucfirst((string) $usuario->status)) }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-right space-x-2">

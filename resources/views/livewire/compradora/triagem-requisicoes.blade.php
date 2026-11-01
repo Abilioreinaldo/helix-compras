@@ -50,18 +50,18 @@
                             </td>
                             <td class="px-4 py-3">
                                 <span class="inline-flex rounded px-2 py-0.5 text-xs font-medium bg-slate-500/15 text-slate-300">
-                                    {{ ucwords(str_replace('_', ' ', $req->status->value)) }}
+                                    {{ $req->status->label() }}
                                 </span>
                             </td>
                             <td class="px-4 py-3 text-slate-400">{{ $req->submetida_em?->format('d/m/Y H:i') ?? '—' }}</td>
                             <td class="px-4 py-3 text-right space-x-2">
                                 <a href="{{ route('requisicoes.detalhe', $req->id) }}" class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors">Ver</a>
                                 @if ($req->status->value === 'aguardando_triagem')
-                                    <button wire:click="iniciarTriagem({{ $req->id }})" class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 transition-colors">Iniciar</button>
+                                    <button wire:click="iniciarTriagem({{ $req->id }})" wire:loading.attr="disabled" title="Assume a requisição para análise (status: Em triagem)" class="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-500 transition-colors">Iniciar triagem</button>
                                 @endif
                                 @if ($req->status->value === 'em_triagem')
-                                    <button wire:click="enviarParaCotacao({{ $req->id }})" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 transition-colors">Cotação</button>
-                                    <button wire:click="abrirDevolucao({{ $req->id }})" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition-colors">Devolver</button>
+                                    <button wire:click="enviarParaCotacao({{ $req->id }})" wire:loading.attr="disabled" title="Aceita a requisição e a envia para a etapa de cotação com fornecedores" class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 transition-colors">Enviar para cotação</button>
+                                    <button wire:click="abrirDevolucao({{ $req->id }})" wire:loading.attr="disabled" title="Devolve ao solicitante com um motivo" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-500 transition-colors">Devolver</button>
                                 @endif
                                 @if ($expressa)
                                     <button
