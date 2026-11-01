@@ -4,7 +4,6 @@ use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -61,10 +60,11 @@ it('não lista mais quem teve o vínculo com esta empresa revogado', function ()
         ->test(ListaUsuarios::class)
         ->assertDontSee('Ex Membro');
 
-    expect(fn () => Livewire::actingAs($this->adminA)
+    // Livewire 4.4.8+: o 404 do handler vira resposta do Testable (não relança a exceção)
+    Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
-        ->call('excluir', $exMembro->id))
-        ->toThrow(ModelNotFoundException::class);
+        ->call('excluir', $exMembro->id)
+        ->assertNotFound();
 });
 
 // ─── v0.7.0: vínculo SUSPENSO é visível e revogável (membersOf com status) ────
@@ -96,10 +96,10 @@ it('vínculo suspenso não abre a edição (reativar não é ação desta tela)'
 
     // Fail-closed: as ações que operam sobre vínculo ATIVO continuam resolvendo pela
     // consulta de ativos — ver o suspenso na lista não o torna editável.
-    expect(fn () => Livewire::actingAs($this->adminA)
+    Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
-        ->call('abrirEditar', $suspenso->id))
-        ->toThrow(ModelNotFoundException::class);
+        ->call('abrirEditar', $suspenso->id)
+        ->assertNotFound();
 });
 
 it('não mostra os papéis que o convidado tem na empresa dele', function () {

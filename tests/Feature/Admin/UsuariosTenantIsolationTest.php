@@ -4,7 +4,6 @@ use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -49,18 +48,19 @@ it('não deixa buscar usuário de outro tenant', function () {
 
 it('não deixa excluir usuário de outro tenant', function () {
     // findOrFail escopado não acha o userB → lança antes do delete (404 no HTTP).
-    expect(fn () => Livewire::actingAs($this->adminA)
+    // Livewire 4.4.8+: o 404 do handler vira resposta do Testable (não relança a exceção)
+    Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
-        ->call('excluir', $this->userB->id))
-        ->toThrow(ModelNotFoundException::class);
+        ->call('excluir', $this->userB->id)
+        ->assertNotFound();
 
     // e o usuário do tenant B continua no banco, intacto
     expect(User::find($this->userB->id))->not->toBeNull();
 });
 
 it('não deixa abrir para edição um usuário de outro tenant', function () {
-    expect(fn () => Livewire::actingAs($this->adminA)
+    Livewire::actingAs($this->adminA)
         ->test(ListaUsuarios::class)
-        ->call('abrirEditar', $this->userB->id))
-        ->toThrow(ModelNotFoundException::class);
+        ->call('abrirEditar', $this->userB->id)
+        ->assertNotFound();
 });

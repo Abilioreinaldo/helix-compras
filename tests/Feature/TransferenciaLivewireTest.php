@@ -6,7 +6,6 @@ use App\Models\SaldoEstoque;
 use App\Models\TransferenciaEstoque;
 use App\Models\Unidade;
 use App\Models\User;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -91,10 +90,11 @@ it('saldos_nao_transfere_saldo_de_unidade_alheia', function () {
     $saldo = trlw_saldo($uOrigem, 10.0, 50.0); // saldo da origem, almox é de outra unidade
 
     // O almoxarife só alcança saldos das suas unidades → findOrFail lança (404 em HTTP real).
-    expect(fn () => Livewire::actingAs($almoxOutro)
+    // Livewire 4.4.8+: o 404 do handler vira resposta do Testable (não relança a exceção)
+    Livewire::actingAs($almoxOutro)
         ->test(SaldosEstoque::class)
-        ->call('abrirTransferencia', $saldo->id))
-        ->toThrow(ModelNotFoundException::class);
+        ->call('abrirTransferencia', $saldo->id)
+        ->assertNotFound();
 
     expect(TransferenciaEstoque::count())->toBe(0);
 });

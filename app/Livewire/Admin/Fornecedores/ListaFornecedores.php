@@ -123,8 +123,14 @@ class ListaFornecedores extends Component
         $this->dispatch('notify', mensagem: 'Fornecedor salvo com sucesso.');
     }
 
-    /** Fornecedor cujo modal de homologação está aberto (null = fechado). */
+    /** Fornecedor cujo modal de homologação está aberto (null = fechado). Só muda por abrir/fechar/homologar. */
+    #[Locked]
     public ?int $homologandoId = null;
+
+    public function fecharHomologacao(): void
+    {
+        $this->homologandoId = null;
+    }
 
     public function abrirHomologacao(int $id): void
     {

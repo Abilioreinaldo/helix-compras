@@ -8,7 +8,6 @@ use App\Models\RequisicaoMaterial;
 use App\Models\SaldoEstoque;
 use App\Models\Unidade;
 use App\Models\User;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
@@ -182,15 +181,15 @@ it('rim_solicitante_nao_pode_criar_rim_em_unidade_alheia', function () {
     ]);
 
     // O findOrFail escopado às unidades do solicitante barra o saldo alheio
-    expect(function () use ($setup, $saldoAlheio) {
-        Livewire::actingAs($setup['solicitante'])
-            ->test(RequisicoesMaterial::class)
-            ->call('abrirFormulario')
-            ->set('saldoEstoqueId', $saldoAlheio->id)
-            ->set('quantidadeSolicitada', '1')
-            ->set('justificativa', 'Tentativa indevida')
-            ->call('salvar');
-    })->toThrow(ModelNotFoundException::class);
+    // Livewire 4.4.8+: o 404 do handler vira resposta do Testable (não relança a exceção)
+    Livewire::actingAs($setup['solicitante'])
+        ->test(RequisicoesMaterial::class)
+        ->call('abrirFormulario')
+        ->set('saldoEstoqueId', $saldoAlheio->id)
+        ->set('quantidadeSolicitada', '1')
+        ->set('justificativa', 'Tentativa indevida')
+        ->call('salvar')
+        ->assertNotFound();
 
     expect(RequisicaoMaterial::count())->toBe(0);
 });

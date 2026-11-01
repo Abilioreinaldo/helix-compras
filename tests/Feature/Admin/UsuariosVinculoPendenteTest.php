@@ -4,7 +4,6 @@ use App\Livewire\Admin\Usuarios\ListaUsuarios;
 use App\Models\User;
 use Helix\Foundation\Models\Platform\Identity\Tenant;
 use Helix\Foundation\Services\Platform\Support\TenantContext;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -90,18 +89,21 @@ it('definir alcance ativa o vínculo como corporativo e audita', function () {
 it('não libera vínculo pendente de OUTRA empresa (anti-IDOR)', function () {
     $deOutra = ps_pendente($this->tenantB->id, 'dela@bravo-ps.test');
 
+    // Livewire 4.4.8+: o 404 do handler vira resposta do Testable (não relança a exceção)
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)
-        ->call('definirAlcance', $deOutra->id);
-})->throws(ModelNotFoundException::class);
+        ->call('definirAlcance', $deOutra->id)
+        ->assertNotFound();
+});
 
 it('não mexe em vínculo que já está ativo', function () {
     $ativo = User::factory()->create(['tenant_id' => $this->tenantA->id, 'email' => 'ativo@alfa-ps.test']);
 
     Livewire::actingAs($this->admin)
         ->test(ListaUsuarios::class)
-        ->call('definirAlcance', $ativo->id);
-})->throws(ModelNotFoundException::class);
+        ->call('definirAlcance', $ativo->id)
+        ->assertNotFound();
+});
 
 it('exige users.manage para definir alcance', function () {
     $pendente = ps_pendente($this->tenantA->id, 'pendente@alfa-ps.test');
