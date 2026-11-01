@@ -129,6 +129,9 @@ class ListaFornecedores extends Component
 
     public function fecharHomologacao(): void
     {
+        // só fecha o modal (sem efeito em registro): mesma permissão de quem o abre
+        abort_unless(auth()->user()->can('admin.gerenciar'), 403);
+
         $this->homologandoId = null;
     }
 
